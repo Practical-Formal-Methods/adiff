@@ -37,7 +37,7 @@ cbmcPrime = Verifier "cbmc-prime" (execute cbmc)
 vim :: Verifier
 vim = Verifier "vim" run
   where run fn = do
-          let process  = shell ("vim -R" <> fn) {
+          let process  = (shell ("vim -R " ++ fn)) {
                   std_in        = Inherit
                 , std_out       = Inherit
                 , delegate_ctlc = False }
