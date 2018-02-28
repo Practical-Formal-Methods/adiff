@@ -8,19 +8,10 @@ import           Data.Monoid    ((<>))
 import           System.Exit
 import           System.Process
 
-
--- | TODO: Add execution time and more
-data VerifierResult = VerificationSuccessful | VerificationFailed
-  deriving (Show, Eq)
-
-data Verifier = Verifier
-  { verifierName :: String
-  , execute      :: FilePath -> IO VerifierResult
-  }
-
+import           Types
 
 allVerifiers :: [Verifier]
-allVerifiers = [cbmc, cbmcPrime]
+allVerifiers = [cbmc, cbmcPrime, vim]
 
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.
@@ -40,3 +31,19 @@ cbmc = Verifier "cbmc" run
 cbmcPrime :: Verifier
 cbmcPrime = Verifier "cbmc-prime" (execute cbmc)
 
+
+-- | This is not a real verifier. It uses vim to show the file to the user.
+-- The user can then say successful by closing vim regularly (:q) or failed by closing vim with non-zero exit code (:cq)
+vim :: Verifier
+vim = Verifier "vim" run
+  where run fn = do
+          let process  = shell ("vim -R" <> fn) {
+                  std_in        = Inherit
+                , std_out       = Inherit
+                , delegate_ctlc = False }
+
+          (_,_,_,ph) <- createProcess process
+          exitCode <- waitForProcess ph
+          case exitCode of
+            ExitSuccess   -> return VerificationSuccessful
+            ExitFailure _ -> return VerificationFailed

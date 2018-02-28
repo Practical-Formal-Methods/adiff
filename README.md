@@ -14,3 +14,8 @@ A simple tool compare program verifiers.
 ## Usage
 Run `vdiff --help` to learn more about how to use `vdiff`.
 
+### Supported Verifiers
+Currently we only support one (and a half) verifiers. 
+ * cbmc (parses the last line of its stdout output)
+ * vim (not a real verifier but useful for debugging. To accept a file close vim
+   with `:q`, to reject a file use `:cq` to close with a non-zero exit code)

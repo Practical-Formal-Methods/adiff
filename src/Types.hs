@@ -17,13 +17,24 @@ strategyName SmartGuided = "smart"
 --------------------------------------------------------------------------------
 
 
+-- | TODO: Add execution time and more
+data VerifierResult = VerificationSuccessful | VerificationFailed
+  deriving (Show, Eq)
+
+data Verifier = Verifier
+  { verifierName :: String
+  , execute      :: FilePath -> IO VerifierResult
+  }
+
+
 
 
 
 data MainParameters = MainParameters
-  { verbose  :: Bool
-  , strategy :: Strategy
-  , program  :: FilePath
+  { verbose   :: Bool
+  , strategy  :: Strategy
+  , verifiers :: [Verifier]
+  , program   :: FilePath
   }
 
 --------------------------------------------------------------------------------

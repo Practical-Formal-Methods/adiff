@@ -9,33 +9,55 @@ import           Prelude                    hiding (fail, reads)
 
 import           Control.Monad              hiding (fail)
 import           Control.Monad.Trans.Reader
+import           Data.List                  (nub)
 import           Data.Monoid                ((<>))
 import           Language.C
+import           System.Exit
+import           System.IO
+import           System.IO.Temp
 import           System.Random
+import           Text.PrettyPrint           (render)
 
 import           Types
 
+
+-- TODO: this uses naive strategy, always
 diff :: MainParameters -> IO ()
 diff p = do
   res <- parseCFilePre (program p)
   case res of
     Left err        -> putStrLn $ show err
     Right cTrUnit -> do
-      seed <- randomIO :: IO Int
-      let rnd = mkStdGen seed
-      putStrLn $ "seed : " <> show seed
-      setStdGen rnd
-      putStrLn "parsed:"
+      initRandom
+      putStrLn "successfully parsed"
       let genPos = translationUnit cTrUnit
           posN = length $ runGen genPos
-      putStrLn $ show posN
+      putStrLn ("insertion points: " ++ show posN)
       forM_ (runGen genPos) $ \inserter -> do
         j <- randomRIO (-100,100) :: IO Integer
-        let
-            asTmpl = notEqualsAssertion j
+        let asTmpl = notEqualsAssertion j
             mutated = runReader inserter asTmpl
-        putStrLn "// <---- snip ----> "
-        putStrLn $ show $ pretty mutated
+
+        withSystemTempFile "input.c" $ \fp h -> do
+          let rendered = render $ pretty mutated
+          hPutStr h rendered
+          hFlush h
+          verResults <- mapM (`execute` fp) (verifiers p)
+          when (length (nub verResults) > 1) $ do
+            putStrLn "found inconsistency with the following file:"
+            putStrLn rendered
+            exitSuccess
+
+        return ()
+
+
+-- TODO: check if seed is in the arguments
+initRandom :: IO ()
+initRandom = do
+      seed <- randomIO :: IO Int
+      let rnd = mkStdGen seed
+      putStrLn $ "seed: " <> show seed
+      setStdGen rnd
 
 --------------------------------------------------------------------------------
 -- * Helpers

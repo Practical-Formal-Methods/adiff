@@ -27,4 +27,6 @@ executable vdiff
                      , transformers >= 0.5
                      , mtl 
                      , random 
-                     , process
+                     , process 
+                     , temporary
+                     , pretty
