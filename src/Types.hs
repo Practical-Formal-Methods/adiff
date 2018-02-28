@@ -4,16 +4,14 @@
 module Types where
 
 import           Control.Monad.Trans.Reader
-import           Control.Monad.Trans.State
 
-import           Data.String                (String)
 import           System.IO                  (FilePath)
 
 data Strategy = NaiveRandom -- ^ naive random strategry
               | SmartGuided -- ^ not implemented yet
 
 
-strategyName :: Strategy -> Data.String.String
+strategyName :: Strategy -> String
 strategyName NaiveRandom = "naive"
 strategyName SmartGuided = "smart"
 --------------------------------------------------------------------------------

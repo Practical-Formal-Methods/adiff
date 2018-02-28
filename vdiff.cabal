@@ -16,6 +16,7 @@ executable vdiff
   main-is:             Main.hs
   other-modules:       Diff
                      , Types
+                     , Verifiers
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                      , LambdaCase
@@ -26,3 +27,4 @@ executable vdiff
                      , transformers >= 0.5
                      , mtl 
                      , random 
+                     , process
