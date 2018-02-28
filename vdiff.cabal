@@ -17,12 +17,10 @@ executable vdiff
   other-modules:       Diff
                      , Types
   default-language:    Haskell2010
-  default-extensions:  NoImplicitPrelude
-                     , OverloadedStrings
+  default-extensions:  OverloadedStrings
                      , LambdaCase
                      , PartialTypeSignatures
   build-depends:       base >= 4.7 && < 5
-                     , foundation
                      , optparse-applicative
                      , language-c 
                      , transformers >= 0.5

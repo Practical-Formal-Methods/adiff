@@ -3,8 +3,6 @@
 
 module Types where
 
-import           Foundation
-
 import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.State
 

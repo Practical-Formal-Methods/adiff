@@ -5,10 +5,11 @@
 
 module Diff where
 
-import           Foundation                 hiding (fail)
+import           Prelude                    hiding (fail, reads)
 
 import           Control.Monad              hiding (fail)
 import           Control.Monad.Trans.Reader
+import           Data.Monoid                ((<>))
 import           Language.C
 import           System.Random
 

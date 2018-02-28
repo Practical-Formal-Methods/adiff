@@ -1,7 +1,7 @@
 module Main where
 
-import           Foundation
 import           Options.Applicative
+import           Data.Monoid                ((<>))
 
 import           Diff
 import           Types
