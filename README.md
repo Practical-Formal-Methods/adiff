@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/chkl/vdiff.svg?token=LABbvVHJ7ARjnEncQ2vN&branch=master)](https://travis-ci.com/chkl/vdiff)
+
 # vdiff
 A simple tool compare program verifiers.
 
