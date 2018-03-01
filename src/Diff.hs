@@ -99,7 +99,12 @@ translationUnit (CTranslUnit eds a)= do
 extDeclaration :: CExtDecl -> Gen AssertionTemplate CExtDecl
 extDeclaration (CDeclExt _ ) = fail
 extDeclaration (CAsmExt _ _) = fail
-extDeclaration (CFDefExt f)  =  CFDefExt <$> functionDefinition f
+extDeclaration (CFDefExt f)  =  case functionName f of
+  Just ('_' : ('_' : _)) -> fail -- ignore things that start with two underscores
+  _                      -> CFDefExt <$> functionDefinition f
+
+functionName :: CFunctionDef a -> Maybe String
+functionName (CFunDef _ (CDeclr mIdent _ _ _ _) _ _ _) = identToString <$> mIdent
 
 functionDefinition :: CFunDef -> Gen AssertionTemplate CFunDef
 functionDefinition (CFunDef specs declr decla stmt x) = CFunDef specs declr decla <$> statement stmt <*> pure x
@@ -171,6 +176,6 @@ instance HasReads (CExpression a) where
 
 notEqualsAssertion :: Integer -> AssertionTemplate
 notEqualsAssertion i = AssertionTemplate $ \varName ->
-  let identifier = CVar (builtinIdent "assert") undefNode
+  let identifier = CVar (builtinIdent "__VERIFIER_assert") undefNode
       expression = CBinary CNeqOp  (CVar varName undefNode) (CConst (CIntConst (cInteger i) undefNode )) undefNode
   in CExpr (Just $ CCall identifier [expression]  undefNode) undefNode
