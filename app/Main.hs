@@ -2,6 +2,7 @@ module Main where
 
 import           Options.Applicative
 import           Data.Monoid                ((<>))
+import Data.List ((\\))
 
 import           Diff
 import           Types
@@ -39,4 +40,9 @@ mainParameters = MainParameters
     verifierParser :: ReadM [Verifier]
     verifierParser = str >>= \s -> if s == ""
       then pure []
-      else pure $ filter (\v -> verifierName v `elem` words s) allVerifiers
+      else let reqVer = words s
+               unavailable = reqVer \\ map verifierName allVerifiers
+           in
+             if null unavailable
+             then pure $ filter (\v -> verifierName v `elem` reqVer) allVerifiers
+             else readerError $ "unknown verifier(s): " ++ (unwords unavailable)
