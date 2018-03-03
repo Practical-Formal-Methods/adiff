@@ -1,11 +1,12 @@
 name:                vdiff
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis:            vdiff --help
+description:         A simple tool to compare static program verifiers
 homepage:            https://github.com/chkl/vdiff#readme
 author:              Christian Klinger
 maintainer:          io@klinch.de
 copyright:           All Rights Reserved
+license:             AllRightsReserved
 category:            Misc
 build-type:          Simple
 cabal-version:       >=1.10

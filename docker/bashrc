@@ -1,0 +1,3 @@
+# simple bashrc that is placed into the docker image
+export PS1='$(pwd) > ' 
+export PATH="$HOME/.local/bin:$PATH"
