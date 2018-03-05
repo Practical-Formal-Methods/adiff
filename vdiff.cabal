@@ -23,15 +23,17 @@ library
                      , PartialTypeSignatures
                      , ScopedTypeVariables
   build-depends:       base >= 4.7 && < 5
-                     , optparse-applicative
-                     , language-c 
-                     , transformers >= 0.5
-                     , mtl 
-                     , random 
-                     , process 
-                     , temporary
-                     , pretty
+                     , bytestring >= 0.10
                      , data-default
+                     , file-embed
+                     , language-c 
+                     , mtl 
+                     , optparse-applicative
+                     , pretty
+                     , process 
+                     , random 
+                     , temporary
+                     , transformers >= 0.5
 
 executable vdiff
   hs-source-dirs:      app

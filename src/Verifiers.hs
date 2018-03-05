@@ -1,13 +1,20 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Verifiers
   ( VerifierResult
   , Verifier(..)
   , allVerifiers
   ) where
 
-import           Data.Monoid    ((<>))
+import qualified Data.ByteString.Char8 as C8
+import           Data.FileEmbed
+import           Data.Monoid           ((<>))
 import           System.Exit
+import           System.IO
+import           System.IO.Temp
 import           System.Process
 
+import           Debug.Trace
 import           Types
 
 allVerifiers :: [Verifier]
@@ -18,7 +25,7 @@ allVerifiers = [cbmc, vim, uautomizer, klee]
 cbmc :: Verifier
 cbmc = def { verifierName = "cbmc", execute =  run, version = cbmcVersion }
   where run fn = do
-          let cmd = "cbmc --32 " <> fn
+          let cmd = "cbmc --32 --error-label ERROR " <> fn
           (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
           let lastLine = last $ lines out
           case (exitCode, lastLine) of
@@ -50,15 +57,15 @@ vim = def { verifierName = "vim", execute = run, version = vimVersion }
 
 uautomizer :: Verifier
 uautomizer = def { verifierName = "uautomizer", execute = run, version = uautomizerVersion}
-  where run fn = do
-          let cmd = "Ultimate.py --architecture 32bit --file " <> fn
-          (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
-          let lastLine = last $ lines out
-          case (exitCode, lastLine) of
-              (ExitSuccess,"VERIFICATION FAILED")     -> return VerificationFailed
-              (ExitSuccess,"VERIFICATION SUCCESSFUL") -> return VerificationSuccessful
-              _                                       -> return VerificationFailed
-          return VerificationResultUnknown
+  where run fn = withSpec reachSafety $ \spec -> do
+            let cmd = "Ultimate.py --architecture 32bit --file " ++ fn ++ " --spec " ++ spec
+            putStrLn cmd
+            (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
+            let lastLine = last $ lines out
+            case (exitCode, lastLine) of
+                (ExitSuccess,"VERIFICATION FAILED")     -> return VerificationFailed
+                (ExitSuccess,"VERIFICATION SUCCESSFUL") -> return VerificationSuccessful
+                _                                       -> return VerificationFailed
         uautomizerVersion = Just . head . lines <$> readCreateProcess (shell "Ultimate.py --version") ""
 
 klee :: Verifier
@@ -67,4 +74,28 @@ klee = def { verifierName = "klee", execute = kleeExecute, version = kleeVersion
     kleeVersion = do
       (_,out,_) <- readCreateProcessWithExitCode (shell "klee --version") ""
       return $ (Just . head . lines) out
-    kleeExecute fn = undefined
+
+    kleeExecute fn = withKleeH $ \kleeH ->
+        withSystemTempFile "file.bc" $ \bc _ -> do
+        callCommand $ "clang -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
+        (exitCode, out, _) <- readCreateProcessWithExitCode (shell $ "klee " ++ bc) ""
+        case (exitCode, null out) of
+          (ExitSuccess, True)  -> return VerificationSuccessful
+          (ExitSuccess, False) -> return VerificationFailed
+          (ExitFailure _, _ )  -> return VerificationResultUnknown
+
+    withKleeH :: (FilePath -> IO a) -> IO a
+    withKleeH actn = withSystemTempFile "klee.h"$ \f h -> do
+      C8.hPutStrLn h $(embedFile "assets/klee.h")
+      hFlush h
+      actn f
+
+
+withSpec :: Property -> (FilePath -> IO a) -> IO a
+withSpec p f = withSystemTempFile "spec.prp" $ \fp hndl -> do
+  hPutStr hndl p
+  hFlush hndl
+  f fp
+
+reachSafety :: Property
+reachSafety = "CHECK( init(main()), LTL(G ! call(__VERIFIER_error())) )"
