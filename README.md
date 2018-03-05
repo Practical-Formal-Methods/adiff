@@ -15,7 +15,16 @@ A simple tool to compare program verifiers.
 Run `vdiff --help` to learn more about how to use `vdiff`.
 
 ### Supported Verifiers
-Currently we only support one (and a half) verifiers. 
- * cbmc (parses the last line of its stdout output)
+Currently we support two (and a half) verifiers. 
+ * cbmc (we use `--error-label ERROR`)
+ * klee
  * vim (not a real verifier but useful for debugging. To accept a file close vim
    with `:q`, to reject a file use `:cq` to close with a non-zero exit code)
+
+### Docker
+In some cases (or should we rather say in most), it will not  be possible to execute all verifiers on your system. Klee, for example, needs a specific LLVM version to work.
+To alleviate this problem and for your convenience we provide a Docker image with all the tools installed.
+
+ * Make sure you have an up-to-date generated Dockerfile `make Dockerfile`
+ * Build the docker image `docker build .`. The last line of the output should give you a hash.
+ * You can execute the image with `docker run -it <hash> /bin/bash`. A few test-cases are located in `~/samples` so you can try it out right away.
