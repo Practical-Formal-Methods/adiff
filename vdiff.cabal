@@ -21,6 +21,7 @@ library
   default-extensions:  OverloadedStrings
                      , LambdaCase
                      , PartialTypeSignatures
+                     , ScopedTypeVariables
   build-depends:       base >= 4.7 && < 5
                      , optparse-applicative
                      , language-c 
@@ -30,6 +31,7 @@ library
                      , process 
                      , temporary
                      , pretty
+                     , data-default
 
 executable vdiff
   hs-source-dirs:      app

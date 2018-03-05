@@ -18,7 +18,8 @@ main = execParser opts >>= diff
 
 
 mainParameters :: Parser MainParameters
-mainParameters = MainParameters
+mainParameters = (CmdVersions <$ switch ( long "versions" <> help "prints versions of the available verifiers") ) <|>
+ CmdRun
   <$> switch ( long "verbose" <> help "verbose output")
   <*> option stratParser (mconcat [ long "strategy"
                                   , help "guidance algorithm"

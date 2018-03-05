@@ -1,10 +1,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Types where
+module Types
+  ( module Types
+  , module Data.Default
+  ) where
 
 import           Control.Monad.Trans.Reader
 
+import           Data.Default
 import           System.IO                  (FilePath)
 
 data Strategy = NaiveRandom -- ^ naive random strategry
@@ -18,24 +22,30 @@ strategyName SmartGuided = "smart"
 
 
 -- | TODO: Add execution time and more
-data VerifierResult = VerificationSuccessful | VerificationFailed
+data VerifierResult = VerificationSuccessful | VerificationFailed | VerificationResultUnknown
   deriving (Show, Eq)
 
 data Verifier = Verifier
   { verifierName :: String
   , execute      :: FilePath -> IO VerifierResult
+  , version      :: IO (Maybe String)
   }
 
+instance Default Verifier where
+  def = Verifier { verifierName = error "verifierName has no default value"
+                 , execute  =  const (return VerificationResultUnknown)
+                 , version = return Nothing
+                 }
 
 
 
-
-data MainParameters = MainParameters
+data MainParameters = CmdRun
   { verbose   :: Bool
   , strategy  :: Strategy
   , verifiers :: [Verifier]
   , program   :: FilePath
   }
+  | CmdVersions
 
 --------------------------------------------------------------------------------
 -- Monad Fun

@@ -7,10 +7,13 @@ module Diff where
 
 import           Prelude                    hiding (fail, reads)
 
+import           Control.Exception
 import           Control.Monad              hiding (fail)
 import           Control.Monad.Trans.Reader
-import           Data.List                  (nub)
+import           Data.List                  (nub, sortBy)
 import           Data.Monoid                ((<>))
+import           Data.Ord                   (comparing)
+
 import           Language.C
 import           System.Exit
 import           System.IO
@@ -19,10 +22,12 @@ import           System.Random
 import           Text.PrettyPrint           (render)
 
 import           Types
+import           Verifiers
 
 
 -- TODO: this uses naive strategy, always
 diff :: MainParameters -> IO ()
+diff CmdVersions = cmdVersions
 diff p = do
   res <- parseCFilePre (program p)
   case res of
@@ -49,6 +54,16 @@ diff p = do
             exitSuccess
 
         return ()
+
+cmdVersions :: IO ()
+cmdVersions = forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
+    putStr $ verifierName verifier
+    putStr ": "
+    sv <- try (version verifier) >>= \case
+      Left (_ :: IOException) -> return "unknown (error)"
+      Right Nothing -> return "unknown"
+      Right (Just v) -> return v
+    putStrLn sv
 
 
 -- TODO: check if seed is in the arguments
