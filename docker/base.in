@@ -1,12 +1,12 @@
+# We base our image on the klee image as they have quite hefty requirements
 FROM klee/klee:latest
 
 USER root
-RUN apt-get install curl cbmc
+RUN apt-get -y install curl cbmc vim
 
-RUN curl -sSL "https://get.haskellstack.org/" | sh
+# RUN curl -sSL "https://get.haskellstack.org/" | sh
 
-
+RUN mkdir -p "/root/.local/bin"
 COPY "./docker/bashrc" "/home/klee/.bashrc"
 COPY "./docker/bashrc" "/root/.bashrc"
 
-INCLUDE "vdiff.in"

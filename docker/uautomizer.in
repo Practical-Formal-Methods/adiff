@@ -1,0 +1,10 @@
+
+# Install uautomizer
+RUN apt-get -y install python2.7
+RUN cd /tmp && \
+    wget "https://github.com/ultimate-pa/ultimate/releases/download/v0.1.23/UltimateAutomizer-linux.zip" && \
+    mkdir -p /verifiers && \
+    unzip UltimateAutomizer-linux.zip -d /verifiers/ && \
+    ln -s /verifiers/UAutomizer-linux/Ultimate.py ~/.local/bin
+
+
