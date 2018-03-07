@@ -28,7 +28,7 @@ Dockerfile : docker compile
 	echo "COPY $(BINARY) /root/.local/bin" > docker/vdiff.tmp
 
 # concatenate the different elements of the dockerfile
-	cat docker/base.in  docker/ultimate.in docker/vdiff.tmp docker/samples.in > Dockerfile
+	cat docker/base.in  docker/ultimate.in docker/cpachecker.in docker/vdiff.tmp docker/samples.in > Dockerfile
 
 
 

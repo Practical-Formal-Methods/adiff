@@ -7,10 +7,15 @@ module Verifiers
   , vim
   , cbmc
   , klee
+  , uautomizer
+  , utaipan
+  , cpachecker
   ) where
 
 import qualified Data.ByteString.Char8 as C8
 import           Data.FileEmbed
+import           Data.List             (isPrefixOf)
+import           Data.Maybe            (listToMaybe)
 import           Data.Monoid           ((<>))
 import           System.Exit
 import           System.IO
@@ -20,7 +25,7 @@ import           System.Process
 import           Types
 
 allVerifiers :: [Verifier]
-allVerifiers = [cbmc, vim, uautomizer, utaipan, klee]
+allVerifiers = [cbmc, vim, uautomizer, utaipan, klee, cpachecker]
 
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.
@@ -104,6 +109,23 @@ klee = def { verifierName = "klee", execute = kleeExecute, version = kleeVersion
       C8.hPutStrLn h $(embedFile "assets/klee.h")
       hFlush h
       actn f
+
+cpachecker :: Verifier
+cpachecker = def { verifierName = "cpachecker", execute = cpaExecute, version = cpaVersion}
+  where
+    cpaExecute fn = withSpec reachSafety $ \spec -> do
+      let cmd = shell $ "cpa.sh -default -nolog -noout -spec " ++ spec ++ " " ++ fn
+      (_,out,_) <- readCreateProcessWithExitCode cmd ""
+      let out' = filter ("Verification result" `isPrefixOf`) $ lines out
+      case out' of
+        (s:_) | "Verification result: TRUE" `isPrefixOf` s -> return VerificationSuccessful
+              | "Verification result: FALSE" `isPrefixOf` s -> return VerificationFailed
+        _ -> return VerificationResultUnknown
+
+    cpaVersion = do
+        (_,out,_) <- readCreateProcessWithExitCode (shell "cpa.sh -h") ""
+        let v = listToMaybe $ filter (\l -> "CPAchecker" `isPrefixOf` l) $ lines out
+        return v
 
 
 withSpec :: Property -> (FilePath -> IO a) -> IO a
