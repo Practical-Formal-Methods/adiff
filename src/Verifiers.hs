@@ -63,9 +63,9 @@ uautomizer = def { verifierName = "uautomizer", execute = run, version = uautomi
             (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
             let lastLine = last $ lines out
             case (exitCode, lastLine) of
-                (ExitSuccess,"VERIFICATION FAILED")     -> return VerificationFailed
-                (ExitSuccess,"VERIFICATION SUCCESSFUL") -> return VerificationSuccessful
-                _                                       -> return VerificationFailed
+                (ExitSuccess,"TRUE")  -> return VerificationSuccessful
+                (ExitSuccess,"FALSE") -> return VerificationFailed
+                _                     -> return VerificationResultUnknown
         uautomizerVersion = Just . head . lines <$> readCreateProcess (shell "Ultimate.py --version") ""
 
 klee :: Verifier

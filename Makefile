@@ -9,6 +9,8 @@ default: compile Dockerfile
 compile:
 	stack build
 
+vdiff-docker: Dockerfile
+	docker build -t vdiff:latest  .
 
 clean:
 	stack clean
