@@ -9,12 +9,19 @@ RUN cd /tmp &&\
     dpkg -i java8.deb && \
     rm java8.deb
 
+# install Automizer 
 RUN cd /tmp && \
     wget "https://github.com/ultimate-pa/ultimate/releases/download/v0.1.23/UltimateAutomizer-linux.zip" && \
     mkdir -p /verifiers && \
     unzip UltimateAutomizer-linux.zip -d /verifiers/ && \
-    ln -s /verifiers/UAutomizer-linux/Ultimate.py ~/.local/bin && \
+    ln -s /verifiers/UAutomizer-linux/Ultimate.py ~/.local/bin/Automizer.py && \
     ln -s /verifiers/UAutomizer-linux/z3 ~/.local/bin && \
     ln -s /verifiers/UAutomizer-linux/cvc4 ~/.local/bin
+
+# install Taipan 
+RUN cd /tmp && \
+    wget "https://github.com/ultimate-pa/ultimate/releases/download/v0.1.23/UltimateTaipan-linux.zip" && \
+    unzip UltimateTaipan-linux.zip -d /verifiers/ && \
+    ln -s /verifiers/UTaipan-linux/Ultimate.py ~/.local/bin/Taipan.py
 
 

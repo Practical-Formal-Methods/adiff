@@ -3,7 +3,7 @@ VERSION= $(shell stack query "locals" | grep version | cut -d" " -f 4 | tr -d "'
 SDIST= $(shell stack path --dist-dir)
 BINARY= $(shell stack path --dist-dir)/build/vdiff/vdiff
 
-default: compile Dockerfile
+default: compile vdiff-docker
 
 
 compile:
@@ -28,7 +28,7 @@ Dockerfile : docker compile
 	echo "COPY $(BINARY) /root/.local/bin" > docker/vdiff.tmp
 
 # concatenate the different elements of the dockerfile
-	cat docker/base.in  docker/uautomizer.in docker/vdiff.tmp docker/samples.in > Dockerfile
+	cat docker/base.in  docker/ultimate.in docker/vdiff.tmp docker/samples.in > Dockerfile
 
 
 

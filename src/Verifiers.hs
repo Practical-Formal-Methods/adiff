@@ -4,6 +4,9 @@ module Verifiers
   ( VerifierResult
   , Verifier(..)
   , allVerifiers
+  , vim
+  , cbmc
+  , klee
   ) where
 
 import qualified Data.ByteString.Char8 as C8
@@ -14,11 +17,10 @@ import           System.IO
 import           System.IO.Temp
 import           System.Process
 
-import           Debug.Trace
 import           Types
 
 allVerifiers :: [Verifier]
-allVerifiers = [cbmc, vim, uautomizer, klee]
+allVerifiers = [cbmc, vim, uautomizer, utaipan, klee]
 
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.
@@ -58,7 +60,7 @@ vim = def { verifierName = "vim", execute = run, version = vimVersion }
 uautomizer :: Verifier
 uautomizer = def { verifierName = "uautomizer", execute = run, version = uautomizerVersion}
   where run fn = withSpec reachSafety $ \spec -> do
-            let cmd = "Ultimate.py --architecture 32bit --file " ++ fn ++ " --spec " ++ spec
+            let cmd = "Automizer.py --architecture 32bit --file " ++ fn ++ " --spec " ++ spec
             putStrLn cmd
             (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
             let lastLine = last $ lines out
@@ -66,7 +68,20 @@ uautomizer = def { verifierName = "uautomizer", execute = run, version = uautomi
                 (ExitSuccess,"TRUE")  -> return VerificationSuccessful
                 (ExitSuccess,"FALSE") -> return VerificationFailed
                 _                     -> return VerificationResultUnknown
-        uautomizerVersion = Just . head . lines <$> readCreateProcess (shell "Ultimate.py --version") ""
+        uautomizerVersion = Just . head . lines <$> readCreateProcess (shell "Automizer.py --version") ""
+
+utaipan :: Verifier
+utaipan = def { verifierName = "utaipan", execute = run, version = uautomizerVersion}
+  where run fn = withSpec reachSafety $ \spec -> do
+            let cmd = "Taipan.py --architecture 32bit --file " ++ fn ++ " --spec " ++ spec
+            putStrLn cmd
+            (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
+            let lastLine = last $ lines out
+            case (exitCode, lastLine) of
+                (ExitSuccess,"TRUE")  -> return VerificationSuccessful
+                (ExitSuccess,"FALSE") -> return VerificationFailed
+                _                     -> return VerificationResultUnknown
+        uautomizerVersion = Just . head . lines <$> readCreateProcess (shell "Taipan.py --version") ""
 
 klee :: Verifier
 klee = def { verifierName = "klee", execute = kleeExecute, version = kleeVersion}
