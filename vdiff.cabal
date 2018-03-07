@@ -16,7 +16,13 @@ library
   hs-source-dirs:      src
   exposed-modules:     Diff
                      , Types
-                     , Verifiers
+                     , Verifier
+                     , Verifier.Util
+                     , Verifier.Cbmc
+                     , Verifier.Klee
+                     , Verifier.Ultimate
+                     , Verifier.Vim
+                     , Verifier.CpaChecker
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                      , LambdaCase

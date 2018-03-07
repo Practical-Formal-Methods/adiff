@@ -22,7 +22,7 @@ import           System.Random
 import           Text.PrettyPrint           (render)
 
 import           Types
-import           Verifiers
+import           Verifier
 
 
 -- TODO: this uses naive strategy, always

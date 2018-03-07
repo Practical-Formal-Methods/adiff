@@ -6,7 +6,7 @@ import Data.List ((\\))
 
 import           Diff
 import           Types
-import Verifiers
+import Verifier (allVerifiers)
 
 main :: IO ()
 main = execParser opts >>= diff

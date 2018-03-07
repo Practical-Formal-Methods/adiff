@@ -31,6 +31,12 @@ data Verifier = Verifier
   , version      :: IO (Maybe String)
   }
 
+instance Eq Verifier where
+  v1 == v2 = verifierName v1 == verifierName v2
+
+instance Ord Verifier where
+  v1 <= v2 = verifierName v1 <= verifierName v2
+
 instance Default Verifier where
   def = Verifier { verifierName = error "verifierName has no default value"
                  , execute  =  const (return VerificationResultUnknown)
