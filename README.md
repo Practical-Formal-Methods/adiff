@@ -18,6 +18,9 @@ Run `vdiff --help` to learn more about how to use `vdiff`.
 Currently we support two (and a half) verifiers. 
  * cbmc (we use `--error-label ERROR`)
  * klee
+ * cpaChecker
+ * Ultimate Automizer
+ * Ultimate Taipan
  * vim (not a real verifier but useful for debugging. To accept a file close vim
    with `:q`, to reject a file use `:cq` to close with a non-zero exit code)
 
