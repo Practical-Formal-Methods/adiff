@@ -1,0 +1,9 @@
+
+# install seahorn
+RUN cd /tmp && \
+    wget "https://github.com/seahorn/seahorn/archive/seahorn-llvm-38.tar.gz" && \
+    tar -xf "seahorn-llvm-38.tar.gz"
+
+# TODO: Move this one to base
+RUN apt-get upgrade -y 
+RUN apt-get install -y libboost-system1.55-dev libboost1.55-dev libgmp-dev
