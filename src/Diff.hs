@@ -15,47 +15,67 @@ import           Data.Monoid                ((<>))
 import           Data.Ord                   (comparing)
 
 import           Language.C
+import Language.C.Analysis.TypeUtils
+import Language.C.Analysis.SemRep (Type)
 import           System.Exit
 import           System.IO
 import           System.IO.Temp
 import           System.Random
 import           Text.PrettyPrint           (render)
 
+import Language.C.Analysis.AstAnalysis2
+import Language.C.Analysis.TravMonad
+
 import           Types
 import           Verifier
+
+
+-- short-hand for open, parse and type annotate
+openCFile :: FilePath -> IO (CTranslationUnit SemPhase)
+openCFile fn = parseCFilePre fn >>= \case
+    Left parseError -> do
+      hPutStrLn stderr "parse error: "
+      hPrint stderr parseError
+      exitFailure
+    Right tu -> case runTrav_ (analyseAST tu) of
+        Left typeError -> do
+          hPutStrLn stderr "type error: "
+          hPrint stderr typeError
+          exitFailure
+        Right (tu', warnings) -> do
+          putStrLn "warnings: "
+          hPrint stderr warnings
+          return tu'
 
 
 -- TODO: this uses naive strategy, always
 diff :: MainParameters -> IO ()
 diff CmdVersions = cmdVersions
 diff p = do
-  res <- parseCFilePre (program p)
-  case res of
-    Left err        -> putStrLn $ show err
-    Right cTrUnit -> do
-      initRandom
-      putStrLn "successfully parsed"
-      let genPos = translationUnit cTrUnit
-          posN = length $ runGen genPos
-      putStrLn ("insertion points: " ++ show posN)
-      forM_ (runGen genPos) $ \inserter -> do
-        j <- randomRIO (-100,100) :: IO Integer
-        let asTmpl = notEqualsAssertion j
-            mutated = runReader inserter asTmpl
+  ast <- openCFile (program p)
+  -- initRandom
+  putStrLn "successfully parsed"
+  let genPos = translationUnit ast
+      posN = length $ runGen genPos
+  putStrLn ("insertion points: " ++ show posN)
+  forM_ (runGen genPos) $ \inserter -> do
+    j <- randomRIO (-100,100) :: IO Integer
+    let asTmpl = notEqualsAssertion j
+        mutated = runReader inserter asTmpl
 
-        withSystemTempFile "input.c" $ \fp h -> do
-          let rendered = render $ pretty mutated
-          hPutStr h rendered
-          hFlush h
-          verResults <- mapM (`execute` fp) (verifiers p)
-          when (length (nub verResults) > 1) $ do
-            putStrLn "found inconsistency:"
-            mapM_ putStrLn $ zipWith (\v r-> verifierName v ++ " = " ++ show r ) (verifiers p) verResults
-            putStrLn "with file:"
-            putStrLn rendered
-            exitSuccess
+    withSystemTempFile "input.c" $ \fp h -> do
+      let rendered = render $ pretty mutated
+      hPutStr h rendered
+      hFlush h
+      verResults <- mapM (`execute` fp) (verifiers p)
+      when (length (nub verResults) > 1) $ do
+        putStrLn "found inconsistency:"
+        mapM_ putStrLn $ zipWith (\v r-> verifierName v ++ " = " ++ show r ) (verifiers p) verResults
+        putStrLn "with file:"
+        putStrLn rendered
+        exitSuccess
 
-        return ()
+  return ()
 
 cmdVersions :: IO ()
 cmdVersions = forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
@@ -82,7 +102,7 @@ initRandom = do
 -- | A position is actually a function from the thing to be inserted to a new TranslationUnit
 
 newtype AssertionTemplate = AssertionTemplate {
-  mkAssertion :: Ident -> CStat
+  mkAssertion :: Ident -> CStatement SemPhase
   }
 
 newtype Gen i a = MkGen { runGen :: [Reader i a] }
@@ -107,27 +127,27 @@ branch f (b:bs) = here <> later
 --------------------------------------------------------------------------------
 -- * Generators
 --------------------------------------------------------------------------------
-translationUnit :: CTranslUnit -> Gen AssertionTemplate CTranslUnit
+translationUnit :: CTranslationUnit SemPhase -> Gen AssertionTemplate (CTranslationUnit SemPhase)
 translationUnit (CTranslUnit eds a)= do
   eds' <- branch extDeclaration eds
   return $ CTranslUnit eds' a
 
 
-extDeclaration :: CExtDecl -> Gen AssertionTemplate CExtDecl
+extDeclaration :: CExternalDeclaration SemPhase -> Gen AssertionTemplate (CExternalDeclaration SemPhase)
 extDeclaration (CDeclExt _ ) = fail
 extDeclaration (CAsmExt _ _) = fail
 extDeclaration (CFDefExt f)  =  case functionName f of
   Just ('_' : ('_' : _)) -> fail -- ignore things that start with two underscores
   _                      -> CFDefExt <$> functionDefinition f
 
-functionName :: CFunctionDef a -> Maybe String
+functionName :: CFunctionDef SemPhase -> Maybe String
 functionName (CFunDef _ (CDeclr mIdent _ _ _ _) _ _ _) = identToString <$> mIdent
 
-functionDefinition :: CFunDef -> Gen AssertionTemplate CFunDef
+functionDefinition :: CFunctionDef SemPhase -> Gen AssertionTemplate (CFunctionDef SemPhase)
 functionDefinition (CFunDef specs declr decla stmt x) = CFunDef specs declr decla <$> statement stmt <*> pure x
 
 -- | usually just identity unless it is a compound statement.
-statement :: CStat -> Gen AssertionTemplate CStat
+statement :: CStatement SemPhase -> Gen AssertionTemplate (CStatement SemPhase)
 statement (CLabel i stmt attrs a)      = CLabel i <$> statement stmt <*> pure attrs <*> pure a
 statement (CCase e stmt a)             = CCase e <$> statement stmt <*> pure a
 statement (CCases e1 e2 stmt a)        = CCases e1 e2 <$> statement stmt <*> pure a
@@ -151,20 +171,20 @@ statement (CReturn _ _)                = fail
 statement (CAsm _ _)                   = fail
 
 
-insertAssert :: [CCompoundBlockItem NodeInfo]
-             -> Gen AssertionTemplate [CCompoundBlockItem NodeInfo]
+insertAssert :: [CCompoundBlockItem SemPhase]
+             -> Gen AssertionTemplate [CCompoundBlockItem SemPhase]
 
 insertAssert []                            = fail
 insertAssert (f@(CNestedFunDef _) : items) = (f:) <$> insertAssert items
 insertAssert (f@(CBlockDecl _) : items)    = (f:) <$> insertAssert items
 insertAssert (b@(CBlockStmt stmt) : items) = here  <> further
-  where here = MkGen [reader $ \r ->  (CBlockStmt $ mkAssertion r v ) : b : items| v <- reads stmt]
-        further = (b:)  <$> insertAssert items
+  where here = MkGen [reader $ \r ->  (CBlockStmt $ mkAssertion r v ) : b : items| v <- reads stmt] :: Gen AssertionTemplate [CCompoundBlockItem SemPhase]
+        further = (b:)  <$> insertAssert items :: Gen AssertionTemplate [CCompoundBlockItem SemPhase]
 
 
 
 
-cCompoundBlockItem :: CCompoundBlockItem NodeInfo -> Gen AssertionTemplate (CCompoundBlockItem NodeInfo)
+cCompoundBlockItem :: CCompoundBlockItem SemPhase -> Gen AssertionTemplate (CCompoundBlockItem SemPhase)
 cCompoundBlockItem (CBlockStmt stmt ) = CBlockStmt <$> statement stmt
 cCompoundBlockItem (CBlockDecl _)     = fail
 cCompoundBlockItem (CNestedFunDef _)  = fail
@@ -193,6 +213,11 @@ instance HasReads (CExpression a) where
 
 notEqualsAssertion :: Integer -> AssertionTemplate
 notEqualsAssertion i = AssertionTemplate $ \varName ->
-  let identifier = CVar (builtinIdent "__VERIFIER_assert") undefNode
-      expression = CBinary CNeqOp  (CVar varName undefNode) (CConst (CIntConst (cInteger i) undefNode )) undefNode
-  in CExpr (Just $ CCall identifier [expression]  undefNode) undefNode
+  let identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
+      var = CVar varName (undefNode, simpleIntType) :: CExpression SemPhase
+      const = CConst (CIntConst (cInteger i) (undefNode, simpleIntType )) :: CExpression SemPhase
+      expression = CBinary CNeqOp var const (undefNode, boolType) :: CExpression SemPhase
+  in CExpr (Just $ CCall identifier [expression]  (undefNode,voidType)) (undefNode,voidType)
+
+simpleIntType :: Type
+simpleIntType = integral (getIntType noFlags) 
