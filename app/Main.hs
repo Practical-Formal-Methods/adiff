@@ -2,6 +2,7 @@ module Main where
 
 import           Options.Applicative
 import           Data.Monoid                ((<>))
+import Data.Foldable (asum)
 import Data.List ((\\))
 
 import           Diff
@@ -18,21 +19,24 @@ main = execParser opts >>= diff
 
 
 mainParameters :: Parser MainParameters
-mainParameters = (CmdVersions <$ switch ( long "versions" <> help "prints versions of the available verifiers") ) <|>
- CmdRun
-  <$> switch ( long "verbose" <> help "verbose output")
-  <*> option stratParser (mconcat [ long "strategy"
-                                  , help "guidance algorithm"
-                                  , value NaiveRandom
-                                  , showDefaultWith strategyName
-                                  , metavar "STRATEGY"])
-  <*> option verifierParser (mconcat [ long "verifiers"
-                                     , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
-                                     , value []
-                                     , metavar "VERIFIERS"
-                                     ])
-  <*> argument str (metavar "FILE")
+mainParameters = asum [pVersions, pParseTest, pRun]
   where
+    pVersions  = CmdVersions <$ switch ( long "versions" <> help "prints versions of the available verifiers" )
+    pParseTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints the given file") <*> argument str (metavar "FILE")
+    pRun       = CmdRun
+      <$> switch ( long "verbose" <> help "verbose output")
+      <*> option stratParser (mconcat [ long "strategy"
+                                      , help "guidance algorithm"
+                                      , value NaiveRandom
+                                      , showDefaultWith strategyName
+                                      , metavar "STRATEGY"])
+      <*> option verifierParser (mconcat [ long "verifiers"
+                                        , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
+                                        , value []
+                                        , metavar "VERIFIERS"
+                                        ])
+      <*> argument str (metavar "FILE")
+  
     stratParser :: ReadM Strategy
     stratParser = str >>= \case
         "naive"        -> return NaiveRandom

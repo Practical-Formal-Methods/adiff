@@ -52,6 +52,7 @@ data MainParameters = CmdRun
   , program   :: FilePath
   }
   | CmdVersions
+  | CmdParseTest FilePath
 
 
 type Property = String

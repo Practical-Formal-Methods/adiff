@@ -43,13 +43,15 @@ openCFile fn = parseCFilePre fn >>= \case
           hPrint stderr typeError
           exitFailure
         Right (tu', warnings) -> do
-          putStrLn "warnings: "
-          hPrint stderr warnings
+          unless (null warnings) $ do
+            putStrLn "warnings: "
+            hPrint stderr warnings
           return tu'
 
 
 -- TODO: this uses naive strategy, always
 diff :: MainParameters -> IO ()
+diff (CmdParseTest fn) = cmdParseTest fn
 diff CmdVersions = cmdVersions
 diff p = do
   ast <- openCFile (program p)
@@ -76,6 +78,11 @@ diff p = do
         exitSuccess
 
   return ()
+
+-- | pares the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
+-- Use this to test the modified language-c-extensible library.
+cmdParseTest :: FilePath -> IO ()
+cmdParseTest fn = openCFile fn >>= putStrLn . render . pretty
 
 cmdVersions :: IO ()
 cmdVersions = forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
@@ -220,4 +227,4 @@ notEqualsAssertion i = AssertionTemplate $ \varName ->
   in CExpr (Just $ CCall identifier [expression]  (undefNode,voidType)) (undefNode,voidType)
 
 simpleIntType :: Type
-simpleIntType = integral (getIntType noFlags) 
+simpleIntType = integral (getIntType noFlags)
