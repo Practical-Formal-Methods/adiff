@@ -28,6 +28,13 @@ library
                      , LambdaCase
                      , PartialTypeSignatures
                      , ScopedTypeVariables
+                     , DeriveFunctor
+                     , GeneralizedNewtypeDeriving
+                     , TypeFamilies
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , StandaloneDeriving
+
   build-depends:       base >= 4.7 && < 5
                      , bytestring >= 0.10
                      , data-default
@@ -49,6 +56,12 @@ executable vdiff
   default-extensions:  OverloadedStrings
                      , LambdaCase
                      , PartialTypeSignatures
+                     , DeriveFunctor
+                     , GeneralizedNewtypeDeriving
+                     , TypeFamilies
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , StandaloneDeriving
   build-depends:       base >= 4.7 && < 5
                      , vdiff
                      , optparse-applicative
