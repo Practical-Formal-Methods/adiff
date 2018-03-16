@@ -12,10 +12,10 @@ import           Data.Monoid                ((<>))
 import           Data.Ord                   (comparing)
 
 import           Language.C
-import Language.C.Analysis.TypeUtils
-import Language.C.Analysis.SemRep
-import Language.C.Analysis.AstAnalysis2
-import Language.C.Analysis.TravMonad
+import           Language.C.Analysis.TypeUtils
+import           Language.C.Analysis.SemRep
+import           Language.C.Analysis.AstAnalysis2
+import           Language.C.Analysis.TravMonad
 import           System.Exit
 import           System.IO
 import           System.IO.Temp
@@ -60,7 +60,7 @@ diff p = do
       posN = length $ runGen genPos
   putStrLn ("insertion points: " ++ show posN)
   forM_ (runGen genPos) $ \inserter -> do
-    j <- randomRIO (-10000,100000) :: IO Integer
+    j <- randomIO :: IO Integer
     let asTmpl = notEqualsAssertion j
         mutated = runReader inserter asTmpl
 
@@ -79,7 +79,7 @@ diff p = do
 
   return ()
 
--- | pares the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
+-- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
 cmdParseTest :: FilePath -> IO ()
 cmdParseTest fn = openCFile fn >>= putStrLn . render . pretty
@@ -223,10 +223,14 @@ notEqualsAssertion i = AssertionTemplate $ \(varName,ty) ->
   let identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
       var = CVar varName (undefNode, ty) :: CExpression SemPhase
       const'
-        | ty `sameType` integral TyChar = CConst (CCharConst (CChar (toEnum $ fromIntegral $ i `mod` 256) False) (undefNode, integral TyChar))
-        | ty `sameType` boolType        = CConst (CIntConst (cInteger (i `mod` 2)) (undefNode, boolType))
-        | otherwise                     = trace ("don't know how to handle this type: " ++ ("get show instances for types")) $ CConst (CIntConst (cInteger i) (undefNode, simpleIntType ))
+        | ty `sameType` integral TyChar = CConst $ CCharConst (CChar (toEnum $ fromIntegral $ i `mod` 256) False) (undefNode, ty)
+        | ty `sameType` integral TyBool = CConst $ CIntConst (cInteger boolInt) (undefNode, ty)
+        | ty `sameType` integral TyInt  = CConst $ CIntConst (cInteger i) (undefNode, ty)
+        | ty `sameType` integral TyUInt = CConst $ CIntConst (cInteger unsigInt) (undefNode, ty)
+        | otherwise                     = trace ("don't know how to handle this type: " ++ show ty) $ CConst (CIntConst (cInteger i) (undefNode, simpleIntType ))
       expression = CBinary CNeqOp var const' (undefNode, boolType) :: CExpression SemPhase
+      boolInt = i `mod` 2
+      unsigInt = abs i
   in CExpr (Just $ CCall identifier [expression]  (undefNode,voidType)) (undefNode,voidType)
 
 simpleIntType :: Type
