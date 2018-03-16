@@ -9,18 +9,21 @@ module Verifier.Util
   , module System.Process
   , withSpec
   , reachSafety
+  , execTimed
+  , Timing
   )
 
 where
 
+import           Timed
 import           Types
 
 import           Data.Default   (def)
+import           Data.FileEmbed
 import           System.Exit
 import           System.IO
 import           System.IO.Temp
 import           System.Process
-import           Data.FileEmbed
 
 withSpec :: Property -> (FilePath -> IO a) -> IO a
 withSpec p f = withSystemTempFile "spec.prp" $ \fp hndl -> do

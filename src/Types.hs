@@ -7,9 +7,10 @@ module Types
   ) where
 
 import           Control.Monad.Trans.Reader
-
 import           Data.Default
 import           System.IO                  (FilePath)
+
+import           Timed
 
 data Strategy = NaiveRandom -- ^ naive random strategry
               | SmartGuided -- ^ not implemented yet
@@ -23,11 +24,11 @@ strategyName SmartGuided = "smart"
 
 -- | TODO: Add execution time and more
 data VerifierResult = VerificationSuccessful | VerificationFailed | VerificationResultUnknown
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 data Verifier = Verifier
   { verifierName :: String
-  , execute      :: FilePath -> IO VerifierResult
+  , execute      :: FilePath -> IO (VerifierResult, Timing)
   , version      :: IO (Maybe String)
   }
 
@@ -39,7 +40,7 @@ instance Ord Verifier where
 
 instance Default Verifier where
   def = Verifier { verifierName = error "verifierName has no default value"
-                 , execute  =  const (return VerificationResultUnknown)
+                 , execute  =  const $ return (VerificationResultUnknown, def)
                  , version = return Nothing
                  }
 

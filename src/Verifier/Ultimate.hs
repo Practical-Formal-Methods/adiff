@@ -17,13 +17,13 @@ utaipan = def { verifierName = "utaipan", execute = run, version = uautomizerVer
         uautomizerVersion = Just . head . lines <$> readCreateProcess (shell "Taipan.py --version") ""
 
 
-runUltimate :: String -> IO VerifierResult
+runUltimate :: String -> IO (VerifierResult, Timing)
 runUltimate cmd = do
             putStrLn cmd
-            (exitCode, out, _) <- readCreateProcessWithExitCode (shell cmd) ""
+            (exitCode, out, timing) <- execTimed (shell cmd) ""
             let lastLine = last $ lines out
             case (exitCode, lastLine) of
-                (ExitSuccess,"TRUE")  -> return VerificationSuccessful
-                (ExitSuccess,"FALSE") -> return VerificationFailed
-                _                     -> return VerificationResultUnknown
+                (ExitSuccess,"TRUE")  -> return (VerificationSuccessful, timing)
+                (ExitSuccess,"FALSE") -> return (VerificationFailed, timing)
+                _                     -> return (VerificationResultUnknown, timing)
 

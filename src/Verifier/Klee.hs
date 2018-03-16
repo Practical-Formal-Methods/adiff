@@ -13,14 +13,15 @@ klee = def { verifierName = "klee", execute = kleeExecute, version = kleeVersion
       (_,out,_) <- readCreateProcessWithExitCode (shell "klee --version") ""
       return $ (Just . head . lines) out
 
-    kleeExecute fn = withKleeH $ \kleeH ->
-        withSystemTempFile "file.bc" $ \bc _ -> do
-        callCommand $ "clang -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
-        (exitCode, out, _) <- readCreateProcessWithExitCode (shell $ "klee " ++ bc) ""
-        case (exitCode, null out) of
-          (ExitSuccess, True)  -> return VerificationSuccessful
-          (ExitSuccess, False) -> return VerificationFailed
-          (ExitFailure _, _ )  -> return VerificationResultUnknown
+kleeExecute :: FilePath -> IO (VerifierResult, Timing)
+kleeExecute fn = withKleeH $ \kleeH ->
+    withSystemTempFile "file.bc" $ \bc _ -> do
+    callCommand $ "clang -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
+    (exitCode, out, timing) <- execTimed (shell $ "klee " ++ bc) ""
+    case (exitCode, null out) of
+      (ExitSuccess, True)  -> return (VerificationSuccessful, timing)
+      (ExitSuccess, False) -> return (VerificationFailed, timing)
+      (ExitFailure _, _ )  -> return (VerificationResultUnknown, timing)
 
 
 withKleeH :: (FilePath -> IO a) -> IO a

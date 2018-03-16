@@ -69,7 +69,8 @@ diff p = do
       hPutStr h rendered
       hFlush h
       verResults <- mapM (`execute` fp) (verifiers p)
-      when (length (nub verResults) > 1) $ do
+      let stati = map fst verResults
+      when (length (nub stati) > 1) $ do
         putStrLn "found inconsistency:"
         mapM_ putStrLn $ zipWith (\v r-> verifierName v ++ " = " ++ show r ) (verifiers p) verResults
         putStrLn "with file:"
