@@ -1,6 +1,9 @@
 {-# LANGUAGE ApplicativeDo              #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving#-}
 
 
 module Diff where
@@ -16,15 +19,17 @@ import           Data.Ord                   (comparing)
 
 import           Language.C
 import Language.C.Analysis.TypeUtils
-import Language.C.Analysis.SemRep (Type)
+import Language.C.Analysis.SemRep
+import Language.C.Analysis.AstAnalysis2
+import Language.C.Analysis.TravMonad
 import           System.Exit
 import           System.IO
 import           System.IO.Temp
 import           System.Random
 import           Text.PrettyPrint           (render)
 
-import Language.C.Analysis.AstAnalysis2
-import Language.C.Analysis.TravMonad
+
+import Debug.Trace
 
 import           Types
 import           Verifier
@@ -61,7 +66,7 @@ diff p = do
       posN = length $ runGen genPos
   putStrLn ("insertion points: " ++ show posN)
   forM_ (runGen genPos) $ \inserter -> do
-    j <- randomRIO (-100,100) :: IO Integer
+    j <- randomRIO (-10000,100000) :: IO Integer
     let asTmpl = notEqualsAssertion j
         mutated = runReader inserter asTmpl
 
@@ -109,7 +114,7 @@ initRandom = do
 -- | A position is actually a function from the thing to be inserted to a new TranslationUnit
 
 newtype AssertionTemplate = AssertionTemplate {
-  mkAssertion :: Ident -> CStatement SemPhase
+  mkAssertion :: (Ident, Type) -> CStatement SemPhase
   }
 
 newtype Gen i a = MkGen { runGen :: [Reader i a] }
@@ -201,9 +206,9 @@ cCompoundBlockItem (CNestedFunDef _)  = fail
 --------------------------------------------------------------------------------
 -- provisional stuff
 class HasReads a where
-  reads :: a -> [Ident]
+  reads :: a -> [(Ident, Type)]
 
-instance HasReads (CStatement a) where
+instance HasReads (CStatement SemPhase) where
   reads (CExpr (Just e) _)  = reads e
   reads (CExpr Nothing _)   = []
   reads (CIf e _ _ _)       = reads e -- [internalIdent "x"]
@@ -211,19 +216,22 @@ instance HasReads (CStatement a) where
   reads (CLabel _ stmt _ _) = reads stmt
   reads _                   = []
 
-instance HasReads (CExpression a) where
-  reads (CVar n _)        = [n]
+instance HasReads (CExpression SemPhase) where
+  reads (CVar n (_,ty))        = [(n, ty)]
   reads (CBinary _ l r _) = reads l <> reads r
   reads (CUnary _ e _)    = reads e
   reads _                 = []
 
 
 notEqualsAssertion :: Integer -> AssertionTemplate
-notEqualsAssertion i = AssertionTemplate $ \varName ->
+notEqualsAssertion i = AssertionTemplate $ \(varName,ty) ->
   let identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
-      var = CVar varName (undefNode, simpleIntType) :: CExpression SemPhase
-      const = CConst (CIntConst (cInteger i) (undefNode, simpleIntType )) :: CExpression SemPhase
-      expression = CBinary CNeqOp var const (undefNode, boolType) :: CExpression SemPhase
+      var = CVar varName (undefNode, ty) :: CExpression SemPhase
+      const'
+        | ty `sameType` integral TyChar = CConst (CCharConst (CChar (toEnum $ fromIntegral $ i `mod` 256) False) (undefNode, integral TyChar))
+        | ty `sameType` boolType        = CConst (CIntConst (cInteger (i `mod` 2)) (undefNode, boolType))
+        | otherwise                     = trace ("don't know how to handle this type: " ++ ("get show instances for types")) $ CConst (CIntConst (cInteger i) (undefNode, simpleIntType ))
+      expression = CBinary CNeqOp var const' (undefNode, boolType) :: CExpression SemPhase
   in CExpr (Just $ CCall identifier [expression]  (undefNode,voidType)) (undefNode,voidType)
 
 simpleIntType :: Type
