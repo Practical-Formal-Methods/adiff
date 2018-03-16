@@ -23,6 +23,7 @@ library
                      , Verifier.Ultimate
                      , Verifier.Vim
                      , Verifier.CpaChecker
+                     , Timed
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                      , LambdaCase
@@ -67,3 +68,12 @@ executable vdiff
                      , optparse-applicative
                      , transformers >= 0.5
                      , mtl 
+
+executable vdiff-time
+  hs-source-dirs:      app
+  main-is:             Time.hs
+  default-language:    Haskell2010
+  default-extensions:  OverloadedStrings
+  build-depends:       base >= 4.7 && < 5
+                     , vdiff
+                     , process 

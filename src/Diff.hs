@@ -1,10 +1,4 @@
 {-# LANGUAGE ApplicativeDo              #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving#-}
-
 
 module Diff where
 
