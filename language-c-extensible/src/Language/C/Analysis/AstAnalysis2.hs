@@ -1,16 +1,17 @@
-{-# LANGUAGE EmptyDataDecls    #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE EmptyDataDecls     #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies       #-}
 
 module Language.C.Analysis.AstAnalysis2 where
+
+import           Text.PrettyPrint.HughesPJ
 
 import           Language.C.Analysis.ConstEval
 import           Language.C.Analysis.DeclAnalysis
 import           Language.C.Analysis.DefTable     (defineLabel, globalDefs,
                                                    inFileScope, insertType,
                                                    lookupLabel, lookupType)
-import           Language.C.Analysis.DefTable     (DefTable (..), TagEntry)
-import           Language.C.Analysis.NameSpaceMap
 import           Language.C.Analysis.SemError
 import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
@@ -25,9 +26,6 @@ import           Language.C.Syntax.Ops
 import           Language.C.Syntax.Utils
 
 
-import           Text.PrettyPrint.HughesPJ
-
-import           Debug.Trace
 
 
 
@@ -41,6 +39,7 @@ import           Prelude                          hiding (mapM, mapM_, reverse)
 -- After the analysis (semantic phase) we want to store additional information:
 data SemPhase
 
+
 type instance AnnTranslationUnit SemPhase = (NodeInfo, GlobalDecls)
 type instance AnnFunctionDef SemPhase     = NodeInfo
 type instance AnnAsmExt SemPhase          = NodeInfo
@@ -53,7 +52,16 @@ type instance AnnExpression SemPhase      = (NodeInfo, Type)
 type instance AnnInitializer SemPhase     = NodeInfo -- TODO: Types here?
 type instance AnnStatement SemPhase       = (NodeInfo, Type)
 
--- for debugging
+
+
+
+
+
+
+
+
+
+
 
 
 analyseAST :: (MonadTrav m) => CTranslationUnit NodeInfo -> m (CTranslationUnit SemPhase)
@@ -984,3 +992,32 @@ getParams _                                     = Nothing
 
 maybeM  :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
 maybeM f ma = maybe (return Nothing) (\x -> Just <$> f x) ma
+
+--------------------------------------------------------------------------------
+-- derived instances
+deriving instance Show SemPhase
+deriving instance Show (CAlignmentSpecifier SemPhase)
+deriving instance Show (CArraySize SemPhase)
+deriving instance Show (CAssemblyOperand SemPhase)
+deriving instance Show (CAssemblyStatement SemPhase)
+deriving instance Show (CAttribute SemPhase)
+deriving instance Show (CBuiltinThing SemPhase)
+deriving instance Show (CCompoundBlockItem SemPhase)
+deriving instance Show (CDeclaration SemPhase)
+deriving instance Show (CDeclarationSpecifier SemPhase)
+deriving instance Show (CDeclarator SemPhase)
+deriving instance Show (CDerivedDeclarator SemPhase)
+deriving instance Show (CEnumeration SemPhase)
+deriving instance Show (CExpression SemPhase)
+deriving instance Show (CExternalDeclaration SemPhase)
+deriving instance Show (CFunctionDef SemPhase)
+deriving instance Show (CInitializer SemPhase)
+deriving instance Show (CPartDesignator SemPhase)
+deriving instance Show (CStatement SemPhase)
+deriving instance Show (CStructureUnion SemPhase)
+deriving instance Show (CTypeQualifier SemPhase)
+deriving instance Show (CTypeSpecifier SemPhase)
+deriving instance Show (CStringLiteral SemPhase)
+deriving instance Show (CStorageSpecifier SemPhase)
+deriving instance Show (CConstant SemPhase)
+deriving instance Show (CFunctionSpecifier SemPhase)

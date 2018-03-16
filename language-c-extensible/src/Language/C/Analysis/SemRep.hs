@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Analysis.Syntax
@@ -53,12 +53,12 @@ Attr(..),Attributes,noAttributes,mergeAttributes,
 Stmt,Expr,Initializer,AsmBlock,
 )
 where
-import Language.C.Data
-import Language.C.Syntax
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe
-import Data.Generics
+import           Data.Generics
+import           Data.Map          (Map)
+import qualified Data.Map          as Map
+import           Data.Maybe
+import           Language.C.Data
+import           Language.C.Syntax
 
 -- | accessor class : struct\/union\/enum names
 class HasSUERef a where
@@ -116,16 +116,16 @@ data IdentDecl = Declaration Decl           -- ^ object or function declaration
                deriving (Typeable {-! ,CNode !-})
 
 instance Declaration IdentDecl where
-  getVarDecl (Declaration decl) = getVarDecl decl
-  getVarDecl (ObjectDef def) = getVarDecl def
-  getVarDecl (FunctionDef def) = getVarDecl def
+  getVarDecl (Declaration decl)  = getVarDecl decl
+  getVarDecl (ObjectDef def)     = getVarDecl def
+  getVarDecl (FunctionDef def)   = getVarDecl def
   getVarDecl (EnumeratorDef def) = getVarDecl def
 
 -- | textual description of the kind of an object
 objKindDescr :: IdentDecl -> String
 objKindDescr  (Declaration _ ) = "declaration"
-objKindDescr (ObjectDef _) = "object definition"
-objKindDescr (FunctionDef _) = "function definition"
+objKindDescr (ObjectDef _)     = "object definition"
+objKindDescr (FunctionDef _)   = "function definition"
 objKindDescr (EnumeratorDef _) = "enumerator definition"
 
 -- | @splitIdentDecls includeAllDecls@ splits a map of object, function and enumerator declarations and definitions into one map
@@ -140,7 +140,7 @@ splitIdentDecls include_all = Map.foldWithKey (if include_all then deal else dea
   where
   deal ident entry (decls,defs) = (Map.insert ident (declOfDef entry) decls, addDef ident entry defs)
   deal' ident (Declaration d) (decls,defs) = (Map.insert ident d decls,defs)
-  deal' ident def (decls,defs) = (decls, addDef ident def defs)
+  deal' ident def (decls,defs)             = (decls, addDef ident def defs)
   addDef ident entry (es,os,fs) =
     case entry of
         Declaration _   -> (es,os,fs)
@@ -235,10 +235,10 @@ instance Declaration FunDef where
 -- | Parameter declaration
 data ParamDecl = ParamDecl VarDecl NodeInfo
                | AbstractParamDecl VarDecl NodeInfo
-    deriving (Typeable {-! ,CNode !-} )
+    deriving (Show, Typeable {-! ,CNode !-} )
 
 instance Declaration ParamDecl where
-  getVarDecl (ParamDecl vd _) = vd
+  getVarDecl (ParamDecl vd _)         = vd
   getVarDecl (AbstractParamDecl vd _) = vd
 
 -- | Struct\/Union member declaration
@@ -264,7 +264,7 @@ identOfTypeDef (TypeDef ide _ _ _) = ide
 
 -- | Generic variable declarations
 data VarDecl = VarDecl VarName DeclAttrs Type
-              deriving (Typeable)
+              deriving (Show, Typeable)
 
 instance Declaration VarDecl where
   getVarDecl = id
@@ -278,7 +278,7 @@ isExtDecl = hasLinkage . declStorage
 -- They specify the storage and linkage of a declared object.
 data DeclAttrs = DeclAttrs FunctionAttrs Storage Attributes
                  -- ^ @DeclAttrs fspecs storage attrs@
-               deriving (Typeable)
+               deriving (Show, Typeable)
 
 -- | get the 'Storage' of a declaration
 declStorage :: (Declaration d) => d -> Storage
@@ -290,7 +290,7 @@ functionAttrs d = case declAttrs d of (DeclAttrs fa _ _) -> fa
 
 -- Function attributes (inline, noreturn)
 data FunctionAttrs = FunctionAttrs { isInline :: Bool, isNoreturn :: Bool }
-  deriving (Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Typeable, Data)
 
 noFunctionAttrs :: FunctionAttrs
 noFunctionAttrs = FunctionAttrs { isInline = False, isNoreturn = False }
@@ -324,17 +324,17 @@ data Linkage = NoLinkage | InternalLinkage | ExternalLinkage
 
 -- | return @True@ if the object has linkage
 hasLinkage :: Storage -> Bool
-hasLinkage (Auto _) = False
+hasLinkage (Auto _)             = False
 hasLinkage (Static NoLinkage _) = False
-hasLinkage _ = True
+hasLinkage _                    = True
 
 -- | Get the linkage of a definition
 declLinkage :: (Declaration d) => d -> Linkage
 declLinkage decl =
     case declStorage decl of
-        NoStorage -> undefined
-        Auto _ -> NoLinkage
-        Static linkage _ -> linkage
+        NoStorage          -> undefined
+        Auto _             -> NoLinkage
+        Static linkage _   -> linkage
         FunLinkage linkage -> linkage
 
 
@@ -352,14 +352,15 @@ data Type =
      -- ^ function type
      | TypeDefType TypeDefRef TypeQuals Attributes
      -- ^ a defined type
-     deriving (Typeable)
+     deriving (Show, Typeable)
 
 -- | Function types are of the form @FunType return-type params isVariadic@.
 --
 -- If the parameter types aren't yet known, the function has type @FunTypeIncomplete type attrs@.
 data FunType = FunType Type [ParamDecl] Bool
             |  FunTypeIncomplete Type
-               deriving (Typeable)
+               deriving (Show, Typeable)
+
 
 -- | An array type may either have unknown size or a specified array size, the latter either variable or constant.
 -- Furthermore, when used as a function parameters, the size may be qualified as /static/.
@@ -370,6 +371,9 @@ data ArraySize =  UnknownArraySize Bool
                 -- ^ @FixedSizeArray is-static size-expr@
                deriving (Typeable)
 
+instance Show ArraySize where
+  show arrSize = "ArraySize"
+
 -- | normalized type representation
 data TypeName =
       TyVoid
@@ -379,17 +383,17 @@ data TypeName =
     | TyComp CompTypeRef
     | TyEnum EnumTypeRef
     | TyBuiltin BuiltinType
-    deriving (Typeable, Data)
+    deriving (Show, Typeable, Data)
 
 -- | Builtin type (va_list, anything)
 data BuiltinType = TyVaList
                  | TyAny
-                   deriving (Typeable, Data)
+                   deriving (Show, Typeable, Data)
 
 -- | typdef references
 -- If the actual type is known, it is attached for convenience
 data TypeDefRef = TypeDefRef Ident Type NodeInfo
-               deriving (Typeable {-! ,CNode !-})
+               deriving (Show, Typeable {-! ,CNode !-})
 
 -- | integral types (C99 6.7.2.2)
 data IntType =
@@ -410,20 +414,20 @@ data IntType =
     deriving (Typeable, Data, Eq, Ord)
 
 instance Show IntType where
-    show TyBool = "_Bool"
-    show TyChar = "char"
-    show TySChar = "signed char"
-    show TyUChar = "unsigned char"
-    show TyShort = "short"
-    show TyUShort = "unsigned short"
-    show TyInt = "int"
-    show TyUInt = "unsigned int"
-    show TyInt128 = "__int128"
+    show TyBool    = "_Bool"
+    show TyChar    = "char"
+    show TySChar   = "signed char"
+    show TyUChar   = "unsigned char"
+    show TyShort   = "short"
+    show TyUShort  = "unsigned short"
+    show TyInt     = "int"
+    show TyUInt    = "unsigned int"
+    show TyInt128  = "__int128"
     show TyUInt128 = "unsigned __int128"
-    show TyLong = "long"
-    show TyULong = "unsigned long"
-    show TyLLong = "long long"
-    show TyULLong = "unsigned long long"
+    show TyLong    = "long"
+    show TyULong   = "unsigned long"
+    show TyLLong   = "long long"
+    show TyULLong  = "unsigned long long"
 
 -- | floating point type (C99 6.7.2.2)
 data FloatType =
@@ -434,20 +438,20 @@ data FloatType =
     deriving (Typeable, Data, Eq, Ord)
 
 instance Show FloatType where
-    show TyFloat = "float"
-    show TyDouble = "double"
-    show TyLDouble = "long double"
+    show TyFloat    = "float"
+    show TyDouble   = "double"
+    show TyLDouble  = "long double"
     show TyFloat128 = "__float128"
 
 -- | composite type declarations
 data CompTypeRef = CompTypeRef SUERef CompTyKind NodeInfo
-                    deriving (Typeable, Data {-! ,CNode !-})
+                    deriving (Show, Typeable, Data {-! ,CNode !-})
 
 instance HasSUERef  CompTypeRef where sueRef  (CompTypeRef ref _ _) = ref
 instance HasCompTyKind CompTypeRef where compTag (CompTypeRef _ tag _)  = tag
 
 data EnumTypeRef = EnumTypeRef SUERef NodeInfo
-    deriving (Typeable, Data {-! ,CNode !-})
+    deriving (Show, Typeable, Data {-! ,CNode !-})
 instance HasSUERef  EnumTypeRef where sueRef  (EnumTypeRef ref _) = ref
 
 -- | Composite type (struct or union).
@@ -494,7 +498,7 @@ instance Declaration Enumerator where
 data TypeQuals = TypeQuals { constant :: Bool, volatile :: Bool,
                              restrict :: Bool, atomic :: Bool,
                              nullable :: Bool, nonnull  :: Bool }
-    deriving (Typeable, Data)
+    deriving (Show, Typeable, Data)
 
 instance Eq TypeQuals where
  (==) (TypeQuals c1 v1 r1 a1 n1 nn1) (TypeQuals c2 v2 r2 a2 n2 nn2) =
@@ -534,14 +538,14 @@ type Initializer = CInit
 -- | @VarName name assembler-name@ is a name of an declared object
 data VarName =  VarName Ident (Maybe AsmName)
               | NoName
-               deriving (Typeable, Data)
+               deriving (Show, Typeable, Data)
 identOfVarName :: VarName -> Ident
 identOfVarName NoName            = error "identOfVarName: NoName"
 identOfVarName (VarName ident _) = ident
 
 isNoName :: VarName -> Bool
 isNoName NoName = True
-isNoName _ = False
+isNoName _      = False
 
 -- | Top level assembler block (alias for @CStrLit@)
 type AsmBlock = CStrLit
@@ -570,6 +574,9 @@ type AsmName = CStrLit
 data Attr = Attr Ident [Expr] NodeInfo
             deriving (Typeable {-! ,CNode !-})
 
+instance Show Attr where
+  show (Attr i _ ni) = "Attribute " ++ show i ++ " [] " ++ show ni
+
 type Attributes = [Attr]
 
 -- |Empty attribute list
@@ -596,20 +603,20 @@ instance Pos TagDef where
         posOf x = posOf (nodeInfo x)
 
 instance CNode IdentDecl where
-        nodeInfo (Declaration d) = nodeInfo d
-        nodeInfo (ObjectDef d) = nodeInfo d
-        nodeInfo (FunctionDef d) = nodeInfo d
+        nodeInfo (Declaration d)   = nodeInfo d
+        nodeInfo (ObjectDef d)     = nodeInfo d
+        nodeInfo (FunctionDef d)   = nodeInfo d
         nodeInfo (EnumeratorDef d) = nodeInfo d
 instance Pos IdentDecl where
         posOf x = posOf (nodeInfo x)
 
 instance CNode DeclEvent where
-        nodeInfo (TagEvent d) = nodeInfo d
-        nodeInfo (DeclEvent d) = nodeInfo d
-        nodeInfo (ParamEvent d) = nodeInfo d
-        nodeInfo (LocalEvent d) = nodeInfo d
+        nodeInfo (TagEvent d)     = nodeInfo d
+        nodeInfo (DeclEvent d)    = nodeInfo d
+        nodeInfo (ParamEvent d)   = nodeInfo d
+        nodeInfo (LocalEvent d)   = nodeInfo d
         nodeInfo (TypeDefEvent d) = nodeInfo d
-        nodeInfo (AsmEvent d) = nodeInfo d
+        nodeInfo (AsmEvent d)     = nodeInfo d
 instance Pos DeclEvent where
         posOf x = posOf (nodeInfo x)
 
@@ -629,13 +636,13 @@ instance Pos FunDef where
         posOf x = posOf (nodeInfo x)
 
 instance CNode ParamDecl where
-        nodeInfo (ParamDecl _ n) = n
+        nodeInfo (ParamDecl _ n)         = n
         nodeInfo (AbstractParamDecl _ n) = n
 instance Pos ParamDecl where
         posOf x = posOf (nodeInfo x)
 
 instance CNode MemberDecl where
-        nodeInfo (MemberDecl _ _ n) = n
+        nodeInfo (MemberDecl _ _ n)   = n
         nodeInfo (AnonBitField _ _ n) = n
 instance Pos MemberDecl where
         posOf x = posOf (nodeInfo x)
