@@ -17,12 +17,13 @@ library
   exposed-modules:     Diff
                      , Types
                      , Verifier
-                     , Verifier.Util
                      , Verifier.Cbmc
-                     , Verifier.Klee
-                     , Verifier.Ultimate
-                     , Verifier.Vim
                      , Verifier.CpaChecker
+                     , Verifier.Klee
+                     , Verifier.Sea
+                     , Verifier.Ultimate
+                     , Verifier.Util
+                     , Verifier.Vim
                      , Timed
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
