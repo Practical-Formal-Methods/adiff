@@ -1,0 +1,10 @@
+*
+!samples
+!docker
+
+
+# Unfortunately, docker does not support * in exceptions 
+#!.stack-work/dist/*/*/build/vdiff/vdiff
+
+# this includes too much *shrug*
+!.stack-work/dist
