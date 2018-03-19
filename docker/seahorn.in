@@ -1,5 +1,6 @@
 # Install Seahorn
 
+
 RUN cd /tmp && \
     git clone --depth 1 "https://github.com/seahorn/seahorn.git" && \
     cd seahorn && \
@@ -21,5 +22,8 @@ RUN cd /tmp/seahorn/build && \
     cmake --build . --target install
 
 RUN rm -rf /tmp/seahorn
+
+# TODO: move this up
+RUN apt-get install -y clang-3.8
 
 RUN ln -s /verifiers/seahorn/bin/sea ~/.local/bin/sea

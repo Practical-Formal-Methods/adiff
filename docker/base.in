@@ -6,7 +6,7 @@ RUN apt-get update && \
 #    apt-get -y upgrade && \
     apt-get -y install wget cbmc  git subversion clang-5.0 cmake build-essential ncurses-dev libgmp-dev libboost-system-dev unzip
 
-ENV MAKEFLAGS=-j24
+RUN export MAKEFLAGS=-j$(nproc)
 
 # RUN curl -sSL "https://get.haskellstack.org/" | sh
 
