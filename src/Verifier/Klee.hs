@@ -2,16 +2,18 @@
 
 module Verifier.Klee (klee) where
 
+import           Safe
 import           Verifier.Util
 
-import qualified Data.ByteString.Char8   as C8
+import qualified Data.ByteString.Char8 as C8
 
 klee :: Verifier
 klee = def { verifierName = "klee", execute = kleeExecute, version = kleeVersion}
-  where
-    kleeVersion = do
-      (_,out,_) <- readCreateProcessWithExitCode (shell "klee --version") ""
-      return $ (Just . head . lines) out
+
+kleeVersion :: IO (Maybe String)
+kleeVersion = do
+  (_,out,_) <- readCreateProcessWithExitCode (shell "klee --version") ""
+  return $ (headMay . lines) out
 
 kleeExecute :: FilePath -> IO (VerifierResult, Timing)
 kleeExecute fn = withKleeH $ \kleeH ->
