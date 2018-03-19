@@ -132,6 +132,35 @@ deriving instance Data (CStorageSpecifier NodeInfo)
 deriving instance Data (CConstant NodeInfo)
 deriving instance Data (CFunctionSpecifier NodeInfo)
 
+
+deriving instance Show (CAlignmentSpecifier NodeInfo)
+deriving instance Show (CArraySize NodeInfo)
+deriving instance Show (CAssemblyOperand NodeInfo)
+deriving instance Show (CAssemblyStatement NodeInfo)
+deriving instance Show (CAttribute NodeInfo)
+deriving instance Show (CBuiltinThing NodeInfo)
+deriving instance Show (CCompoundBlockItem NodeInfo)
+deriving instance Show (CDeclaration NodeInfo)
+deriving instance Show (CDeclarationSpecifier NodeInfo)
+deriving instance Show (CDeclarator NodeInfo)
+deriving instance Show (CDerivedDeclarator NodeInfo)
+deriving instance Show (CEnumeration NodeInfo)
+deriving instance Show (CExpression NodeInfo)
+deriving instance Show (CExternalDeclaration NodeInfo)
+deriving instance Show (CFunctionDef NodeInfo)
+deriving instance Show (CInitializer NodeInfo)
+deriving instance Show (CPartDesignator NodeInfo)
+deriving instance Show (CStatement NodeInfo)
+deriving instance Show (CStructureUnion NodeInfo)
+deriving instance Show (CTypeQualifier NodeInfo)
+deriving instance Show (CTypeSpecifier NodeInfo)
+deriving instance Show (CStringLiteral NodeInfo)
+deriving instance Show (CStorageSpecifier NodeInfo)
+deriving instance Show (CConstant NodeInfo)
+deriving instance Show (CFunctionSpecifier NodeInfo)
+
+
+
 -- | Complete C tranlsation unit (C99 6.9, K&R A10)
 --
 -- A complete C translation unit, for example representing a C header or source file.
