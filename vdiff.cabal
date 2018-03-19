@@ -50,6 +50,7 @@ library
                      , temporary
                      , transformers >= 0.5
                      , containers
+                     , safe
 
 executable vdiff
   hs-source-dirs:      app
