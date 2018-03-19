@@ -1,23 +1,25 @@
 # Install Seahorn
 
-RUN cd /verifiers && \
+RUN cd /tmp && \
     git clone --depth 1 "https://github.com/seahorn/seahorn.git" && \
     cd seahorn && \
     git checkout 9c4a917a595e11d673eed216701df106b73fdbda
 
 
-RUN cd /verifiers/seahorn && \
+RUN cd /tmp/seahorn && \
     mkdir build; cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=run ../ && \
+    cmake -DCMAKE_INSTALL_PREFIX="/verifiers/seahorn" ../ && \
     cmake --build .
 
-RUN cd /verifiers/seahorn/build && \
+RUN cd /tmp/seahorn/build && \
     cmake --build . --target extra && cmake ..
 
-RUN cd /verifiers/seahorn/build && \
+RUN cd /tmp/seahorn/build && \
     cmake --build . --target crab && cmake ..
 
-RUN cd /verifiers/seahorn/build && \
+RUN cd /tmp/seahorn/build && \
     cmake --build . --target install
 
+RUN rm -rf /tmp/seahorn
 
+RUN ln -s /verifiers/seahorn/bin/sea ~/.local/bin/sea

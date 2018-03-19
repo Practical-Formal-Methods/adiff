@@ -14,6 +14,7 @@ RUN cd /tmp && \
     wget "https://github.com/ultimate-pa/ultimate/releases/download/v0.1.23/UltimateAutomizer-linux.zip" && \
     mkdir -p /verifiers && \
     unzip UltimateAutomizer-linux.zip -d /verifiers/ && \
+    rm UltimateAutomizer-linux.zip && \
     ln -s /verifiers/UAutomizer-linux/Ultimate.py ~/.local/bin/Automizer.py && \
     ln -s /verifiers/UAutomizer-linux/z3 ~/.local/bin && \
     ln -s /verifiers/UAutomizer-linux/cvc4 ~/.local/bin
@@ -22,6 +23,7 @@ RUN cd /tmp && \
 RUN cd /tmp && \
     wget "https://github.com/ultimate-pa/ultimate/releases/download/v0.1.23/UltimateTaipan-linux.zip" && \
     unzip UltimateTaipan-linux.zip -d /verifiers/ && \
+    rm UltimateTaipan-linux.zip && \
     ln -s /verifiers/UTaipan-linux/Ultimate.py ~/.local/bin/Taipan.py
 
 
