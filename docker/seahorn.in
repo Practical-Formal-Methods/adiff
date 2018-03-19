@@ -1,9 +1,23 @@
+# Install Seahorn
 
-# install seahorn
-RUN cd /tmp && \
-    wget "https://github.com/seahorn/seahorn/archive/seahorn-llvm-38.tar.gz" && \
-    tar -xf "seahorn-llvm-38.tar.gz"
+RUN cd /verifiers && \
+    git clone --depth 1 "https://github.com/seahorn/seahorn.git" && \
+    cd seahorn && \
+    git checkout 9c4a917a595e11d673eed216701df106b73fdbda
 
-# TODO: Move this one to base
-RUN apt-get upgrade -y 
-RUN apt-get install -y libboost-system1.55-dev libboost1.55-dev libgmp-dev
+
+RUN cd /verifiers/seahorn && \
+    mkdir build; cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=run ../ && \
+    cmake --build .
+
+RUN cd /verifiers/seahorn/build && \
+    cmake --build . --target extra && cmake ..
+
+RUN cd /verifiers/seahorn/build && \
+    cmake --build . --target crab && cmake ..
+
+RUN cd /verifiers/seahorn/build && \
+    cmake --build . --target install
+
+

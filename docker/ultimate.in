@@ -5,9 +5,9 @@ RUN apt-get -y install python2.7 java-common libasound2 libfreetype6 libx11-6 li
 
 # install an Azul build of Java 8
 RUN cd /tmp &&\
-    curl "https://cdn.azul.com/zulu/bin/zulu8.28.0.1-jdk8.0.163-linux_amd64.deb" --output java8.deb && \
-    dpkg -i java8.deb && \
-    rm java8.deb
+    wget "https://cdn.azul.com/zulu/bin/zulu8.28.0.1-jdk8.0.163-linux_amd64.deb" && \
+    dpkg -i zulu8.28.0.1-jdk8.0.163-linux_amd64.deb && \
+    rm zulu8.28.0.1-jdk8.0.163-linux_amd64.deb
 
 # install Automizer 
 RUN cd /tmp && \
