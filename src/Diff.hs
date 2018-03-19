@@ -7,7 +7,7 @@ import           Prelude                    hiding (fail, reads)
 import           Control.Exception
 import           Control.Monad              hiding (fail)
 import           Control.Monad.Trans.Reader
-import           Data.List                  (nub, sortBy)
+import           Data.List                  (sortBy, intercalate)
 import           Data.Monoid                ((<>))
 import           Data.Ord                   (comparing)
 
@@ -28,7 +28,6 @@ import Debug.Trace
 import           Types
 import           Verifier
 
-
 -- short-hand for open, parse and type annotate
 openCFile :: FilePath -> IO (CTranslationUnit SemPhase)
 openCFile fn = parseCFilePre fn >>= \case
@@ -47,6 +46,16 @@ openCFile fn = parseCFilePre fn >>= \case
             hPrint stderr warnings
           return tu'
 
+-- iterate :: Int -> (Int -> IO b) -> IO ()
+-- iterate n f
+--   | n > 0 = do
+--       putStrLn $ "iterations: " ++ show n
+--       forM_ [1..n] f
+--   |otherwise = do
+--      putStrLn "iterations: infinite"
+--      forM_ [1..] f
+
+  
 
 -- TODO: this uses naive strategy, always
 diff :: MainParameters -> IO ()
@@ -56,28 +65,48 @@ diff p = do
   ast <- openCFile (program p)
   -- initRandom
   putStrLn "successfully parsed"
-  let genPos = translationUnit ast
-      posN = length $ runGen genPos
-  putStrLn ("insertion points: " ++ show posN)
-  forM_ (runGen genPos) $ \inserter -> do
-    j <- randomIO :: IO Integer
-    let asTmpl = notEqualsAssertion j
-        mutated = runReader inserter asTmpl
+  let inserters = runGen $ translationUnit ast
+  putStrLn $ "insertion points: " ++ show (length inserters)
+  putStrLn $ inColumns $ map verifierName (verifiers p)
+  forM_ [(i,ins) | i <- [1.. iterations p], ins <- inserters ] $ \(i,ins) -> do
+      j <- randomIO :: IO Int
+      let mutated = runReader ins (notEqualsAssertion j)
+      withSystemTempFile "input.c" $ \fp h -> do
+        let rendered = render $ pretty mutated
+        hPutStr h rendered >> hFlush h
+        results <- executeVerifiers (verifiers p ) fp
+        printResultLine results
 
-    withSystemTempFile "input.c" $ \fp h -> do
-      let rendered = render $ pretty mutated
-      hPutStr h rendered
-      hFlush h
-      verResults <- mapM (`execute` fp) (verifiers p)
-      let stati = map fst verResults
-      when (length (nub stati) > 1) $ do
-        putStrLn "found inconsistency:"
-        mapM_ putStrLn $ zipWith (\v r-> verifierName v ++ " = " ++ show r ) (verifiers p) verResults
-        putStrLn "with file:"
-        putStrLn rendered
-        exitSuccess
 
-  return ()
+printResultLine :: [VerifierRun]  -> IO ()
+printResultLine runs = do
+  putStrLn $ inColumns $  (map (show . verifierResult) runs) ++ [showConclusion runs]
+  where showConclusion results = case conclude results of
+          Agreement v -> "agreement on " ++ show v -- Do nothing
+          VerifiersUnsound unsoundVerifiers -> "unsoundness"
+          VerifiersIncomplete incompleteVerifiers -> "found incompleteness "
+          Disagreement -> "disagreement"
+
+inColumns = intercalate "\t|\t"
+
+executeVerifiers :: [Verifier] -> FilePath -> IO [VerifierRun]
+executeVerifiers vs fp = forM vs $ \v -> do
+  (r,t) <- execute v fp
+  return $ VerifierRun (verifierName v) r t
+
+
+conclude :: [VerifierRun] -> Conclusion
+conclude runs
+  | 1 <= acceptN && acceptN < rejectN = VerifiersUnsound (map runVerifierName accept)
+  | 1 <= rejectN && rejectN < acceptN = VerifiersIncomplete (map runVerifierName reject)
+  | acceptN == n                      = Agreement VerificationSuccessful
+  | rejectN == n                      = Agreement VerificationFailed
+  | otherwise = Disagreement
+  where accept   = filter (\r -> verifierResult r == VerificationSuccessful) runs
+        reject   = filter (\r -> verifierResult r == VerificationFailed) runs
+        acceptN  = length accept
+        rejectN  = length reject
+        n = length runs
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
@@ -218,19 +247,20 @@ instance HasReads (CExpression SemPhase) where
   reads _                 = []
 
 
-notEqualsAssertion :: Integer -> AssertionTemplate
+notEqualsAssertion :: Int -> AssertionTemplate
 notEqualsAssertion i = AssertionTemplate $ \(varName,ty) ->
   let identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
       var = CVar varName (undefNode, ty) :: CExpression SemPhase
       const'
         | ty `sameType` integral TyChar = CConst $ CCharConst (CChar (toEnum $ fromIntegral $ i `mod` 256) False) (undefNode, ty)
         | ty `sameType` integral TyBool = CConst $ CIntConst (cInteger boolInt) (undefNode, ty)
-        | ty `sameType` integral TyInt  = CConst $ CIntConst (cInteger i) (undefNode, ty)
+        | ty `sameType` integral TyInt  = CConst $ CIntConst (cInteger intInt) (undefNode, ty)
         | ty `sameType` integral TyUInt = CConst $ CIntConst (cInteger unsigInt) (undefNode, ty)
-        | otherwise                     = trace ("don't know how to handle this type: " ++ show ty) $ CConst (CIntConst (cInteger i) (undefNode, simpleIntType ))
+        | otherwise                     = trace ("don't know how to handle this type: " ++ show ty) $ CConst (CIntConst (cInteger intInt) (undefNode, simpleIntType ))
       expression = CBinary CNeqOp var const' (undefNode, boolType) :: CExpression SemPhase
-      boolInt = i `mod` 2
-      unsigInt = abs i
+      intInt     = fromIntegral i 
+      boolInt    = fromIntegral $ i `mod` 2
+      unsigInt   = fromIntegral $ abs i
   in CExpr (Just $ CCall identifier [expression]  (undefNode,voidType)) (undefNode,voidType)
 
 simpleIntType :: Type

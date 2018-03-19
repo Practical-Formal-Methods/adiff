@@ -19,7 +19,7 @@ utaipan = def { verifierName = "utaipan", execute = run, version = uautomizerVer
 
 runUltimate :: String -> IO (VerifierResult, Timing)
 runUltimate cmd = do
-            putStrLn cmd
+            -- putStrLn cmd
             (exitCode, out, timing) <- execTimed (shell cmd) ""
             let lastLine = last $ lines out
             case (exitCode, lastLine) of

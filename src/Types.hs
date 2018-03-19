@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
 
@@ -21,22 +22,39 @@ strategyName NaiveRandom = "naive"
 strategyName SmartGuided = "smart"
 --------------------------------------------------------------------------------
 
+data VerifierRun = VerifierRun
+  { runVerifierName   :: VerifierName
+  , verifierResult :: VerifierResult
+  , verifierTiming :: Timing
+  }
 
--- | TODO: Add execution time and more
-data VerifierResult = VerificationSuccessful | VerificationFailed | VerificationResultUnknown
+
+data VerifierResult
+  = VerificationSuccessful
+  | VerificationFailed
+  | VerificationResultUnknown
   deriving (Eq, Show)
 
+-- TODO: Does this partitioning make sense?
+data Conclusion
+  = Agreement VerifierResult -- ^ all verifiers agree on an outcome
+  | VerifiersUnsound [VerifierName]  -- ^ verifiers that accept the program although the majority does not
+  | VerifiersIncomplete [VerifierName] -- ^ verifiers reject the program although the majority does not
+  | Disagreement  -- ^ none of the other cases
+
+type VerifierName = String
+
 data Verifier = Verifier
-  { verifierName :: String
+  { verifierName :: VerifierName
   , execute      :: FilePath -> IO (VerifierResult, Timing)
   , version      :: IO (Maybe String)
   }
 
 instance Eq Verifier where
-  v1 == v2 = verifierName v1 == verifierName v2
+  v1 == v2 = verifierName (v1 :: Verifier) == verifierName (v2 :: Verifier)
 
 instance Ord Verifier where
-  v1 <= v2 = verifierName v1 <= verifierName v2
+  v1 <= v2 = verifierName (v1 :: Verifier) <= verifierName (v2 :: Verifier)
 
 instance Default Verifier where
   def = Verifier { verifierName = error "verifierName has no default value"
@@ -47,10 +65,12 @@ instance Default Verifier where
 
 
 data MainParameters = CmdRun
-  { verbose   :: Bool
-  , strategy  :: Strategy
-  , verifiers :: [Verifier]
-  , program   :: FilePath
+  { verbose    :: Bool
+  , strategy   :: Strategy
+  , iterations :: Int
+  , outputDir  :: Maybe FilePath
+  , verifiers  :: [Verifier]
+  , program    :: FilePath
   }
   | CmdVersions
   | CmdParseTest FilePath

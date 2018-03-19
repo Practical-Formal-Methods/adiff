@@ -30,6 +30,8 @@ mainParameters = asum [pVersions, pParseTest, pRun]
                                       , value NaiveRandom
                                       , showDefaultWith strategyName
                                       , metavar "STRATEGY"])
+      <*> option auto ( long "iterations" <> short 'n' <> help "number of iterations" <> value 1)
+      <*> optional (strOption ( long "output-dir" <> short 'o' <> help "output folder for files on which verifiers disagree"))
       <*> option verifierParser (mconcat [ long "verifiers"
                                         , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
                                         , value []
