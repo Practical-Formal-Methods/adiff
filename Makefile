@@ -25,6 +25,7 @@ clean:
 
 Dockerfile : docker compile
 	echo "# Install vdiff into docker" > docker/vdiff.tmp
+	echo "RUN apt-get install -y time vim" >> docker/vdiff.tmp
 	echo "ENV vdiff_version=\"$(VERSION)\"" >> docker/vdiff.tmp
 	echo "COPY $(BINARY) /root/.local/bin" >> docker/vdiff.tmp
 
