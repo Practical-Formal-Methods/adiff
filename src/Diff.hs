@@ -1,30 +1,34 @@
-{-# LANGUAGE ApplicativeDo              #-}
+{-# LANGUAGE ApplicativeDo       #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Diff where
 
-import           Prelude                    hiding (fail, reads)
+import           Prelude                          hiding (fail, reads)
 
 import           Control.Exception
-import           Control.Monad              hiding (fail)
+import           Control.Monad                    hiding (fail)
 import           Control.Monad.Trans.Reader
-import           Data.List                  (sortBy, intercalate)
-import           Data.Monoid                ((<>))
-import           Data.Ord                   (comparing)
+import           Data.List                        (intercalate, sortBy)
+import           Data.Monoid                      ((<>))
+import           Data.Ord                         (comparing)
 
 import           Language.C
-import           Language.C.Analysis.TypeUtils
-import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.AstAnalysis2
+import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
+import           Language.C.Analysis.TypeUtils
 import           System.Exit
 import           System.IO
 import           System.IO.Temp
 import           System.Random
-import           Text.PrettyPrint           (render)
+import           Text.PrettyPrint                 (render)
 
 
-import Debug.Trace
+import           Debug.Trace
 
+import           Data
+import           Persistence
 import           Types
 import           Verifier
 
@@ -46,22 +50,14 @@ openCFile fn = parseCFilePre fn >>= \case
             hPrint stderr warnings
           return tu'
 
--- iterate :: Int -> (Int -> IO b) -> IO ()
--- iterate n f
---   | n > 0 = do
---       putStrLn $ "iterations: " ++ show n
---       forM_ [1..n] f
---   |otherwise = do
---      putStrLn "iterations: infinite"
---      forM_ [1..] f
 
-  
 
 -- TODO: this uses naive strategy, always
 diff :: MainParameters -> IO ()
 diff (CmdParseTest fn) = cmdParseTest fn
 diff CmdVersions = cmdVersions
 diff p = do
+  db <- initDb (databaseFn p)
   ast <- openCFile (program p)
   -- initRandom
   putStrLn "successfully parsed"
@@ -70,29 +66,36 @@ diff p = do
   putStrLn $ inColumns $ map verifierName (verifiers p)
   forM_ [(i,ins) | i <- [1.. iterations p], ins <- inserters ] $ \(i,ins) -> do
       j <- randomIO :: IO Int
-      let mutated = runReader ins (notEqualsAssertion j)
-      withSystemTempFile "input.c" $ \fp h -> do
-        let rendered = render $ pretty mutated
-        hPutStr h rendered >> hFlush h
-        results <- executeVerifiers (verifiers p ) fp
-        printResultLine results
+      let ast' = runReader ins (notEqualsAssertion j)
+          source = render $ pretty ast'
+          prog = CProgram source (program p)
+      results <- executeVerifiers (verifiers p ) source
+      -- persist the run
+      persist db prog
+      mapM_ (persist db) results
+      -- print the result line to stdout
+      printResultLine results
+
 
 
 printResultLine :: [VerifierRun]  -> IO ()
-printResultLine runs = do
-  putStrLn $ inColumns $  (map (show . verifierResult) runs) ++ [showConclusion runs]
+printResultLine runs = putStrLn $ inColumns $  map (show . verifierResult) runs ++ [showConclusion runs]
   where showConclusion results = case conclude results of
-          Agreement v -> "agreement on " ++ show v -- Do nothing
-          VerifiersUnsound unsoundVerifiers -> "unsoundness"
-          VerifiersIncomplete incompleteVerifiers -> "found incompleteness "
-          Disagreement -> "disagreement"
+          Agreement v           -> "agreement on " ++ show v -- Do nothing
+          VerifiersUnsound _    -> "unsoundness"
+          VerifiersIncomplete _ -> "found incompleteness "
+          Disagreement          -> "disagreement"
 
+inColumns :: [String] -> String
 inColumns = intercalate "\t|\t"
 
-executeVerifiers :: [Verifier] -> FilePath -> IO [VerifierRun]
-executeVerifiers vs fp = forM vs $ \v -> do
-  (r,t) <- execute v fp
-  return $ VerifierRun (verifierName v) r t
+executeVerifiers :: [Verifier] -> String -> IO [VerifierRun]
+executeVerifiers vs content =
+      withSystemTempFile "input.c" $ \fp h -> do
+        hPutStr h content >> hFlush h
+        forM vs $ \v -> do
+          (r,t) <- execute v fp
+          return $ VerifierRun (verifierName v) r t (hash content)
 
 
 conclude :: [VerifierRun] -> Conclusion
@@ -241,7 +244,7 @@ instance HasReads (CStatement SemPhase) where
   reads _                   = []
 
 instance HasReads (CExpression SemPhase) where
-  reads (CVar n (_,ty))        = [(n, ty)]
+  reads (CVar n (_,ty))   = [(n, ty)]
   reads (CBinary _ l r _) = reads l <> reads r
   reads (CUnary _ e _)    = reads e
   reads _                 = []
@@ -258,7 +261,7 @@ notEqualsAssertion i = AssertionTemplate $ \(varName,ty) ->
         | ty `sameType` integral TyUInt = CConst $ CIntConst (cInteger unsigInt) (undefNode, ty)
         | otherwise                     = trace ("don't know how to handle this type: " ++ show ty) $ CConst (CIntConst (cInteger intInt) (undefNode, simpleIntType ))
       expression = CBinary CNeqOp var const' (undefNode, boolType) :: CExpression SemPhase
-      intInt     = fromIntegral i 
+      intInt     = fromIntegral i
       boolInt    = fromIntegral $ i `mod` 2
       unsigInt   = fromIntegral $ abs i
   in CExpr (Just $ CCall identifier [expression]  (undefNode,voidType)) (undefNode,voidType)

@@ -15,6 +15,7 @@ module Verifier.Util
 
 where
 
+import           Data
 import           Timed
 import           Types
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE TypeFamilies          #-}
 
 module Types
@@ -8,32 +9,36 @@ module Types
   ) where
 
 import           Control.Monad.Trans.Reader
+import           Data.ByteString
+import qualified Data.ByteString.Base16         as Hex
+import qualified Data.ByteString.Char8          as C8
 import           Data.Default
-import           System.IO                  (FilePath)
+import           System.IO                      (FilePath)
 
+
+import qualified Database.SQLite.Simple         as SQL
+import           Database.SQLite.Simple.ToField
+import           Database.SQLite.Simple.ToRow
+
+import           Data
 import           Timed
 
-data Strategy = NaiveRandom -- ^ naive random strategry
+data Strategy = NaiveRandom -- ^ naive random strategy
               | SmartGuided -- ^ not implemented yet
 
 
 strategyName :: Strategy -> String
 strategyName NaiveRandom = "naive"
 strategyName SmartGuided = "smart"
---------------------------------------------------------------------------------
-
-data VerifierRun = VerifierRun
-  { runVerifierName   :: VerifierName
-  , verifierResult :: VerifierResult
-  , verifierTiming :: Timing
-  }
 
 
-data VerifierResult
-  = VerificationSuccessful
-  | VerificationFailed
-  | VerificationResultUnknown
-  deriving (Eq, Show)
+-- data VerifierRuns = VerifierRuns
+--   { verifierRuns :: [VerifierRun]
+--   , code         :: Hashed String
+--   } deriving (Show)
+
+
+
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
@@ -42,7 +47,6 @@ data Conclusion
   | VerifiersIncomplete [VerifierName] -- ^ verifiers reject the program although the majority does not
   | Disagreement  -- ^ none of the other cases
 
-type VerifierName = String
 
 data Verifier = Verifier
   { verifierName :: VerifierName
@@ -68,7 +72,7 @@ data MainParameters = CmdRun
   { verbose    :: Bool
   , strategy   :: Strategy
   , iterations :: Int
-  , outputDir  :: Maybe FilePath
+  , databaseFn :: Maybe FilePath
   , verifiers  :: [Verifier]
   , program    :: FilePath
   }
@@ -77,16 +81,3 @@ data MainParameters = CmdRun
 
 
 type Property = String
-
---------------------------------------------------------------------------------
--- Monad Fun
---------------------------------------------------------------------------------
-
--- for now it's just a newtype for reader
-newtype VDiff a = VDiff {unVDiff :: Reader MainParameters a}
-
-runVdiff :: VDiff a -> MainParameters -> a
-runVdiff x = runReader (unVDiff x)
-
-data RunFeedback = RunFeedback -- dummy
---------------------------------------------------------------------------------

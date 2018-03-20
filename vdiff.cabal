@@ -25,6 +25,8 @@ library
                      , Verifier.Util
                      , Verifier.Vim
                      , Timed
+                     , Data
+                     , Persistence
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                      , LambdaCase
@@ -51,6 +53,10 @@ library
                      , transformers >= 0.5
                      , containers
                      , safe
+                     , sqlite-simple
+                     , text
+                     , cryptohash
+                     , base16-bytestring
 
 executable vdiff
   hs-source-dirs:      app
