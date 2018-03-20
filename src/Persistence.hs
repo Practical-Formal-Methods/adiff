@@ -18,8 +18,8 @@ initDb :: Maybe FilePath -> IO SQL.Connection
 initDb mFn = do
   let fn = fromMaybe "vdiff.db" mFn
   conn <- SQL.open fn
-  SQL.execute_ conn "CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY, verifier_name TEXT, result TEXT, code_hash TEXT )"
   SQL.execute_ conn "CREATE TABLE IF NOT EXISTS programs (code_hash TEXT PRIMARY KEY, origin TEXT, content TEXT)"
+  SQL.execute_ conn "CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY, verifier_name TEXT, result TEXT, code_hash TEXT REFERENCES programs )"
   return conn
 
 -- | For things that should be stored into the database

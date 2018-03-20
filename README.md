@@ -31,3 +31,13 @@ To alleviate this problem and for your convenience we provide a Docker image wit
  * Make sure you have an up-to-date generated Dockerfile `make Dockerfile`
  * Build the docker image `docker build .`. The last line of the output should give you a hash.
  * You can execute the image with `docker run -it <hash> /bin/bash`. A few test-cases are located in `~/samples` so you can try it out right away.
+
+### How to get results
+`vdiff` can be called with the parameter `--database <filename.db>` (or `-d`).
+In this case, `vdiff` will store all runs and instrumented files into the given
+sqlite3 database. Currently there are two tables: `runs` and `programs`. Note
+that sqlite allows the database file to be opened by multiple programs
+(concurrent writes though are only safe on file systems with proper file
+locking).
+
+
