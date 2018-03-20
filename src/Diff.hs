@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo       #-}
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module Diff where
 
@@ -28,6 +29,7 @@ import           Text.PrettyPrint                 (render)
 import           Debug.Trace
 
 import           Data
+import           Instrumentation
 import           Persistence
 import           Types
 import           Verifier
@@ -67,7 +69,8 @@ diff p = do
   forM_ [(i,ins) | i <- [1.. iterations p], ins <- inserters ] $ \(i,ins) -> do
       j <- randomIO :: IO Int
       let ast' = runReader ins (notEqualsAssertion j)
-          source = render $ pretty ast'
+          ast'' = maskAsserts ast'
+          source = render $ pretty ast''
           prog = CProgram source (program p)
       results <- executeVerifiers (verifiers p ) source
       -- persist the run
@@ -75,7 +78,6 @@ diff p = do
       mapM_ (persist db) results
       -- print the result line to stdout
       printResultLine results
-
 
 
 printResultLine :: [VerifierRun]  -> IO ()
@@ -268,3 +270,5 @@ notEqualsAssertion i = AssertionTemplate $ \(varName,ty) ->
 
 simpleIntType :: Type
 simpleIntType = integral (getIntType noFlags)
+
+

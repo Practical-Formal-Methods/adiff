@@ -27,6 +27,7 @@ library
                      , Timed
                      , Data
                      , Persistence
+                     , Instrumentation
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                      , LambdaCase
