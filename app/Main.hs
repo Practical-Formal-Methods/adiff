@@ -31,7 +31,7 @@ mainParameters = asum [pVersions, pParseTest, pRun]
                                       , showDefaultWith strategyName
                                       , metavar "STRATEGY"])
       <*> option auto ( long "iterations" <> short 'n' <> help "number of iterations" <> value 1)
-      <*> optional (strOption ( long "output-dir" <> short 'o' <> help "output folder for files on which verifiers disagree"))
+      <*> optional (strOption ( long "database" <> short 'd' <> help "sqlite database to save results"))
       <*> option verifierParser (mconcat [ long "verifiers"
                                         , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
                                         , value []
