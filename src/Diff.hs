@@ -63,13 +63,13 @@ diff p = do
   ast <- openCFile (program p)
   -- initRandom
   putStrLn "successfully parsed"
-  let inserters = runGen $ translationUnit ast
+  let ast' = maskAsserts ast
+  let inserters = runGen $ translationUnit ast'
   putStrLn $ "insertion points: " ++ show (length inserters)
   putStrLn $ inColumns $ map verifierName (verifiers p)
   forM_ [(i,ins) | i <- [1.. iterations p], ins <- inserters ] $ \(i,ins) -> do
       j <- randomIO :: IO Int
-      let ast' = runReader ins (notEqualsAssertion j)
-          ast'' = maskAsserts ast'
+      let ast'' = runReader ins (notEqualsAssertion j)
           source = render $ pretty ast''
           prog = CProgram source (program p)
       results <- executeVerifiers (verifiers p ) source
