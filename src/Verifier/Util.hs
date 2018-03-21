@@ -15,6 +15,9 @@ module Verifier.Util
 
 where
 
+import           RIO
+import           System.IO      (hPutStr)
+
 import           Data
 import           Timed
 import           Types
@@ -22,8 +25,6 @@ import           Types
 import           Data.Default   (def)
 import           Data.FileEmbed
 import           System.Exit
-import           System.IO
-import           System.IO.Temp
 import           System.Process
 
 withSpec :: Property -> (FilePath -> IO a) -> IO a

@@ -1,9 +1,10 @@
 module Persistence where
 
+import           RIO
+
 import qualified Crypto.Hash.SHA1               as SHA1
 import qualified Data.ByteString.Base16         as Hex
 import qualified Data.ByteString.Char8          as C8
-import           Data.Maybe                     (fromMaybe)
 
 import qualified Database.SQLite.Simple         as SQL
 import           Database.SQLite.Simple.ToField
@@ -15,13 +16,15 @@ import           Timed
 --------------------------------------------------------------------------------
 
 -- | initializes the database with the necessary parameters. If not file path is given, the default name "vdiff.db" is used.
-initDb :: Maybe FilePath -> IO SQL.Connection
-initDb mFn = do
-  let fn = fromMaybe "vdiff.db" mFn
-  conn <- SQL.open fn
-  SQL.execute_ conn "CREATE TABLE IF NOT EXISTS programs (code_hash TEXT PRIMARY KEY, origin TEXT, content TEXT)"
-  SQL.execute_ conn "CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY, verifier_name TEXT, result TEXT, time INT, memory INT, code_hash TEXT REFERENCES programs )"
-  return conn
+withDiffDB :: FilePath -> (SQL.Connection -> IO a) -> IO a
+withDiffDB fn act = do
+  conn <- liftIO $ SQL.open fn
+  liftIO $ SQL.execute_ conn "CREATE TABLE IF NOT EXISTS programs (code_hash TEXT PRIMARY KEY, origin TEXT, content TEXT)"
+  liftIO $ SQL.execute_ conn "CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY, verifier_name TEXT, result TEXT, time INT, memory INT, code_hash TEXT REFERENCES programs )"
+  x <- act conn
+  SQL.close conn
+  return x
+  
 
 -- | For things that should be stored into the database
 class Persistent a where

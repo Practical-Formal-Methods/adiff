@@ -9,9 +9,11 @@ module Timed
   , maxResidentMemory
   ) where
 
-import           Control.Exception (throwIO)
+import           Prelude        (read)
+import           RIO
+import qualified RIO.List       as L
+
 import           Data.Default
-import           System.Exit
 import           System.Process
 
 data Timing = Timing
@@ -35,11 +37,15 @@ execTimed cp inp = do
     modify (RawCommand fp args) = RawCommand "/usr/bin/time" ("-f":format:fp:args)
     format = "\"%U %S %e %M\""
 
+data TimedError = ParsingError
+  deriving Show
+
+instance Exception TimedError
 
 parseTimed :: String -> IO Timing
-parseTimed str = let w = words $ last $ lines str
+parseTimed str = let w = words $ L.last $ lines str
                  in case w of
                       [u, s, e, m] -> return $ Timing (read u) (read s) (read e) (read m)
-                      _            -> throwIO $ userError "error parsing output of the time command"
+                      _            -> throwIO ParsingError
 
 

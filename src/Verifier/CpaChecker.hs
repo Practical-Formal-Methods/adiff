@@ -1,5 +1,7 @@
 module Verifier.CpaChecker (cpaChecker) where
 
+import RIO
+
 import           Verifier.Util
 
 import           Data.List     (isPrefixOf)

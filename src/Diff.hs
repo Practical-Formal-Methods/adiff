@@ -1,18 +1,19 @@
 {-# LANGUAGE ApplicativeDo       #-}
 {-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
 
 module Diff where
 
-import           Prelude                          hiding (fail, reads)
+import           Prelude                          (toEnum)
+import           RIO                              hiding (fail)
 
-import           Control.Exception
-import           Control.Monad                    hiding (fail)
 import           Control.Monad.Trans.Reader
-import           Data.List                        (intercalate, sortBy)
-import           Data.Monoid                      ((<>))
+import           Data.List                        (sortBy)
 import           Data.Ord                         (comparing)
+import           System.IO                        (hPutStr, putStr, putStrLn)
 
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
@@ -20,8 +21,6 @@ import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           System.Exit
-import           System.IO
-import           System.IO.Temp
 import           System.Random
 import           Text.PrettyPrint                 (render)
 
@@ -34,66 +33,54 @@ import           Persistence
 import           Types
 import           Verifier
 
+
+
 -- short-hand for open, parse and type annotate
-openCFile :: FilePath -> IO (CTranslationUnit SemPhase)
-openCFile fn = parseCFilePre fn >>= \case
+openCFile :: HasLogFunc env => FilePath -> RIO env (CTranslationUnit SemPhase)
+openCFile fn = do
+  x <- liftIO $ parseCFilePre fn
+  case x of
     Left parseError -> do
-      hPutStrLn stderr "parse error: "
-      hPrint stderr parseError
-      exitFailure
+      logError $ "parse error: " <> displayShow parseError
+      liftIO exitFailure
     Right tu -> case runTrav_ (analyseAST tu) of
         Left typeError -> do
-          hPutStrLn stderr "type error: "
-          hPrint stderr typeError
-          exitFailure
+          logError $ "type error: " <> displayShow typeError
+          liftIO exitFailure
         Right (tu', warnings) -> do
-          unless (null warnings) $ do
-            putStrLn "warnings: "
-            hPrint stderr warnings
+          unless (null warnings) $ logWarn $ "warnings: " <> displayShow warnings
           return tu'
 
 
+-- | This is a RIO version of persist
+persist' :: HasDatabase env => Persistent a => a -> RIO env ()
+persist' x = do
+  conn <- view databaseL
+  liftIO $ persist conn x
 
--- TODO: this uses naive strategy, always
-diff :: MainParameters -> IO ()
-diff (CmdParseTest fn) = cmdParseTest fn
-diff CmdVersions = cmdVersions
-diff p = do
-  db <- initDb (databaseFn p)
-  ast <- openCFile (program p)
+
+cmdDiff :: HasMainEnv a => DiffParameters -> RIO a ()
+cmdDiff DiffParameters{..} = do
+  logInfo "starting diff"
+  ast <- openCFile program
   -- initRandom
-  putStrLn "successfully parsed"
   let ast' = maskAsserts ast
   let inserters = runGen $ translationUnit ast'
-  putStrLn $ "insertion points: " ++ show (length inserters)
-  putStrLn $ inColumns $ map verifierName (verifiers p)
-  forM_ [(i,ins) | i <- [1.. iterations p], ins <- inserters ] $ \(i,ins) -> do
-      j <- randomIO :: IO Int
+  logInfo $ "insertion points: " <> display (length inserters)
+  forM_ [(i,ins) | i <- [1.. iterations], ins <- inserters ] $ \(i,ins) -> do
+      j <- liftIO (randomIO :: IO Int)
       let ast'' = runReader ins (notEqualsAssertion j)
           source = render $ pretty ast''
-          prog = CProgram source (program p)
-      results <- executeVerifiers (verifiers p ) source
+          prog = CProgram source program
+      results <- executeVerifiers verifiers source
       -- persist the run
-      persist db prog
-      mapM_ (persist db) results
-      -- print the result line to stdout
-      printResultLine results
+      persist' prog
+      mapM_ persist' results
 
 
-printResultLine :: [VerifierRun]  -> IO ()
-printResultLine runs = putStrLn $ inColumns $  map (show . verifierResult) runs ++ [showConclusion runs]
-  where showConclusion results = case conclude results of
-          Agreement v           -> "agreement on " ++ show v -- Do nothing
-          VerifiersUnsound _    -> "unsoundness"
-          VerifiersIncomplete _ -> "found incompleteness "
-          Disagreement          -> "disagreement"
-
-inColumns :: [String] -> String
-inColumns = intercalate "\t|\t"
-
-executeVerifiers :: [Verifier] -> String -> IO [VerifierRun]
+executeVerifiers :: [Verifier] -> String -> RIO a [VerifierRun]
 executeVerifiers vs content =
-      withSystemTempFile "input.c" $ \fp h -> do
+  liftIO $ withSystemTempFile "input.c" $ \fp h -> do
         hPutStr h content >> hFlush h
         forM vs $ \v -> do
           (r,t) <- execute v fp
@@ -115,11 +102,11 @@ conclude runs
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
-cmdParseTest :: FilePath -> IO ()
-cmdParseTest fn = openCFile fn >>= putStrLn . render . pretty
+cmdParseTest :: HasLogFunc env => FilePath -> RIO env ()
+cmdParseTest fn = openCFile fn >>= liftIO . putStrLn . render . pretty
 
-cmdVersions :: IO ()
-cmdVersions = forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
+cmdVersions :: RIO a ()
+cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
     putStr $ verifierName verifier
     putStr ": "
     sv <- try (version verifier) >>= \case

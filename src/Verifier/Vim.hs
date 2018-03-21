@@ -1,6 +1,8 @@
 
 module Verifier.Vim (vim) where
 
+import           RIO
+import           Safe
 import           Verifier.Util
 
 -- | This is not a real verifier. It uses vim to show the file to the user.
@@ -24,4 +26,4 @@ runVim fn = do
 vimVersion :: IO (Maybe String)
 vimVersion = do
   s <- readCreateProcess (shell "vim --version") ""
-  return $ Just <$> head $ lines s
+  return $ headMay $ lines s

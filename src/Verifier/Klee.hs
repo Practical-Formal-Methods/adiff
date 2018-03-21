@@ -2,6 +2,7 @@
 
 module Verifier.Klee (klee) where
 
+import           RIO
 import           Safe
 import           Verifier.Util
 

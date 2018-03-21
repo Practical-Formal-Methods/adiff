@@ -29,7 +29,8 @@ library
                      , Persistence
                      , Instrumentation
   default-language:    Haskell2010
-  default-extensions:  OverloadedStrings
+  default-extensions:  NoImplicitPrelude
+                     , OverloadedStrings
                      , LambdaCase
                      , PartialTypeSignatures
                      , ScopedTypeVariables
@@ -41,7 +42,10 @@ library
                      , StandaloneDeriving
 
   build-depends:       base >= 4.7 && < 5
+                     , base16-bytestring
                      , bytestring >= 0.10
+                     , containers
+                     , cryptohash
                      , data-default
                      , file-embed
                      , language-c 
@@ -50,21 +54,19 @@ library
                      , pretty
                      , process 
                      , random 
-                     , temporary
-                     , transformers >= 0.5
-                     , containers
+                     , rio
                      , safe
                      , sqlite-simple
+                     , temporary
                      , text
-                     , cryptohash
-                     , base16-bytestring
+                     , transformers >= 0.5
 
 executable vdiff
   hs-source-dirs:      app
   main-is:             Main.hs
   default-language:    Haskell2010
-  default-extensions:  OverloadedStrings
-                     , LambdaCase
+  default-extensions:  NoImplicitPrelude
+                     , OverloadedStrings
                      , PartialTypeSignatures
                      , DeriveFunctor
                      , GeneralizedNewtypeDeriving
@@ -77,6 +79,7 @@ executable vdiff
                      , optparse-applicative
                      , transformers >= 0.5
                      , mtl 
+                     , rio
 
 executable vdiff-time
   hs-source-dirs:      app

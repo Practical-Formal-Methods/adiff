@@ -1,5 +1,8 @@
 module Verifier.Sea(seahorn) where
 
+import           RIO
+import           qualified RIO.List as L
+
 import           Verifier.Util
 
 seahorn :: Verifier
@@ -12,11 +15,9 @@ seahorn = def { verifierName = "seahorn"
 runSeahorn :: FilePath -> IO (VerifierResult, Timing)
 runSeahorn fn = do
   let cmd = (shell $ "./sea pf "  ++ fn) {cwd = Just "/verifiers/seahorn/bin"}
-  print cmd
   (_, out, timing) <- execTimed cmd ""
-  let res = case last (lines out) of
+  let res = case L.last (lines out) of
               "sat"   -> VerificationFailed
               "unsat" -> VerificationSuccessful
               _       -> VerificationResultUnknown
-  print $ "runSeahorn: " ++ show res
   return (res, timing)

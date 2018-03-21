@@ -1,4 +1,7 @@
-resolver: lts-10.7
+flags: {}
 packages:
 - .
 - ./language-c-extensible
+extra-deps:
+- rio-0.0.3.0
+resolver: lts-11.1

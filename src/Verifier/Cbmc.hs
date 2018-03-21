@@ -1,5 +1,8 @@
 module Verifier.Cbmc (cbmc) where
 
+import           RIO
+import qualified RIO.List      as L
+
 import           Verifier.Util
 
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
@@ -11,7 +14,7 @@ runCbmc :: FilePath -> IO (VerifierResult, Timing)
 runCbmc fn = do
   let cmd = "cbmc --32 --error-label ERROR " ++ fn
   (exitCode, out, timing) <- execTimed (shell cmd) ""
-  let lastLine = last $ lines out
+  let lastLine = L.last $ lines out
       res = case (exitCode, lastLine) of
         (ExitSuccess,"VERIFICATION FAILED")     -> VerificationFailed
         (ExitSuccess,"VERIFICATION SUCCESSFUL") -> VerificationSuccessful
@@ -20,4 +23,4 @@ runCbmc fn = do
 
 
 cbmcVersion :: IO (Maybe String)
-cbmcVersion = Just . head . lines <$> readCreateProcess (shell "cbmc --version") ""
+cbmcVersion = Just . L.head . lines <$> readCreateProcess (shell "cbmc --version") ""
