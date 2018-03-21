@@ -8,17 +8,20 @@ import           Verifier.Util
 -- | This is not a real verifier. It uses vim to show the file to the user.
 -- The user can then say successful by closing vim regularly (:q) or failed by closing vim with non-zero exit code (:cq)
 vim :: Verifier
-vim = def { verifierName = "vim", execute = runVim, version = vimVersion }
+vim = def { verifierName = "vim"
+          , execute = runVim
+          , version = vimVersion
+          }
 
-runVim :: FilePath -> IO (VerifierResult, Timing)
+runVim :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 runVim fn = do
   let process  = (shell ("vim -R " ++ fn)) {
           std_in        = Inherit
         , std_out       = Inherit
         , delegate_ctlc = False }
 
-  (_,_,_,ph) <- createProcess process
-  exitCode <- waitForProcess ph
+  (_,_,_,ph) <- liftIO $ createProcess process
+  exitCode <- liftIO $ waitForProcess ph
   case exitCode of
               ExitSuccess   -> return (VerificationSuccessful, def)
               ExitFailure _ -> return (VerificationFailed, def)

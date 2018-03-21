@@ -44,7 +44,17 @@ instance HasDatabase MainEnv where
   databaseL = lens _database (\e d -> e {_database = d})
 
 
+-- | Every verifier is supposed to run in this environment
+newtype VerifierEnv = VerifierEnv
+  { verifierEnvLogger :: LogFunc
+  }
+instance HasLogFunc VerifierEnv where
+  logFuncL = lens verifierEnvLogger (\e l -> e { verifierEnvLogger = l})
 
+mkVerifierEnv :: (HasLogFunc env ) => RIO env VerifierEnv
+mkVerifierEnv = do
+  lg <- view logFuncL
+  return $ VerifierEnv lg
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
@@ -54,9 +64,10 @@ data Conclusion
   | Disagreement  -- ^ none of the other cases
 
 
+
 data Verifier = Verifier
   { verifierName :: VerifierName
-  , execute      :: FilePath -> IO (VerifierResult, Timing)
+  , execute      :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
   , version      :: IO (Maybe String)
   }
 

@@ -2,6 +2,7 @@ module Verifier.Util
   ( Types.Verifier(..)
   , System.Exit.ExitCode(..)
   , VerifierResult(..)
+  , module Safe
   , def
   , withSystemTempFile
   , hFlush
@@ -11,6 +12,7 @@ module Verifier.Util
   , reachSafety
   , execTimed
   , Timing
+  , VerifierEnv
   )
 
 where
@@ -24,13 +26,14 @@ import           Types
 
 import           Data.Default   (def)
 import           Data.FileEmbed
+import           Safe
 import           System.Exit
 import           System.Process
 
-withSpec :: Property -> (FilePath -> IO a) -> IO a
+withSpec :: (MonadUnliftIO m) => Property -> (FilePath -> m a) -> m a
 withSpec p f = withSystemTempFile "spec.prp" $ \fp hndl -> do
-  hPutStr hndl p
-  hFlush hndl
+  liftIO $ hPutStr hndl p
+  liftIO $ hFlush hndl
   f fp
 
 reachSafety :: Property

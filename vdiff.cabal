@@ -57,7 +57,6 @@ library
                      , rio
                      , safe
                      , sqlite-simple
-                     , temporary
                      , text
                      , transformers >= 0.5
 
@@ -88,4 +87,5 @@ executable vdiff-time
   default-extensions:  OverloadedStrings
   build-depends:       base >= 4.7 && < 5
                      , vdiff
-                     , process 
+                     , process
+                     , rio

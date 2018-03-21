@@ -8,9 +8,12 @@ import           Verifier.Util
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.
 cbmc :: Verifier
-cbmc = def { verifierName = "cbmc", execute = runCbmc, version = cbmcVersion }
+cbmc = def { verifierName = "cbmc"
+           , execute = runCbmc
+           , version = cbmcVersion
+           }
 
-runCbmc :: FilePath -> IO (VerifierResult, Timing)
+runCbmc :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 runCbmc fn = do
   let cmd = "cbmc --32 --error-label ERROR " ++ fn
   (exitCode, out, timing) <- execTimed (shell cmd) ""

@@ -65,7 +65,7 @@ parseMainParameters = MainParameters <$> parseLogLevel <*> parseDatabasePath <*>
   where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdRun
 
 parseLogLevel :: Parser LogLevel
-parseLogLevel = option levelP (long "log-level" <> help helpText <> metavar "LOGLEVEL")
+parseLogLevel = option levelP (long "log-level" <> help helpText <> metavar "LOGLEVEL" <> value LevelWarn)
   where
     helpText = "Allowed values: debug, info, warning, error"
     levelP = (str :: ReadM Text ) >>= \case

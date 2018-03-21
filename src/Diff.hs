@@ -78,12 +78,13 @@ cmdDiff DiffParameters{..} = do
       mapM_ persist' results
 
 
-executeVerifiers :: [Verifier] -> String -> RIO a [VerifierRun]
+executeVerifiers :: HasLogFunc env => [Verifier] -> String -> RIO env [VerifierRun]
 executeVerifiers vs content =
-  liftIO $ withSystemTempFile "input.c" $ \fp h -> do
-        hPutStr h content >> hFlush h
+  withSystemTempFile "input.c" $ \fp h -> do
+        liftIO $ hPutStr h content >> hFlush h
         forM vs $ \v -> do
-          (r,t) <- execute v fp
+          env <- mkVerifierEnv
+          (r,t) <- runRIO env (execute v fp)
           return $ VerifierRun (verifierName v) r t (hash content)
 
 
