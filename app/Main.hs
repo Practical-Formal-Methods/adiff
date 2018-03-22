@@ -88,8 +88,7 @@ parseCmdTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints t
 
 parseCmdRun :: Parser Cmd
 parseCmdRun = CmdRun <$> (DiffParameters
-      <$> switch ( long "verbose" <> help "verbose output")
-      <*> option stratParser (mconcat [ long "strategy"
+      <$> option stratParser (mconcat [ long "strategy"
                                       , help "guidance algorithm"
                                       , value NaiveRandom
                                       , showDefaultWith strategyName

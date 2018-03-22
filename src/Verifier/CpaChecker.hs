@@ -14,6 +14,7 @@ cpaExecute :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 cpaExecute fn = withSpec reachSafety $ \spec -> do
   let cmd = shell $ "cpa.sh -default -nolog -noout -spec " ++ spec ++ " " ++ fn
   (_,out,timing) <- execTimed cmd ""
+  debugOutput "cpachecker" out
   let out' = filter ("Verification result" `isPrefixOf`) $ lines out
   let res = case out' of
         (s:_) | "Verification result: TRUE" `isPrefixOf` s -> VerificationSuccessful

@@ -87,8 +87,7 @@ instance Default Verifier where
 
 
 data DiffParameters = DiffParameters
-  { verbose    :: Bool
-  , strategy   :: Strategy
+  { strategy   :: Strategy
   , iterations :: Int
   , verifiers  :: [Verifier]
   , program    :: FilePath

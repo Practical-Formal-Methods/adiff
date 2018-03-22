@@ -11,6 +11,7 @@ module Verifier.Util
   , withSpec
   , reachSafety
   , execTimed
+  , debugOutput
   , Timing
   , VerifierEnv
   )
@@ -18,13 +19,14 @@ module Verifier.Util
 where
 
 import           RIO
-import           System.IO      (hPutStr)
+import           System.IO             (hPutStr)
 
 import           Data
 import           Timed
 import           Types
 
-import           Data.Default   (def)
+import qualified Data.ByteString.Char8 as C8
+import           Data.Default          (def)
 import           Data.FileEmbed
 import           Safe
 import           System.Exit
@@ -38,3 +40,13 @@ withSpec p f = withSystemTempFile "spec.prp" $ \fp hndl -> do
 
 reachSafety :: Property
 reachSafety = "CHECK( init(main()), LTL(G ! call(__VERIFIER_error())) )"
+
+
+debugOutput :: HasLogFunc env => String -> String -> RIO env ()
+debugOutput verifierName out = do
+  let ls = lines out
+  forM_ ls $ \l ->
+    logDebug $ "[" <> toDisplayBuilder verifierName  <> "] " <> toDisplayBuilder l
+
+toDisplayBuilder :: String -> DisplayBuilder
+toDisplayBuilder = displayBytesUtf8 . C8.pack

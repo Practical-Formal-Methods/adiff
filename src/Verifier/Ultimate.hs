@@ -35,8 +35,9 @@ taipanVersion = headMay . lines <$> readCreateProcess (shell "Taipan.py --versio
 runUltimate :: String -> RIO VerifierEnv (VerifierResult, Timing)
 runUltimate cmd = do
             (exitCode, out, timing) <- execTimed (shell cmd) ""
-            let lastLine = lastMay $ lines out
-            case (exitCode, lastLine) of
+            debugOutput "ultimate" out
+            let linesOut = lines out
+            case (exitCode, lastMay linesOut) of
                 (ExitSuccess, Just "TRUE")  -> return (VerificationSuccessful, timing)
                 (ExitSuccess, Just "FALSE") -> return (VerificationFailed, timing)
                 (status, line)  -> do
