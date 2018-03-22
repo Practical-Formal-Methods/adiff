@@ -14,7 +14,7 @@ seahorn = def { verifierName = "seahorn"
 runSeahorn :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 runSeahorn fn = do
   let cmd = (shell $ "./sea pf "  ++ fn) {cwd = Just "/verifiers/seahorn/bin"}
-  (_, out, timing) <- execTimed cmd ""
+  (_, out, _, timing) <- execTimed cmd ""
   debugOutput "seahorn" out
   let res = case lastMay (lines out) of
               Just "sat"   -> VerificationFailed

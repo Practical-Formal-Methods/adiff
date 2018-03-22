@@ -33,13 +33,13 @@ instance Display Timing where
 instance Default Timing where
   def = Timing 0 0 0 0
 
-execTimed :: HasLogFunc env => CreateProcess -> String -> RIO env (ExitCode, String, Timing)
+execTimed :: HasLogFunc env => CreateProcess -> String -> RIO env (ExitCode, String, String, Timing)
 execTimed cp inp = do
-  (code, out, err) <- liftIO $ readCreateProcessWithExitCode cp' inp
   logInfo $ "executing timed command: " <> displayShow (cmdspec cp')
+  (code, out, err) <- liftIO $ readCreateProcessWithExitCode cp' inp
   timed <- liftIO $ parseTimed err
   logInfo $ "command terminated with timing: " <> display timed
-  return (code, out, timed)
+  return (code, out, L.init err, timed)
   where
     cp' = cp {cmdspec = modify (cmdspec cp) }
     modify (ShellCommand cmd)   = ShellCommand ("/usr/bin/time -f " ++ format ++ " " ++ cmd)

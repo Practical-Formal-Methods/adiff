@@ -23,7 +23,7 @@ kleeRun :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 kleeRun fn = withKleeH $ \kleeH ->
     withSystemTempFile "file.bc" $ \bc _ -> do
       liftIO $ callCommand $ "clang -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
-      (exitCode, out, timing) <- execTimed (shell $ "klee " ++ bc) ""
+      (exitCode, out, _, timing) <- execTimed (shell $ "klee " ++ bc) ""
       case (exitCode, null out) of
         (ExitSuccess, True)  -> return (VerificationSuccessful, timing)
         (ExitSuccess, False) -> return (VerificationFailed, timing)

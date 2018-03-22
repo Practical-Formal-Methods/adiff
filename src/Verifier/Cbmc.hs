@@ -16,7 +16,7 @@ cbmc = def { verifierName = "cbmc"
 runCbmc :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 runCbmc fn = do
   let cmd = "cbmc --32 --error-label ERROR " ++ fn
-  (exitCode, out, timing) <- execTimed (shell cmd) ""
+  (exitCode, out, _, timing) <- execTimed (shell cmd) ""
   debugOutput "cbmc" out
   let lastLine = L.last $ lines out
       res = case (exitCode, lastLine) of
