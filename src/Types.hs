@@ -1,27 +1,17 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE TypeFamilies          #-}
-
 module Types
   ( module Types
   , module Data.Default
   ) where
 
-import           Control.Monad.Trans.Reader
-import           Data.ByteString
-import qualified Data.ByteString.Base16         as Hex
-import qualified Data.ByteString.Char8          as C8
+import           RIO
+
 import           Data.Default
-import           System.IO                      (FilePath)
-
-
-import qualified Database.SQLite.Simple         as SQL
-import           Database.SQLite.Simple.ToField
-import           Database.SQLite.Simple.ToRow
+import qualified Database.SQLite.Simple as SQL
+import           System.IO              (FilePath)
 
 import           Data
 import           Timed
+
 
 data Strategy = NaiveRandom -- ^ naive random strategy
               | SmartGuided -- ^ not implemented yet
@@ -31,14 +21,40 @@ strategyName :: Strategy -> String
 strategyName NaiveRandom = "naive"
 strategyName SmartGuided = "smart"
 
+--------------------------------------------------------------------------------
+-- | * RIO
+-- | type classes for usage with RIO instances
+class HasDatabase a where
+  databaseL :: Lens' a SQL.Connection
 
--- data VerifierRuns = VerifierRuns
---   { verifierRuns :: [VerifierRun]
---   , code         :: Hashed String
---   } deriving (Show)
+class (HasLogFunc a, HasDatabase a) => HasMainEnv a
+
+-- | ** The main environment
+-- | This is the main environment that is available for all commands.
+data MainEnv = MainEnv
+  { _logger   :: LogFunc
+  , _database :: SQL.Connection
+  }
+instance HasMainEnv MainEnv
+
+instance HasLogFunc MainEnv where
+  logFuncL = lens _logger (\e l -> e {_logger = l})
+
+instance HasDatabase MainEnv where
+  databaseL = lens _database (\e d -> e {_database = d})
 
 
+-- | Every verifier is supposed to run in this environment
+newtype VerifierEnv = VerifierEnv
+  { verifierEnvLogger :: LogFunc
+  }
+instance HasLogFunc VerifierEnv where
+  logFuncL = lens verifierEnvLogger (\e l -> e { verifierEnvLogger = l})
 
+mkVerifierEnv :: (HasLogFunc env ) => RIO env VerifierEnv
+mkVerifierEnv = do
+  lg <- view logFuncL
+  return $ VerifierEnv lg
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
@@ -48,9 +64,10 @@ data Conclusion
   | Disagreement  -- ^ none of the other cases
 
 
+
 data Verifier = Verifier
   { verifierName :: VerifierName
-  , execute      :: FilePath -> IO (VerifierResult, Timing)
+  , execute      :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
   , version      :: IO (Maybe String)
   }
 
@@ -68,16 +85,13 @@ instance Default Verifier where
 
 
 
-data MainParameters = CmdRun
+
+data DiffParameters = DiffParameters
   { verbose    :: Bool
   , strategy   :: Strategy
   , iterations :: Int
-  , databaseFn :: Maybe FilePath
   , verifiers  :: [Verifier]
   , program    :: FilePath
   }
-  | CmdVersions
-  | CmdParseTest FilePath
-
 
 type Property = String

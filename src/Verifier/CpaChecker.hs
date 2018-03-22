@@ -1,5 +1,7 @@
 module Verifier.CpaChecker (cpaChecker) where
 
+import RIO
+
 import           Verifier.Util
 
 import           Data.List     (isPrefixOf)
@@ -8,7 +10,7 @@ import           Data.Maybe    (listToMaybe)
 cpaChecker :: Verifier
 cpaChecker = def { verifierName = "cpachecker", execute = cpaExecute, version = cpaVersion}
 
-cpaExecute :: FilePath -> IO (VerifierResult, Timing)
+cpaExecute :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
 cpaExecute fn = withSpec reachSafety $ \spec -> do
   let cmd = shell $ "cpa.sh -default -nolog -noout -spec " ++ spec ++ " " ++ fn
   (_,out,timing) <- execTimed cmd ""

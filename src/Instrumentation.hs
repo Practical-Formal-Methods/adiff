@@ -5,6 +5,7 @@ module Instrumentation
  ( maskAsserts
  ) where
 
+import RIO
 
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2

@@ -5,6 +5,8 @@ import           Data.ByteString
 import qualified Data.ByteString.Char8          as C8
 import           Database.SQLite.Simple.ToField
 
+import           RIO
+
 import           Timed
 
 -- | An instrumented program

@@ -1,0 +1,55 @@
+name:                vdiff
+version:             0.1.0.0
+synopsis:         A simple tool to compare static program verifiers
+github:            https://github.com/chkl/vdiff
+author:              Christian Klinger
+maintainer:          io@klinch.de
+copyright:           All Rights Reserved
+license:             AllRightsReserved
+category:            Misc
+build-type:          Simple
+
+extra-source-files:
+  - README.md
+  - assets/**
+
+
+default-extensions:
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - LambdaCase
+  - PartialTypeSignatures
+  - ScopedTypeVariables
+  - DeriveFunctor
+  - GeneralizedNewtypeDeriving
+  - TypeFamilies
+  - FlexibleContexts
+  - FlexibleInstances
+  - StandaloneDeriving
+
+
+executables:
+  vdiff:
+    source-dirs: app
+    main: Main.hs
+    dependencies: vdiff
+
+library:
+  source-dirs:      src
+
+dependencies:
+  - base >= 4.7
+  - rio >= 0.0.3
+  - base16-bytestring
+  - bytestring
+  - cryptohash
+  - data-default
+  - file-embed
+  - language-c
+  - optparse-applicative
+  - pretty
+  - process
+  - random
+  - safe
+  - sqlite-simple
+  - transformers

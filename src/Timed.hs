@@ -9,9 +9,11 @@ module Timed
   , maxResidentMemory
   ) where
 
-import           Control.Exception (throwIO)
+import           Prelude        (read)
+import           RIO
+import qualified RIO.List       as L
+
 import           Data.Default
-import           System.Exit
 import           System.Process
 
 data Timing = Timing
@@ -21,13 +23,22 @@ data Timing = Timing
   , maxResidentMemory :: Int    -- ^ maximum residential memory (in kilobytes)
   } deriving (Show)
 
+instance Display Timing where
+  display (Timing u s e m) = mconcat [ displayShow u <> "s user "
+                                     , displayShow s <> "s system "
+                                     , displayShow e <> "s wall "
+                                     , display m <> "KiB mem"
+                                     ]
+
 instance Default Timing where
   def = Timing 0 0 0 0
 
-execTimed :: CreateProcess -> String -> IO (ExitCode, String, Timing)
+execTimed :: HasLogFunc env => CreateProcess -> String -> RIO env (ExitCode, String, Timing)
 execTimed cp inp = do
-  (code, out, err) <- readCreateProcessWithExitCode cp' inp
-  timed <- parseTimed err
+  (code, out, err) <- liftIO $ readCreateProcessWithExitCode cp' inp
+  logInfo $ "executing timed command: " <> displayShow (cmdspec cp')
+  timed <- liftIO $ parseTimed err
+  logInfo $ "command terminated with timing: " <> display timed
   return (code, out, timed)
   where
     cp' = cp {cmdspec = modify (cmdspec cp) }
@@ -35,11 +46,16 @@ execTimed cp inp = do
     modify (RawCommand fp args) = RawCommand "/usr/bin/time" ("-f":format:fp:args)
     format = "\"%U %S %e %M\""
 
+data TimedError = ParsingError
+  deriving Show
 
+instance Exception TimedError
+
+-- TODO: IO exceptions are not nice
 parseTimed :: String -> IO Timing
-parseTimed str = let w = words $ last $ lines str
+parseTimed str = let w = words $ L.last $ lines str
                  in case w of
                       [u, s, e, m] -> return $ Timing (read u) (read s) (read e) (read m)
-                      _            -> throwIO $ userError "error parsing output of the time command"
+                      _            -> throwIO ParsingError
 
 
