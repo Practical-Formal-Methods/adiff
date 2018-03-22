@@ -33,8 +33,9 @@ taipanVersion = headMay . lines <$> readCreateProcess (shell "Taipan.py --versio
 
 
 runUltimate :: String -> RIO VerifierEnv (VerifierResult, Timing)
-runUltimate cmd = do
-            (exitCode, out, err, timing) <- execTimed (shell cmd) ""
+runUltimate cmd =
+  withSystemTempDirectory "ultimate-tmp" $ \dir -> do
+            (exitCode, out, err, timing) <- execTimed ((shell cmd) {cwd = Just dir}) ""
             debugOutput "ultimate" out
             debugOutput "ultimate(error)" err
             let linesOut = lines out
