@@ -2,7 +2,7 @@
 
 
 RUN cd /tmp && \
-    git clone --depth 1 "https://github.com/seahorn/seahorn.git" && \
+    git clone "https://github.com/seahorn/seahorn.git" && \
     cd seahorn && \
     git checkout 9c4a917a595e11d673eed216701df106b73fdbda
 
