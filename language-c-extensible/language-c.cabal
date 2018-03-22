@@ -122,7 +122,7 @@ Library
                       Language.C.Parser.Parser
 
 -- test description
-Test-Suite language-c-harness
-    type:       exitcode-stdio-1.0
-    main-is:    test/harness/run-harness.hs
-    build-depends: base, language-c, directory, process, filepath
+-- Test-Suite language-c-harness
+--     type:       exitcode-stdio-1.0
+--     main-is:    test/harness/run-harness.hs
+--     build-depends: base, language-c, directory, process, filepath

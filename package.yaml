@@ -27,6 +27,7 @@ default-extensions:
   - FlexibleInstances
   - StandaloneDeriving
 
+ghc-options: -threaded
 
 executables:
   vdiff:
@@ -36,6 +37,17 @@ executables:
 
 library:
   source-dirs:      src
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - tasty 
+      - tasty-hunit
+      - tasty-quickcheck
+      - vdiff
+
 
 dependencies:
   - base >= 4.7
@@ -53,3 +65,4 @@ dependencies:
   - safe
   - sqlite-simple
   - transformers
+  - text
