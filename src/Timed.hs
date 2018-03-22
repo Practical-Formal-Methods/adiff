@@ -54,8 +54,11 @@ exec cp input microsecs = do
     out <- hGetContents outh
     err <- hGetContents errh
 
-    -- wait for process to finsih
+    -- wait for process to finis
     code <- waitForProcess ph
+    hClose inh
+    hClose outh
+    hClose errh
 
     -- check if it was killed
     readIORef killed >>= \case
