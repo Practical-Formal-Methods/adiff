@@ -14,4 +14,4 @@ before_install:
 - stack exec -- ghc --version
 
 script:
-  - stack build
+  - stack test
