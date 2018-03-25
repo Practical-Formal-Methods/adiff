@@ -1,7 +1,8 @@
 module Verifier.Cbmc (cbmc) where
 
+import qualified Data.ByteString.Char8 as C8
 import           RIO
-import qualified RIO.List      as L
+import qualified RIO.List              as L
 
 import           Verifier.Util
 
@@ -13,18 +14,14 @@ cbmc = def { verifierName = "cbmc"
            , version = cbmcVersion
            }
 
-runCbmc :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
+runCbmc :: FilePath -> RIO VerifierEnv VerifierResult
 runCbmc fn = do
-  let cmd = "cbmc --32 --error-label ERROR " ++ fn
-  (exitCode, out, _, timing) <- execTimed (shell cmd) ""
-  debugOutput "cbmc" out
-  let lastLine = L.last $ lines out
-      res = case (exitCode, lastLine) of
-        (ExitSuccess,"VERIFICATION FAILED")     -> VerificationFailed
-        (ExitSuccess,"VERIFICATION SUCCESSFUL") -> VerificationSuccessful
-        _                                       -> VerificationFailed
-  return (res, timing)
-
+  let cmd = shell $ "cbmc --32 --error-label ERROR " ++ fn
+  withTiming cmd "" $ \ec out ->
+    case (ec, L.last (C8.lines out)) of
+         (ExitSuccess,"VERIFICATION FAILED")     -> Sat
+         (ExitSuccess,"VERIFICATION SUCCESSFUL") -> Unsat
+         _                                       -> Unknown
 
 cbmcVersion :: IO (Maybe String)
 cbmcVersion = Just . L.head . lines <$> readCreateProcess (shell "cbmc --version") ""

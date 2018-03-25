@@ -78,28 +78,29 @@ cmdDiff DiffParameters{..} = do
       mapM_ persist' results
 
 
+-- | executes n verifiers on 1 source file
 executeVerifiers :: HasLogFunc env => [Verifier] -> String -> RIO env [VerifierRun]
 executeVerifiers vs content =
   withSystemTempFile "input.c" $ \fp h -> do
         liftIO $ hPutStr h content >> hFlush h
         forM vs $ \v -> do
-          env <- mkVerifierEnv
-          (r,t) <- runRIO env (execute v fp)
-          return $ VerifierRun (verifierName v) r t (hash content)
+          env <- mkVerifierEnv (15 * 1000 * 1000) -- 15 seconds
+          r <- runRIO env (execute v fp)
+          return $ VerifierRun (verifierName v) r (hash content)
 
 
-conclude :: [VerifierRun] -> Conclusion
-conclude runs
-  | 1 <= acceptN && acceptN < rejectN = VerifiersUnsound (map runVerifierName accept)
-  | 1 <= rejectN && rejectN < acceptN = VerifiersIncomplete (map runVerifierName reject)
-  | acceptN == n                      = Agreement VerificationSuccessful
-  | rejectN == n                      = Agreement VerificationFailed
-  | otherwise = Disagreement
-  where accept   = filter (\r -> verifierResult r == VerificationSuccessful) runs
-        reject   = filter (\r -> verifierResult r == VerificationFailed) runs
-        acceptN  = length accept
-        rejectN  = length reject
-        n = length runs
+-- conclude :: [VerifierRun] -> Conclusion
+-- conclude runs
+--   | 1 <= acceptN && acceptN < rejectN = VerifiersUnsound (map runVerifierName accept)
+--   | 1 <= rejectN && rejectN < acceptN = VerifiersIncomplete (map runVerifierName reject)
+--   | acceptN == n                      = Agreement Unsat
+--   | rejectN == n                      = Agreement Sat
+--   | otherwise = Disagreement
+--   where accept   = filter (\r -> verifierResult r == Unsat) runs
+--         reject   = filter (\r -> verifierResult r == Sat) runs
+--         acceptN  = length accept
+--         rejectN  = length reject
+--         n = length runs
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.

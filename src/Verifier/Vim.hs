@@ -13,7 +13,7 @@ vim = def { verifierName = "vim"
           , version = vimVersion
           }
 
-runVim :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
+runVim :: FilePath -> RIO VerifierEnv VerifierResult
 runVim fn = do
   let process  = (shell ("vim -R " ++ fn)) {
           std_in        = Inherit
@@ -23,8 +23,8 @@ runVim fn = do
   (_,_,_,ph) <- liftIO $ createProcess process
   exitCode <- liftIO $ waitForProcess ph
   case exitCode of
-              ExitSuccess   -> return (VerificationSuccessful, def)
-              ExitFailure _ -> return (VerificationFailed, def)
+              ExitSuccess   -> return $ VerifierTerminated Unsat def
+              ExitFailure _ -> return $ VerifierTerminated Sat def
 
 vimVersion :: IO (Maybe String)
 vimVersion = do

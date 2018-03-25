@@ -2,6 +2,7 @@ module Verifier.Util
   ( Types.Verifier(..)
   , System.Exit.ExitCode(..)
   , VerifierResult(..)
+  , Verdict(..)
   , module Safe
   , def
   , withSystemTempFile
@@ -10,8 +11,9 @@ module Verifier.Util
   , module System.Process
   , withSpec
   , reachSafety
-  , execTimed
   , debugOutput
+  , execTimed
+  , withTiming
   , Timing
   , VerifierEnv
   )
@@ -50,3 +52,21 @@ debugOutput verifierName out = do
 
 toDisplayBuilder :: String -> DisplayBuilder
 toDisplayBuilder = displayBytesUtf8 . C8.pack
+
+execTimed :: HasTimeLimit env => CreateProcess -> Text -> RIO env (Maybe (ExitCode, Timing), ByteString, ByteString)
+execTimed cp inp = do
+  tl <- view timeLimitL
+  liftIO $ exec cp inp tl
+
+withTiming :: HasTimeLimit env =>
+              CreateProcess
+           -> Text
+           -> (ExitCode -> ByteString -> Verdict)
+           -> RIO env VerifierResult
+
+withTiming cp inp cont = do
+  (termination, out, _) <- execTimed cp inp
+  case termination of
+    Nothing -> return VerifierTimedOut
+    Just (ec, timing) -> return $ VerifierTerminated (cont ec out) timing
+    
