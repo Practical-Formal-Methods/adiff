@@ -24,7 +24,7 @@ withDiffDB fn act = do
   x <- act conn
   SQL.close conn
   return x
-  
+
 
 -- | For things that should be stored into the database
 class Persistent a where
@@ -40,10 +40,11 @@ instance Persistent CProgram where
 instance Persistent VerifierRun where
   persist conn run = do
     let row = [ toField (runVerifierName run)
-              , toField (verifierResult run)
-              , toField (elapsedWall $ verifierTiming run)
-              , toField (maxResidentMemory $ verifierTiming run)
-              , toField (verifierCode run) ]
+              , toField (verdict $ verifierResult run)
+              , maybe SQL.SQLNull (toField.elapsedWall)  (timing $ verifierResult run)
+              , maybe SQL.SQLNull (toField.maxResidentMemory) (timing $ verifierResult run)
+              , toField (verifierCode run)
+              ]
     SQL.execute conn "INSERT INTO runs(verifier_name,result,time,memory,code_hash) VALUES (?,?,?,?,?)" row
 
 

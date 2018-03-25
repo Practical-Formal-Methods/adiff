@@ -47,6 +47,7 @@ tests:
       - tasty-hunit
       - tasty-quickcheck
       - vdiff
+    ghc-options: -threaded
 
 
 dependencies:
@@ -54,6 +55,7 @@ dependencies:
   - rio >= 0.0.3
   - base16-bytestring
   - bytestring
+  - utf8-string
   - cryptohash
   - data-default
   - file-embed
@@ -66,3 +68,4 @@ dependencies:
   - sqlite-simple
   - transformers
   - text
+  - unix

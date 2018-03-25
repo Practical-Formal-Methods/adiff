@@ -18,27 +18,41 @@ data CProgram = CProgram
 
 type VerifierName = String
 
+newtype Timeout = Timeout Int
+  deriving (Show)
+
 -- | A run of one verifier against one instrumented program
 data VerifierRun = VerifierRun
   { runVerifierName :: VerifierName
   , verifierResult  :: VerifierResult
-  , verifierTiming  :: Timing
   , verifierCode    :: Hashed String
   } deriving (Show)
 
 
 
+data Verdict = Sat | Unsat | Unknown
+  deriving Show
+
 -- | The result of the verification
 data VerifierResult
-  = VerificationSuccessful -- ^ the error location is unreachable
-  | VerificationFailed -- ^ the error location is reachable
-  | VerificationResultUnknown  -- ^ the verifier does not know
-  deriving (Eq, Show)
+  = VerifierTerminated Verdict Timing
+  | VerifierTimedOut
+  deriving Show
 
-instance ToField VerifierResult where
-  toField VerificationSuccessful    = toField ("unsat" :: String)
-  toField VerificationFailed        = toField ("sat" :: String)
-  toField VerificationResultUnknown = toField ("unknown" :: String)
+verdict :: VerifierResult -> Verdict
+verdict (VerifierTerminated v _ ) = v
+verdict VerifierTimedOut          = Unknown
+
+timing :: VerifierResult -> Maybe Timing
+timing (VerifierTerminated _ t) = Just t
+timing (VerifierTimedOut)       = Nothing
+
+
+
+instance ToField Verdict where
+  toField Unsat   = toField ("unsat" :: String)
+  toField Sat     = toField ("sat" :: String)
+  toField Unknown = toField ("unknown" :: String)
 
 
 newtype Hashed a = Hashed { getHash :: ByteString }

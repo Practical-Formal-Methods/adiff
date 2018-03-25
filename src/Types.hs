@@ -10,7 +10,6 @@ import qualified Database.SQLite.Simple as SQL
 import           System.IO              (FilePath)
 
 import           Data
-import           Timed
 
 
 data Strategy = NaiveRandom -- ^ naive random strategy
@@ -21,6 +20,7 @@ strategyName :: Strategy -> String
 strategyName NaiveRandom = "naive"
 strategyName SmartGuided = "smart"
 
+type Microseconds = Int
 --------------------------------------------------------------------------------
 -- | * RIO
 -- | type classes for usage with RIO instances
@@ -28,6 +28,9 @@ class HasDatabase a where
   databaseL :: Lens' a SQL.Connection
 
 class (HasLogFunc a, HasDatabase a) => HasMainEnv a
+
+class HasTimeLimit a where
+  timeLimitL :: Lens' a Microseconds
 
 -- | ** The main environment
 -- | This is the main environment that is available for all commands.
@@ -45,16 +48,21 @@ instance HasDatabase MainEnv where
 
 
 -- | Every verifier is supposed to run in this environment
-newtype VerifierEnv = VerifierEnv
-  { verifierEnvLogger :: LogFunc
+data VerifierEnv = VerifierEnv
+  { _verifierEnvLogger :: LogFunc
+  , _timeLimit         :: Microseconds
   }
 instance HasLogFunc VerifierEnv where
-  logFuncL = lens verifierEnvLogger (\e l -> e { verifierEnvLogger = l})
+  logFuncL = lens _verifierEnvLogger (\e l -> e { _verifierEnvLogger = l})
 
-mkVerifierEnv :: (HasLogFunc env ) => RIO env VerifierEnv
-mkVerifierEnv = do
+instance HasTimeLimit VerifierEnv where
+  timeLimitL = lens _timeLimit (\e l -> e { _timeLimit = l})
+
+-- | creates a verifier environment given a time limit.
+mkVerifierEnv :: (HasLogFunc env ) => Microseconds -> RIO env VerifierEnv
+mkVerifierEnv timeLimit = do
   lg <- view logFuncL
-  return $ VerifierEnv lg
+  return $ VerifierEnv lg timeLimit
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
@@ -67,7 +75,7 @@ data Conclusion
 
 data Verifier = Verifier
   { verifierName :: VerifierName
-  , execute      :: FilePath -> RIO VerifierEnv (VerifierResult, Timing)
+  , execute      :: FilePath -> RIO VerifierEnv VerifierResult
   , version      :: IO (Maybe String)
   }
 
@@ -79,7 +87,7 @@ instance Ord Verifier where
 
 instance Default Verifier where
   def = Verifier { verifierName = error "verifierName has no default value"
-                 , execute  =  const $ return (VerificationResultUnknown, def)
+                 , execute  =  const $ return (VerifierTerminated Unknown def)
                  , version = return Nothing
                  }
 
