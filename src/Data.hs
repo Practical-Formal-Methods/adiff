@@ -31,7 +31,7 @@ data VerifierRun = VerifierRun
 
 
 data Verdict = Sat | Unsat | Unknown
-  deriving Show
+  deriving (Eq, Show)
 
 -- | The result of the verification
 data VerifierResult

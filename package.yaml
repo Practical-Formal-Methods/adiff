@@ -43,10 +43,12 @@ tests:
     main: Spec.hs
     source-dirs: test
     dependencies:
+      - rio >= 0.0.3
       - tasty 
       - tasty-hunit
       - tasty-quickcheck
       - vdiff
+      - file-embed
     ghc-options: -threaded
 
 

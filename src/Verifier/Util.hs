@@ -58,15 +58,15 @@ execTimed cp inp = do
   tl <- view timeLimitL
   liftIO $ exec cp inp tl
 
-withTiming :: HasTimeLimit env =>
+withTiming :: (HasLogFunc env, HasTimeLimit env) =>
               CreateProcess
            -> Text
            -> (ExitCode -> ByteString -> Verdict)
            -> RIO env VerifierResult
-
 withTiming cp inp cont = do
+  logInfo $ "runing command: " <> displayShow (cmdspec cp)
   (termination, out, _) <- execTimed cp inp
   case termination of
-    Nothing -> return VerifierTimedOut
+    Nothing           -> return VerifierTimedOut
     Just (ec, timing) -> return $ VerifierTerminated (cont ec out) timing
-    
+

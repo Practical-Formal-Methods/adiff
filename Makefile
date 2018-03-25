@@ -2,6 +2,7 @@
 VERSION= $(shell stack query "locals" | grep version | cut -d" " -f 4 | tr -d "'")
 SDIST= $(shell stack path --dist-dir)
 BINARY= $(shell stack path --dist-dir)/build/vdiff/vdiff
+TESTBIN= $(shell stack path --dist-dir)/build/spec/spec
 
 default: compile vdiff-docker
 
@@ -28,6 +29,7 @@ Dockerfile : docker compile
 	echo "RUN apt-get install -y time vim" >> docker/vdiff.tmp
 	echo "ENV vdiff_version=\"$(VERSION)\"" >> docker/vdiff.tmp
 	echo "COPY $(BINARY) /root/.local/bin" >> docker/vdiff.tmp
+	echo "COPY $(TESTBIN) /root/.local/bin" >> docker/vdiff.tmp
 
 # concatenate the different elements of the dockerfile
 	cat 	docker/base.in\
@@ -37,5 +39,8 @@ Dockerfile : docker compile
 	       	docker/vdiff.tmp\
 	       	docker/samples.in > Dockerfile
 
+test: vdiff-docker
+	docker run vdiff:latest /bin/bash -lc 'spec --color=always'
 
 
+.PHONY : test
