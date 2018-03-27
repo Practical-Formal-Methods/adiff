@@ -3,16 +3,142 @@
 
 module Instrumentation
  ( maskAsserts
+ , ZipperState(..)
+ , StmtZipper
+ , Stmt
+ , Direction(..)
+ , go
+ , go_
+ , hole
+ , findReads
+ , tryout
+ , insertBefore
  ) where
 
-import RIO
+import           RIO
 
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
+import           Language.C.Analysis.SemRep       hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
+import           Text.PrettyPrint                 (render)
+
+import           Debug.Trace
+
+import           Data.Generics.Uniplate.Data ()
+import           Data.Generics.Uniplate.Zipper
+
+import           Control.Lens.Getter              (use)
+import           Control.Lens.Operators           ((%=), (+=), (-=), (.=))
+import           Control.Monad.State
+
+--------------------------------------------------------------------------------
+type Stmt = CStatement SemPhase
+type StmtZipper= Zipper Stmt Stmt
+
+-- | find reads in a statement
+readsStatement :: Stmt -> [(Ident,Type)]
+readsStatement s = trace ("reads in " ++ show (render (pretty s))) (case s of
+  (CExpr (Just e) _)  -> readsExpression e
+  (CExpr Nothing _)   -> []
+  (CIf e _ _ _)       -> readsExpression e -- [internalIdent "x"]
+  (CWhile e _ _ _)    -> readsExpression e
+  (CLabel _ stmt _ _) -> readsStatement stmt
+  _                   -> []
+  )
+  where
+    readsExpression (CVar n (_,ty))   = [(n, ty)]
+    readsExpression (CBinary _ l r _) = readsExpression l <> readsExpression r
+    readsExpression (CUnary _ e _)    = readsExpression e
+    readsExpression _                 = []
+
+--------------------------------------------------------------------------------
+-- | * Zipping
+--------------------------------------------------------------------------------
+
+-- this is what every strategy needs to move around in the AST
+class ZipperState state where
+  stmtZipper    :: Lens' state StmtZipper
+  siblingIndex :: Lens' state Int
 
 
+data Direction = Up | Down | Next | Prev
+  deriving (Eq, Show)
 
+data ZipperException = ZipperException
+  deriving Show
+
+instance Exception ZipperException
+
+-- | tries to move the zipper into the given direction. returns true if successful.
+go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
+go d = trace (show d) $ do
+  p <- use stmtZipper
+  let f = case d of
+        Prev -> left
+        Next -> right
+        Up   -> up
+        Down -> down
+  case f p of
+    Nothing -> return False
+    Just z -> do
+      case d of
+        Up   -> siblingIndex .= 0
+        Down -> siblingIndex .= 0
+        Prev -> siblingIndex -= 1
+        Next -> siblingIndex += 1
+      stmtZipper .= z
+      return True
+
+-- | NOTE: Like go, but throws an error when doing it can't go into the given direction
+go_ :: (Monad m, ZipperState st, MonadState st m) => Direction -> m ()
+go_ d = do
+  m <- go d
+  unless m $ error "should not happen"
+
+insertBefore :: (MonadThrow m, MonadState st m, ZipperState st) => Stmt -> m ()
+insertBefore ins = do
+  si <- use siblingIndex
+  trace ("inserting something at " ++ show si) (return ())
+  -- move up
+  go_ Up
+  p <- use stmtZipper
+  -- check that we are in a compound statement and replace the compound statement
+  case hole p of
+    (CCompound l items ann) -> do
+          let items' = insertAt si (CBlockStmt ins) items
+              s' =  CCompound l items' ann
+          stmtZipper %= replaceHole s'
+    _               -> throwM ZipperException
+  -- move back to the original position
+  go_ Down
+  replicateM_ si (go Next)
+
+-- this will reset the zipper back to how it was
+-- somehow store some information on stack, so we know that after some time we
+-- might want to come back out
+tryout :: (ZipperState st, MonadState st m) => m a -> m a
+tryout act = do
+  z <- use stmtZipper
+  x <- act
+  stmtZipper .= z
+  return x
+
+--------------------------------------------------------------------------------
+-- | * Finding reads/writes
+--------------------------------------------------------------------------------
+
+findReads :: (Monad m, ZipperState st) => StateT st m [(Ident, Type)]
+findReads = do
+  p <- use stmtZipper
+  x <- use siblingIndex
+  let vars = readsStatement (hole p)
+  trace ("found vars at position " ++ show x ++ show vars) $ return vars
+
+
+--------------------------------------------------------------------------------
+-- | * Masking
+--------------------------------------------------------------------------------
 -- NOTE: This is soooo mechanical.  recursion-schemes or lenses to the rescue?
 applyOnExpr :: (CExpression a -> CExpression a) -> CTranslationUnit a -> CTranslationUnit a
 applyOnExpr f (CTranslUnit eds as) = CTranslUnit (map externalDeclaration eds) as
@@ -72,6 +198,16 @@ maskAsserts = insertDummy . applyOnExpr rename
     insertDummy (CTranslUnit exts a)  = CTranslUnit exts' a
       where exts' = CFDefExt dummyAssert : exts
 
+--------------------------------------------------------------------------------
+-- | some simple AST constructors
+--------------------------------------------------------------------------------
+
+mkReadMarker ::  [(Ident,Type)] -> Stmt
+mkReadMarker vars =
+  let fun = CVar (builtinIdent "__VERIFIER_read") (undefNode,voidType)
+      expressions = map (\(i,ty) -> CVar i (undefNode, ty)) vars
+  in CExpr (Just $ CCall fun expressions  (undefNode,voidType)) (undefNode,voidType)
+
 -- | This is a function definition defining the function __dummy__verifier_assert that does nothing
 -- | (Existing asserts will be disabled by renaming things to this function's name)
 -- | NOTE: (to myself) a quasi-quoter would be really nice, or at least some exported sub-parsers.
@@ -83,3 +219,16 @@ dummyAssert = CFunDef specs decl [] body undefNode
         param = CDecl [CTypeSpec $ CIntType undefNode] [(Just paramDecl, Nothing, Nothing)]  undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
         body = CCompound [] [] (undefNode, voidType)
+
+--------------------------------------------------------------------------------
+-- | simple utilities
+--------------------------------------------------------------------------------
+-- | partial!
+insertAt :: Int -> a -> [a] -> [a]
+insertAt 0 y xs     = y:xs
+insertAt n y (_:xs) = insertAt (n-1) y xs
+insertAt _ _ _      = error "illegal insertAt"
+
+-- whenM, unlessM :: Monad m => m Bool -> m () -> m ()
+-- whenM p t   = p >>= flip when t
+-- unlessM p e = p >>= flip unless e

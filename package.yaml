@@ -18,7 +18,6 @@ default-extensions:
   - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
-  - PartialTypeSignatures
   - ScopedTypeVariables
   - DeriveFunctor
   - GeneralizedNewtypeDeriving
@@ -69,5 +68,8 @@ dependencies:
   - safe
   - sqlite-simple
   - transformers
+  - mtl
   - text
   - unix
+  - lens
+  - uniplate
