@@ -1,6 +1,7 @@
 import           RIO
 import           Test.Tasty
 
+import           Spec.Instrumentation
 import           Spec.Timed
 import           Spec.Verifier
 
@@ -9,6 +10,8 @@ main = defaultMain  testEverything
 
 testEverything :: TestTree
 testEverything = testGroup "vdiff" [ testTimed
-                                   , testVerifiers ]
+                                   , testVerifiers
+                                   , testInstrumentation
+                                   ]
 
 

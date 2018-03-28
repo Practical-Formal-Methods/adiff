@@ -72,7 +72,7 @@ instance Exception ZipperException
 
 -- | tries to move the zipper into the given direction. returns true if successful.
 go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
-go d = trace (show d) $ do
+go d = trace ("go: " ++ show d) $ do
   p <- use stmtZipper
   let f = case d of
         Prev -> left
@@ -92,9 +92,11 @@ go d = trace (show d) $ do
 
 -- | NOTE: Like go, but throws an error when doing it can't go into the given direction
 go_ :: (Monad m, ZipperState st, MonadState st m) => Direction -> m ()
-go_ d = do
+go_ d = trace ("go_: " ++ show d) $ do
   m <- go d
-  unless m $ error "should not happen"
+  unless m $ do
+    z <- use stmtZipper
+    trace ("currently at: " ++ showp (hole z)) $ error "should not happen"
 
 insertBefore :: (MonadThrow m, MonadState st m, ZipperState st) => Stmt -> m ()
 insertBefore ins = do
@@ -113,6 +115,10 @@ insertBefore ins = do
   -- move back to the original position
   go_ Down
   replicateM_ si (go Next)
+
+showp :: (Pretty p) => p -> String
+showp = render . pretty
+
 
 -- this will reset the zipper back to how it was
 -- somehow store some information on stack, so we know that after some time we
