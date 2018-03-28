@@ -25,7 +25,7 @@ import           Language.C.Syntax.Constants
 import           Language.C.Syntax.Ops
 import           Language.C.Syntax.Utils
 
-import           Data.Generics               hiding (Generic)
+import           Data.Generics                    hiding (Generic)
 
 
 
@@ -1050,3 +1050,5 @@ deriving instance Data (CStringLiteral SemPhase)
 deriving instance Data (CStorageSpecifier SemPhase)
 deriving instance Data (CConstant SemPhase)
 deriving instance Data (CFunctionSpecifier SemPhase)
+deriving instance Data (CTranslationUnit SemPhase)
+

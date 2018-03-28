@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Analysis.Syntax
@@ -61,7 +62,7 @@ import           Language.C.Data
 import           Language.C.Syntax
 
 
-import           Data.Generics               hiding (Generic)
+import           Data.Generics     hiding (Generic)
 
 -- | accessor class : struct\/union\/enum names
 class HasSUERef a where
@@ -597,6 +598,20 @@ mergeAttributes = (++)
 type Stmt = CStat
 -- | 'Expr' is currently an alias for 'CExpr' (Syntax)
 type Expr = CExpr
+
+
+deriving instance Data GlobalDecls
+deriving instance Data TypeDef
+deriving instance Data TagDef
+deriving instance Data CompType
+deriving instance Data MemberDecl
+deriving instance Data EnumType
+deriving instance Data Enumerator
+deriving instance Data IdentDecl
+deriving instance Data Decl
+deriving instance Data ObjDef
+deriving instance Data FunDef
+
 -- GENERATED START
 
 instance CNode TagDef where
