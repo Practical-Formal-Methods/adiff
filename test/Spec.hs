@@ -6,12 +6,17 @@ import           Spec.Timed
 import           Spec.Verifier
 
 main :: IO ()
-main = defaultMain  testEverything
+main = do
+  tree <- constructTree
+  defaultMain  tree
 
-testEverything :: TestTree
-testEverything = testGroup "vdiff" [ testTimed
-                                   , testVerifiers
-                                   , testInstrumentation
-                                   ]
+constructTree :: IO TestTree
+constructTree = do
+  tree <- sequence
+    [ pure testTimed
+    , pure testVerifiers
+    , testInstrumentation
+    ]
+  return $ testGroup "vdiff" tree
 
 

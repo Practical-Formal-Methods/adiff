@@ -7,6 +7,7 @@ int main() {
   int x,y,z;
 
   if (x > 0) {
+    int a;
     foo();
     y = y + 1;
     bar();

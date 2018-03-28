@@ -1,5 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module Instrumentation
  ( maskAsserts
@@ -9,57 +10,70 @@ module Instrumentation
  , Direction(..)
  , go
  , go_
- , hole
  , findReads
  , tryout
  , insertBefore
+ , mkZipper
+ , fromZipper
+ , currentStmt
+ , printCurrentStmt
+ , insertBeforeNthStatement
+ , markAllReads
  ) where
 
+import qualified Prelude                          as P
 import           RIO
 
+import           Data.List.Lens
+import           Debug.Trace
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
+import           Safe
 import           Text.PrettyPrint                 (render)
 
-import           Debug.Trace
+import           Data.Generics.Uniplate.Data      ()
+import           Data.Generics.Uniplate.Zipper    (fromZipper)
+import qualified Data.Generics.Uniplate.Zipper    as Z
 
-import           Data.Generics.Uniplate.Data ()
-import           Data.Generics.Uniplate.Zipper
-
+import           Control.Lens.Cons
 import           Control.Lens.Getter              (use)
 import           Control.Lens.Operators           ((%=), (+=), (-=), (.=))
 import           Control.Monad.State
 
 --------------------------------------------------------------------------------
 type Stmt = CStatement SemPhase
-type StmtZipper= Zipper Stmt Stmt
+type StmtZipper= Z.Zipper Stmt Stmt
 
 -- | find reads in a statement
 readsStatement :: Stmt -> [(Ident,Type)]
-readsStatement s = trace ("reads in " ++ show (render (pretty s))) (case s of
+readsStatement s = case s of
   (CExpr (Just e) _)  -> readsExpression e
   (CExpr Nothing _)   -> []
   (CIf e _ _ _)       -> readsExpression e -- [internalIdent "x"]
   (CWhile e _ _ _)    -> readsExpression e
   (CLabel _ stmt _ _) -> readsStatement stmt
   _                   -> []
-  )
+
   where
-    readsExpression (CVar n (_,ty))   = [(n, ty)]
-    readsExpression (CBinary _ l r _) = readsExpression l <> readsExpression r
-    readsExpression (CUnary _ e _)    = readsExpression e
-    readsExpression _                 = []
+    readsExpression (CVar n (_,ty))    = [(n, ty)]
+    readsExpression (CBinary _ l r _)  = readsExpression l <> readsExpression r
+    readsExpression (CUnary _ e _)     = readsExpression e
+    readsExpression (CAssign _ _ e2 _) = readsExpression e2
+    readsExpression _                  = []
 
 --------------------------------------------------------------------------------
 -- | * Zipping
 --------------------------------------------------------------------------------
+mkZipper :: Stmt -> StmtZipper
+mkZipper = Z.zipper
 
 -- this is what every strategy needs to move around in the AST
 class ZipperState state where
   stmtZipper    :: Lens' state StmtZipper
   siblingIndex :: Lens' state Int
+  {-# MINIMAL stmtZipper, siblingIndex #-}
 
 
 data Direction = Up | Down | Next | Prev
@@ -72,13 +86,13 @@ instance Exception ZipperException
 
 -- | tries to move the zipper into the given direction. returns true if successful.
 go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
-go d = trace ("go: " ++ show d) $ do
+go d = trace (show d) $ do
   p <- use stmtZipper
   let f = case d of
-        Prev -> left
-        Next -> right
-        Up   -> up
-        Down -> down
+        Prev -> Z.left
+        Next -> Z.right
+        Up   -> Z.up
+        Down -> Z.down
   case f p of
     Nothing -> return False
     Just z -> do
@@ -92,29 +106,40 @@ go d = trace ("go: " ++ show d) $ do
 
 -- | NOTE: Like go, but throws an error when doing it can't go into the given direction
 go_ :: (Monad m, ZipperState st, MonadState st m) => Direction -> m ()
-go_ d = trace ("go_: " ++ show d) $ do
+go_ d = do
   m <- go d
   unless m $ do
     z <- use stmtZipper
-    trace ("currently at: " ++ showp (hole z)) $ error "should not happen"
+    trace ("currently at: " ++ showp (Z.hole z)) $ error "should not happen"
 
 insertBefore :: (MonadThrow m, MonadState st m, ZipperState st) => Stmt -> m ()
 insertBefore ins = do
+  trace "--- start insert" $ return ()
   si <- use siblingIndex
-  trace ("inserting something at " ++ show si) (return ())
   -- move up
   go_ Up
   p <- use stmtZipper
   -- check that we are in a compound statement and replace the compound statement
-  case hole p of
+  case Z.hole p of
     (CCompound l items ann) -> do
-          let items' = insertAt si (CBlockStmt ins) items
+          let items' = insertBeforeNthStatement ins si items
               s' =  CCompound l items' ann
-          stmtZipper %= replaceHole s'
+          stmtZipper %= Z.replaceHole s'
     _               -> throwM ZipperException
   -- move back to the original position
   go_ Down
-  replicateM_ si (go Next)
+  replicateM_ (si+1) (go Next)
+  trace "----- end insert " $ return ()
+
+currentStmt :: (MonadState st m, ZipperState st) => m Stmt
+currentStmt = do
+  p <- use stmtZipper
+  return $ Z.hole p
+
+printCurrentStmt :: (MonadState st m, ZipperState st, MonadIO m) => m ()
+printCurrentStmt = do
+  s <- currentStmt
+  liftIO $ P.putStrLn $ render $ pretty s
 
 showp :: (Pretty p) => p -> String
 showp = render . pretty
@@ -130,6 +155,57 @@ tryout act = do
   stmtZipper .= z
   return x
 
+data TraverseState = TraverseState
+  { _traverseZipper       ::  StmtZipper
+  , _traverseSiblingIndex :: Int
+  }
+instance ZipperState TraverseState where
+  stmtZipper = lens _traverseZipper $ \s z -> s {_traverseZipper = z}
+  siblingIndex = lens _traverseSiblingIndex $ \s i -> s {_traverseSiblingIndex = i}
+
+-- traverseCompleted :: Lens' TraverseState [Int]
+-- traverseCompleted = lens _traverseCompleted $ \s c -> s {_traverseCompleted = c}
+
+markAllReads :: (MonadThrow m) => CTranslationUnit SemPhase-> m (CTranslationUnit SemPhase)
+markAllReads (CTranslUnit eds ann) = CTranslUnit <$> eds' <*> pure ann
+  where
+    eds' = mapM f eds
+    f (CFDefExt (CFunDef specs declr decls body ann)) = do
+      body' <- markAllReadsStmt body
+      return $ CFDefExt (CFunDef specs declr decls body' ann)
+    f e = return e
+
+markAllReadsStmt :: (MonadThrow m) => Stmt -> m Stmt
+markAllReadsStmt s = do
+  (_, st) <- runStateT (horizontal [0]) (TraverseState (mkZipper s) 0 )
+  return $ fromZipper $ st ^. stmtZipper
+
+horizontal :: (MonadThrow m) => [Int] -> StateT TraverseState m ()
+horizontal []     = return ()
+horizontal (n:ns) = do
+  -- go to given position
+  whenM (and <$> replicateM n (go Next)) $
+    -- go vertical
+    vertical (n + 1 : ns)
+
+vertical :: (MonadThrow m) => [Int] -> StateT TraverseState m ()
+vertical h = do
+  v <- findReads
+  unless (null v) $ insertBefore $ mkReadMarker v
+  -- depth-first
+  b <- go Down
+  if b then horizontal (0 : h)
+  else do
+    b' <- go Next
+    if b' then vertical h
+    else go Up >> horizontal h
+
+-- pop :: (Monad m) => StateT TraverseState m (Maybe Int)
+-- pop = do
+--   s <- use traverseCompleted
+--   traverseCompleted %= tailSafe -- remove first element
+--   return $ headMay s
+
 --------------------------------------------------------------------------------
 -- | * Finding reads/writes
 --------------------------------------------------------------------------------
@@ -138,8 +214,8 @@ findReads :: (Monad m, ZipperState st) => StateT st m [(Ident, Type)]
 findReads = do
   p <- use stmtZipper
   x <- use siblingIndex
-  let vars = readsStatement (hole p)
-  trace ("found vars at position " ++ show x ++ show vars) $ return vars
+  let vars = readsStatement (Z.hole p)
+  return vars
 
 
 --------------------------------------------------------------------------------
@@ -230,11 +306,12 @@ dummyAssert = CFunDef specs decl [] body undefNode
 -- | simple utilities
 --------------------------------------------------------------------------------
 -- | partial!
-insertAt :: Int -> a -> [a] -> [a]
-insertAt 0 y xs     = y:xs
-insertAt n y (_:xs) = insertAt (n-1) y xs
-insertAt _ _ _      = error "illegal insertAt"
+insertBeforeNthStatement :: (CStatement a) -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]
+insertBeforeNthStatement s 0 items@((CBlockStmt _):_) = (CBlockStmt s):items
+insertBeforeNthStatement s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement s (n-1) xs
+insertBeforeNthStatement s n (x:xs)                   = x : insertBeforeNthStatement s n xs
+insertBeforeNthStatement _  _ _                       = error "illegal insertAt"
 
--- whenM, unlessM :: Monad m => m Bool -> m () -> m ()
--- whenM p t   = p >>= flip when t
--- unlessM p e = p >>= flip unless e
+whenM, unlessM :: Monad m => m Bool -> m () -> m ()
+whenM p t   = p >>= flip when t
+unlessM p e = p >>= flip unless e
