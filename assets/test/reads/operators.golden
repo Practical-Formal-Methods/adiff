@@ -1,0 +1,16 @@
+int main()
+{
+    int x, y, z, v;
+    __VERIFIER_read(x);
+    v = x;
+    __VERIFIER_read(x);
+    v += x;
+    __VERIFIER_read(x);
+    v -= x;
+    __VERIFIER_read(x);
+    v *= x;
+    __VERIFIER_read(x);
+    x++;
+    __VERIFIER_read(x);
+    --x;
+}
