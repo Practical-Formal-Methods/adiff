@@ -1,0 +1,19 @@
+void foo();
+void bar();
+int main()
+{
+    int x, y, z;
+    __VERIFIER_read(x);
+    if (x > 0)
+    {
+        int a;
+        foo();
+        __VERIFIER_read(y);
+        y = y + 1;
+        bar();
+        __VERIFIER_read(x);
+        x = x + 1;
+        __VERIFIER_read(z);
+        z = z + 1;
+    }
+}

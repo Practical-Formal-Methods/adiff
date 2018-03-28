@@ -13,13 +13,7 @@ import           Test.Tasty
 import           Test.Tasty.Golden
 import           Test.Tasty.HUnit
 
-import           System.IO.Unsafe                 (unsafePerformIO)
-
 import           Diff
-
--- import           Hedgehog
--- import qualified Hedgehog.Gen                     as Gen
--- import qualified Hedgehog.Range                   as Range
 
 import qualified Prelude                          as P
 
@@ -32,7 +26,6 @@ import           Text.PrettyPrint                 (render)
 
 import           Control.Monad.State
 import           Data.Generics.Uniplate.Data      ()
--- import           Data.Generics.Uniplate.Zipper
 import           Language.C.Data.Lens
 
 import           Instrumentation
@@ -60,6 +53,7 @@ testZipping = do
     [ pure testWalk
     , pure testInsertions
     , pure testInsertBefore
+    , testMarkAllReads
     ]
   return $ testGroup "zipping" tests
 
@@ -94,7 +88,7 @@ testWalk = testCase "walks"  $ do
 
 
 testInsertions = testCase "insertions"  $ do
-  ast <- parseAndAnalyseFile testFile
+  ast <- parseAndAnalyseFile simpleReads
   let eds = ast ^. externalDeclarations
       (Just mainDef) = fdef "main" eds
       stmt  = mainDef ^. body
@@ -105,7 +99,6 @@ testInsertions = testCase "insertions"  $ do
 
 
   where
-    testFile = $(embedFile "assets/test/simple_reads.c")
     inserter = do
       go_ Down
       go_ Down
@@ -138,15 +131,19 @@ testInsertBefore = testGroup "insertBefore" [one]
       assertEqual "after insertion" (show [itemA, CBlockStmt stmt, itemB, itemC]) (show items2)
 
 data NoLogging = NoLogging
-instance HasLogFunc NoLogging
+instance HasLogFunc NoLogging where
+  logFuncL = lens getter setter
+    where logFunc = mkLogFunc (\_ _ _ _ -> return ())
+          getter = const logFunc
+          setter = const $ const NoLogging
 
-testMarkAllReads :: TestTree
-testMarkAllReads = unsafePerformIO $ do
-  cFiles <- findByExtension [".c"] "assets/test"
+testMarkAllReads :: IO TestTree
+testMarkAllReads = do
+  cFiles <- findByExtension [".c"] "assets/test/reads"
   return $ testGroup "markAllReads golden tests"
       [ goldenVsString bn gold (mar cFile)
       | cFile <- cFiles
-      , let gold = replaceExtension cFile ".marked.c"
+      , let gold = replaceExtension cFile ".golden"
       , let bn = takeBaseName cFile
       ]
 
@@ -186,7 +183,7 @@ varNames = map (identToString.fst)
 
 print' = P.putStrLn . render . pretty
 
-simpleReads = $(embedFile "assets/test/simple_reads.c")
+simpleReads = $(embedFile "assets/test/reads/simple_reads.c")
 
 parseAndAnalyseFile :: ByteString -> IO (CTranslationUnit SemPhase)
 parseAndAnalyseFile bs =  do
