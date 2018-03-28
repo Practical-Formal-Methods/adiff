@@ -20,6 +20,7 @@ import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
+import           Language.C.Data.Lens
 import           System.Exit
 import           System.Random
 import           Text.PrettyPrint                 (render)
@@ -106,6 +107,10 @@ executeVerifiers vs content =
 -- Use this to test the modified language-c-extensible library.
 cmdParseTest :: HasLogFunc env => FilePath -> RIO env ()
 cmdParseTest fn = openCFile fn >>= liftIO . putStrLn . render . pretty
+
+
+cmdMarkReads :: HasLogFunc env => FilePath -> RIO env ()
+cmdMarkReads fn = liftIO . putStrLn . render . pretty =<< markAllReads =<< openCFile fn
 
 cmdVersions :: RIO a ()
 cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do

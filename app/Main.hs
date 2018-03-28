@@ -31,6 +31,7 @@ runCommands :: HasMainEnv env => MainParameters -> RIO env ()
 runCommands param = case cmd param of
                       (CmdRun dp)       -> cmdDiff dp
                       (CmdParseTest fn) -> cmdParseTest fn
+                      (CmdMarkReads fn) -> cmdMarkReads fn
                       CmdVersions       -> cmdVersions
 
 
@@ -49,6 +50,7 @@ data MainParameters = MainParameters
 
 data Cmd  = CmdRun DiffParameters
           | CmdParseTest FilePath
+          | CmdMarkReads FilePath
           | CmdVersions
 
 
@@ -62,7 +64,7 @@ opts = info (parseMainParameters <**> helper)
 
 parseMainParameters :: Parser MainParameters
 parseMainParameters = MainParameters <$> parseLogLevel <*> parseDatabasePath <*> parseCmd
-  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdRun
+  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRun
 
 parseLogLevel :: Parser LogLevel
 parseLogLevel = option levelP (long "log-level" <> help helpText <> metavar "LOGLEVEL" <> value LevelWarn)
@@ -85,6 +87,9 @@ parseCmdVersion = CmdVersions <$ switch ( long "versions" <> help "prints versio
 
 parseCmdTest :: Parser Cmd
 parseCmdTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints the given file") <*> argument str (metavar "FILE")
+
+parseCmdMarkReads :: Parser Cmd
+parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> argument str (metavar "FILE")
 
 parseCmdRun :: Parser Cmd
 parseCmdRun = CmdRun <$> (DiffParameters
