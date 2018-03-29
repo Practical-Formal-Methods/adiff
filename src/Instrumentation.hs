@@ -23,8 +23,8 @@ module Instrumentation
 
 import qualified Prelude                          as P
 import           RIO
+import Debug.Trace
 
-import           Debug.Trace
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
@@ -86,7 +86,7 @@ instance Exception ZipperException
 
 -- | tries to move the zipper into the given direction. returns true if successful.
 go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
-go d = trace (show d) $ do
+go d = do
   p <- use stmtZipper
   let f = case d of
         Prev -> Z.left
@@ -110,11 +110,10 @@ go_ d = do
   m <- go d
   unless m $ do
     z <- use stmtZipper
-    trace ("currently at: " ++ showp (Z.hole z)) $ error "should not happen"
+    error ("cannot go " ++ show d)
 
 insertBefore :: (MonadState st m, ZipperState st) => Stmt -> m ()
 insertBefore ins = do
-  trace "--- start insert" $ return ()
   si <- use siblingIndex
   -- move up
   go_ Up
@@ -129,7 +128,6 @@ insertBefore ins = do
   -- move back to the original position
   go_ Down
   replicateM_ (si+1) (go Next)
-  trace "----- end insert " $ return ()
 
 currentStmt :: (MonadState st m, ZipperState st) => m Stmt
 currentStmt = do
@@ -156,7 +154,7 @@ tryout act = do
   return x
 
 data TraverseState = TraverseState
-  { _traverseZipper       ::  StmtZipper
+  { _traverseZipper       :: StmtZipper
   , _traverseSiblingIndex :: Int
   }
 instance ZipperState TraverseState where
@@ -168,34 +166,65 @@ markAllReads = externalDeclarations . mapped . functionDefinition . body  %~ mar
 
 markAllReadsStmt :: Stmt -> Stmt
 markAllReadsStmt s =
-  let (_, st) = runState (horizontal [0]) (TraverseState (mkZipper s) 0 )
+  let (_, st) = runState (explore [0]) (TraverseState (mkZipper s) 0 )
   in fromZipper $ st ^. stmtZipper
 
-horizontal :: [Int] -> State TraverseState ()
-horizontal []     = return ()
-horizontal (n:ns) =
-  -- go to given position
-  whenM (and <$> replicateM n (go Next)) $
-    -- go vertical
-    vertical (n + 1 : ns)
 
-vertical :: [Int] -> State TraverseState ()
-vertical h = do
+  
+ 
+
+-- horizontal :: [Int] -> State TraverseState ()
+-- horizontal []     = return ()
+-- horizontal (n:ns) =
+--   -- go to given position
+--   whenM (and <$> replicateM n (go Next)) $
+--     -- go vertical
+--     vertical (n + 1 : ns)
+
+-- vertical :: [Int] -> State TraverseState ()
+-- vertical h = do
+--   v <- findReads
+--   unless (null v) $ insertBefore $ mkReadMarker v
+--   -- depth-first
+--   b <- go Down
+--   if b then horizontal (0 : h)
+--   else do
+--     b' <- go Next
+--     if b' then vertical h
+--     else go Up >> horizontal h
+
+
+
+-- first parameter is the number of explored siblings per level (deepest first)
+explore :: [Int] -> State TraverseState ()
+explore [] = return ()
+explore (n:ns) = do
   v <- findReads
   unless (null v) $ insertBefore $ mkReadMarker v
-  -- depth-first
-  b <- go Down
-  if b then horizontal (0 : h)
-  else do
-    b' <- go Next
-    if b' then vertical h
-    else go Up >> horizontal h
+  let na = if (null v) then n else n + 1
+  d <- go Down
+  if d
+    then explore (0 : na : ns)
+    else do
+       x <- go Next
+       if x
+         then explore (na+1:ns)
+         else do
+          u <- go Up
+          if u
+          then ascend ns
+          else return () -- finished
 
--- pop :: (Monad m) => StateT TraverseState m (Maybe Int)
--- pop = do
---   s <- use traverseCompleted
---   traverseCompleted %= tailSafe -- remove first element
---   return $ headMay s
+ascend [] = return ()
+ascend (n:ns) = do
+  new <- and <$> replicateM (n + 1) (go Next)
+  if new
+    then explore (n + 1 : ns)
+    else do
+      go Up
+      ascend ns
+
+
 
 --------------------------------------------------------------------------------
 -- | * Finding reads/writes
@@ -291,15 +320,22 @@ dummyAssert = CFunDef specs decl [] body' undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
         body' = CCompound [] [] (undefNode, voidType)
 
+
+
+
+simpleIntType :: Type
+simpleIntType = integral (getIntType noFlags)
+
 --------------------------------------------------------------------------------
 -- | simple utilities
 --------------------------------------------------------------------------------
 -- | partial!
 insertBeforeNthStatement :: CStatement a -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]
-insertBeforeNthStatement s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
-insertBeforeNthStatement s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement s (n-1) xs
-insertBeforeNthStatement s n (x:xs)                   = x : insertBeforeNthStatement s n xs
-insertBeforeNthStatement _  _ _                       = error "illegal insertAt"
+insertBeforeNthStatement s n items = trace ("insert before " ++ show n) $ insertBeforeNthStatement' s n items
+insertBeforeNthStatement' s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
+insertBeforeNthStatement' s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement' s (n-1) xs
+insertBeforeNthStatement' s n (x:xs)                   = x : insertBeforeNthStatement' s n xs
+insertBeforeNthStatement' _  _ _                       = error "illegal insertAt"
 
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM p t   = p >>= flip when t

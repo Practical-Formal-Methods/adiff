@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Types
   ( module Types
   , module Data.Default
@@ -35,8 +37,8 @@ class HasTimeLimit a where
 -- | ** The main environment
 -- | This is the main environment that is available for all commands.
 data MainEnv = MainEnv
-  { _logger   :: LogFunc
-  , _database :: SQL.Connection
+  { _logger    :: LogFunc
+  , _database  :: SQL.Connection
   }
 instance HasMainEnv MainEnv
 
@@ -45,7 +47,6 @@ instance HasLogFunc MainEnv where
 
 instance HasDatabase MainEnv where
   databaseL = lens _database (\e d -> e {_database = d})
-
 
 -- | Every verifier is supposed to run in this environment
 data VerifierEnv = VerifierEnv
