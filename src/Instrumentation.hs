@@ -53,6 +53,7 @@ readsStatement s = case s of
   (CIf e _ _ _)       -> readsExpression e -- [internalIdent "x"]
   (CWhile e _ _ _)    -> readsExpression e
   (CLabel _ stmt _ _) -> readsStatement stmt
+  (CSwitch e _ _)     -> readsExpression e
   _                   -> []
 
   where
