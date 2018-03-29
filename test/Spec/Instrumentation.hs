@@ -151,7 +151,7 @@ testMarkAllReads = do
     mar :: String -> IO LBS.ByteString
     mar fn = do
       tu <- runRIO NoLogging $ openCFile fn
-      bs <- render . pretty <$> markAllReads tu
+      let bs = render . pretty . markAllReads $ tu
       return $ LC8.pack bs
 
 

@@ -110,7 +110,7 @@ cmdParseTest fn = openCFile fn >>= liftIO . putStrLn . render . pretty
 
 
 cmdMarkReads :: HasLogFunc env => FilePath -> RIO env ()
-cmdMarkReads fn = liftIO . putStrLn . render . pretty =<< markAllReads =<< openCFile fn
+cmdMarkReads fn = liftIO . putStrLn . render . pretty . markAllReads =<< openCFile fn
 
 cmdVersions :: RIO a ()
 cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
@@ -173,13 +173,13 @@ extDeclaration (CDeclExt _ ) = fail
 extDeclaration (CAsmExt _ _) = fail
 extDeclaration (CFDefExt f)  =  case functionName f of
   Just ('_' : ('_' : _)) -> fail -- ignore things that start with two underscores
-  _                      -> CFDefExt <$> functionDefinition f
+  _                      -> CFDefExt <$> functionDefinition' f
 
 functionName :: CFunctionDef SemPhase -> Maybe String
 functionName (CFunDef _ (CDeclr mIdent _ _ _ _) _ _ _) = identToString <$> mIdent
 
-functionDefinition :: CFunctionDef SemPhase -> Gen AssertionTemplate (CFunctionDef SemPhase)
-functionDefinition (CFunDef specs declr decla stmt x) = CFunDef specs declr decla <$> statement stmt <*> pure x
+functionDefinition' :: CFunctionDef SemPhase -> Gen AssertionTemplate (CFunctionDef SemPhase)
+functionDefinition' (CFunDef specs declr decla stmt x) = CFunDef specs declr decla <$> statement stmt <*> pure x
 
 -- | usually just identity unless it is a compound statement.
 statement :: CStatement SemPhase -> Gen AssertionTemplate (CStatement SemPhase)

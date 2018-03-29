@@ -24,22 +24,21 @@ module Instrumentation
 import qualified Prelude                          as P
 import           RIO
 
-import           Data.List.Lens
 import           Debug.Trace
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
-import           Safe
+import           Language.C.Data.Lens
 import           Text.PrettyPrint                 (render)
 
 import           Data.Generics.Uniplate.Data      ()
 import           Data.Generics.Uniplate.Zipper    (fromZipper)
 import qualified Data.Generics.Uniplate.Zipper    as Z
 
-import           Control.Lens.Cons
 import           Control.Lens.Getter              (use)
-import           Control.Lens.Operators           ((%=), (+=), (-=), (.=))
+import           Control.Lens.Operators           ((%=), (%~), (+=), (-=), (.=))
+import           Control.Lens.Setter              (mapped)
 import           Control.Monad.State
 
 --------------------------------------------------------------------------------
@@ -112,7 +111,7 @@ go_ d = do
     z <- use stmtZipper
     trace ("currently at: " ++ showp (Z.hole z)) $ error "should not happen"
 
-insertBefore :: (MonadThrow m, MonadState st m, ZipperState st) => Stmt -> m ()
+insertBefore :: (MonadState st m, ZipperState st) => Stmt -> m ()
 insertBefore ins = do
   trace "--- start insert" $ return ()
   si <- use siblingIndex
@@ -125,7 +124,7 @@ insertBefore ins = do
           let items' = insertBeforeNthStatement ins si items
               s' =  CCompound l items' ann
           stmtZipper %= Z.replaceHole s'
-    _               -> throwM ZipperException
+    _               -> error "insertBefore was called at a location outside of a compound statement"
   -- move back to the original position
   go_ Down
   replicateM_ (si+1) (go Next)
@@ -163,32 +162,23 @@ instance ZipperState TraverseState where
   stmtZipper = lens _traverseZipper $ \s z -> s {_traverseZipper = z}
   siblingIndex = lens _traverseSiblingIndex $ \s i -> s {_traverseSiblingIndex = i}
 
--- traverseCompleted :: Lens' TraverseState [Int]
--- traverseCompleted = lens _traverseCompleted $ \s c -> s {_traverseCompleted = c}
+markAllReads :: CTranslationUnit SemPhase-> CTranslationUnit SemPhase
+markAllReads = externalDeclarations . mapped . functionDefinition . body  %~ markAllReadsStmt
 
-markAllReads :: (MonadThrow m) => CTranslationUnit SemPhase-> m (CTranslationUnit SemPhase)
-markAllReads (CTranslUnit eds ann) = CTranslUnit <$> eds' <*> pure ann
-  where
-    eds' = mapM f eds
-    f (CFDefExt (CFunDef specs declr decls body ann)) = do
-      body' <- markAllReadsStmt body
-      return $ CFDefExt (CFunDef specs declr decls body' ann)
-    f e = return e
+markAllReadsStmt :: Stmt -> Stmt
+markAllReadsStmt s =
+  let (_, st) = runState (horizontal [0]) (TraverseState (mkZipper s) 0 )
+  in fromZipper $ st ^. stmtZipper
 
-markAllReadsStmt :: (MonadThrow m) => Stmt -> m Stmt
-markAllReadsStmt s = do
-  (_, st) <- runStateT (horizontal [0]) (TraverseState (mkZipper s) 0 )
-  return $ fromZipper $ st ^. stmtZipper
-
-horizontal :: (MonadThrow m) => [Int] -> StateT TraverseState m ()
+horizontal :: [Int] -> State TraverseState ()
 horizontal []     = return ()
-horizontal (n:ns) = do
+horizontal (n:ns) =
   -- go to given position
   whenM (and <$> replicateM n (go Next)) $
     -- go vertical
     vertical (n + 1 : ns)
 
-vertical :: (MonadThrow m) => [Int] -> StateT TraverseState m ()
+vertical :: [Int] -> State TraverseState ()
 vertical h = do
   v <- findReads
   unless (null v) $ insertBefore $ mkReadMarker v
@@ -213,9 +203,7 @@ vertical h = do
 findReads :: (Monad m, ZipperState st) => StateT st m [(Ident, Type)]
 findReads = do
   p <- use stmtZipper
-  x <- use siblingIndex
-  let vars = readsStatement (Z.hole p)
-  return vars
+  return $ readsStatement (Z.hole p)
 
 
 --------------------------------------------------------------------------------
@@ -225,10 +213,10 @@ findReads = do
 applyOnExpr :: (CExpression a -> CExpression a) -> CTranslationUnit a -> CTranslationUnit a
 applyOnExpr f (CTranslUnit eds as) = CTranslUnit (map externalDeclaration eds) as
   where
-    externalDeclaration (CFDefExt fundef) = CFDefExt (functionDefinition fundef)
+    externalDeclaration (CFDefExt fundef) = CFDefExt (functionDefinition' fundef)
     externalDeclaration d = d
 
-    functionDefinition (CFunDef specs declr decls stmt a) = CFunDef specs declr decls (statement stmt) a
+    functionDefinition' (CFunDef specs declr decls stmt a) = CFunDef specs declr decls (statement stmt) a
 
     statement (CLabel i stmt attrs a)         = CLabel i (statement stmt) attrs a
     statement (CCase expr stmt a)             = CCase (f expr) (statement stmt) a
@@ -248,7 +236,7 @@ applyOnExpr f (CTranslUnit eds as) = CTranslUnit (map externalDeclaration eds) a
 
     blkItem (CBlockStmt stmt)      = CBlockStmt (statement stmt)
     blkItem (CBlockDecl decl)      = CBlockDecl (declaration decl)
-    blkItem (CNestedFunDef fundef) = CNestedFunDef (functionDefinition fundef)
+    blkItem (CNestedFunDef fundef) = CNestedFunDef (functionDefinition' fundef)
 
     declaration (CDecl specs declrs a) = CDecl specs (map (\(md,mi,me) -> (md, initializer <$> mi, f <$> me) ) declrs) a
     declaration d                      = d
@@ -294,24 +282,23 @@ mkReadMarker vars =
 -- | (Existing asserts will be disabled by renaming things to this function's name)
 -- | NOTE: (to myself) a quasi-quoter would be really nice, or at least some exported sub-parsers.
 dummyAssert :: CFunctionDef SemPhase
-dummyAssert = CFunDef specs decl [] body undefNode
+dummyAssert = CFunDef specs decl [] body' undefNode
   where specs = [CTypeSpec (CVoidType undefNode)]
         decl = CDeclr  (Just $ internalIdent "__DUMMY_VERIFIER_assert" ) derived Nothing [] undefNode
         derived = [CFunDeclr (Right ([param], False)) [] undefNode]
         param = CDecl [CTypeSpec $ CIntType undefNode] [(Just paramDecl, Nothing, Nothing)]  undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
-        body = CCompound [] [] (undefNode, voidType)
+        body' = CCompound [] [] (undefNode, voidType)
 
 --------------------------------------------------------------------------------
 -- | simple utilities
 --------------------------------------------------------------------------------
 -- | partial!
-insertBeforeNthStatement :: (CStatement a) -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]
-insertBeforeNthStatement s 0 items@((CBlockStmt _):_) = (CBlockStmt s):items
+insertBeforeNthStatement :: CStatement a -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]
+insertBeforeNthStatement s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
 insertBeforeNthStatement s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement s (n-1) xs
 insertBeforeNthStatement s n (x:xs)                   = x : insertBeforeNthStatement s n xs
 insertBeforeNthStatement _  _ _                       = error "illegal insertAt"
 
-whenM, unlessM :: Monad m => m Bool -> m () -> m ()
+whenM :: Monad m => m Bool -> m () -> m ()
 whenM p t   = p >>= flip when t
-unlessM p e = p >>= flip unless e
