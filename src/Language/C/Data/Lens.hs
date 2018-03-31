@@ -1,32 +1,24 @@
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 -- | provides some lenses that makes working with the AST more bearable
-module Language.C.Data.Lens where
+module Language.C.Data.Lens
+  ( externalDeclarations
+  , functionDefinition
+  , declarator
+  , body
+  , module Control.Lens.At
+  , module Control.Lens.Traversal
+  ) where
 
-import qualified Prelude    as P
 import           RIO
 
-import Control.Lens.Operators
-import Control.Lens.At
-import Control.Lens.Prism
-import Control.Lens.Traversal
+import           Control.Lens.At
+import           Control.Lens.Prism
+import           Control.Lens.Traversal
 
 import           Language.C
-
-
-
-
--- TODO: Is that a traversal?
-fdef :: String -> [CExternalDeclaration a] -> Maybe (CFunctionDef a)
-fdef fn = P.foldl flt Nothing
-  where
-    flt (Just d) _                                = Just d
-    flt Nothing (CFDefExt fd@(CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _)) =
-      if identToString i == fn
-      then Just fd
-      else Nothing
-    flt _ _ = Nothing
 
 
 body :: Lens' (CFunctionDef a) (CStatement a)
@@ -59,19 +51,17 @@ instance HasDeclarator (CFunctionDef a) a where
 functionDefinition :: Prism' (CExternalDeclaration a) (CFunctionDef a)
 functionDefinition = prism' CFDefExt project
   where project (CFDefExt f) = Just f
-        project _ = Nothing
+        project _            = Nothing
 
 instance Ixed (CTranslationUnit a) where
   ix :: String -> Traversal' (CTranslationUnit a) (CExternalDeclaration a)
   ix str = externalDeclarations . traverse'
     where
       traverse' :: (Applicative f) => (CExternalDeclaration a -> f (CExternalDeclaration a)) -> [CExternalDeclaration a] -> f [CExternalDeclaration a]
-      traverse' act [] = pure []
-      traverse' act (x@(CDeclExt _ ):xs)  = (x:) <$> traverse act xs -- TODO: not checking those here yet
-      traverse' act (x@(CFDefExt f@(CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _) ):xs) = if identToString i == str
-                                                                                       then (:) <$> act x  <*> traverse act xs
-                                                                                       else (x:) <$> traverse act xs
-      traverse' act (x:xs) = (x:) <$> traverse act xs
---------------------------------------------------------------------------------
--- test
+      traverse' act []                   = pure []
+      traverse' act (x@(CDeclExt _ ):xs) = (x:) <$> traverse' act xs -- TODO: not checking those here yet
+      traverse' act (x@(CFDefExt f@(CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _) ):xs)
+        | identToString i == str         = (:) <$> act x  <*> traverse' act xs
+        | otherwise                      = (x:) <$> traverse' act xs
+      traverse' act (x:xs) = (x:) <$> traverse' act xs
 

@@ -9,11 +9,7 @@ import           RIO
 import qualified RIO.ByteString.Lazy              as LBS
 import           System.FilePath                  (replaceExtension,
                                                    takeBaseName)
-import           Test.Tasty
-import           Test.Tasty.Golden
-import           Test.Tasty.HUnit
 
-import           Diff
 
 import qualified Prelude                          as P
 
@@ -21,14 +17,14 @@ import qualified Prelude                          as P
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.TravMonad
-import           Language.C.Analysis.TypeUtils
 import           Text.PrettyPrint                 (render)
 
+import           Control.Lens.Operators           ((^?))
 import           Control.Monad.State
 import           Data.Generics.Uniplate.Data      ()
-import           Language.C.Data.Lens
-
 import           Instrumentation
+import           Language.C.Data.Lens
+import           Spec.Util
 
 testInstrumentation :: IO TestTree
 testInstrumentation = do
@@ -60,10 +56,7 @@ testZipping = do
 testWalk :: TestTree
 testWalk = testCase "walks"  $ do
   ast <- parseAndAnalyseFile simpleReads
-  let eds = ast ^. externalDeclarations
-      (Just mainDef) = fdef "main" eds
-      stmt  = mainDef ^. body
-
+  let (Just stmt) = ast ^? (ix "main" . functionDefinition . body)
   x <- runStateT walk1 (SimpleState (mkZipper stmt) 0)
   return ()
 
@@ -89,9 +82,7 @@ testWalk = testCase "walks"  $ do
 
 testInsertions = testCase "insertions"  $ do
   ast <- parseAndAnalyseFile simpleReads
-  let eds = ast ^. externalDeclarations
-      (Just mainDef) = fdef "main" eds
-      stmt  = mainDef ^. body
+  let (Just stmt ) = ast ^? (ix "main" . functionDefinition . body)
   (_,st) <- runStateT inserter (SimpleState (mkZipper stmt) 0)
   P.putStrLn "final result"
   print' $ fromZipper (st ^. stmtZipper)
@@ -130,12 +121,6 @@ testInsertBefore = testGroup "insertBefore" [one]
       let items2 = insertBeforeNthStatement stmt 1 [itemA, itemB, itemC]
       assertEqual "after insertion" (show [itemA, CBlockStmt stmt, itemB, itemC]) (show items2)
 
-data NoLogging = NoLogging
-instance HasLogFunc NoLogging where
-  logFuncL = lens getter setter
-    where logFunc = mkLogFunc (\_ _ _ _ -> return ())
-          getter = const logFunc
-          setter = const $ const NoLogging
 
 testMarkAllReads :: IO TestTree
 testMarkAllReads = do
@@ -166,13 +151,6 @@ testMarkAllReads = do
 --------------------------------------------------------------------------------
 
 
-
-dummyDecl :: CDeclaration SemPhase
-dummyDecl = CDecl [] [] undefNode
-
-dummyStmt :: String -> Stmt
-dummyStmt s = CExpr (Just var) (undefNode, voidType)
-  where var = CVar (internalIdent s) (undefNode, voidType)
 
 assertBool' :: (MonadIO m) => String -> Bool -> m ()
 assertBool' s b = liftIO $ assertBool s b
