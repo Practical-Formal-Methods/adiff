@@ -4,6 +4,7 @@ import           Test.Tasty
 import           Spec.Instrumentation
 import           Spec.Timed
 import           Spec.Verifier
+import           Spec.Lens
 
 main :: IO ()
 main = do
@@ -16,6 +17,7 @@ constructTree = do
     [ pure testTimed
     , pure testVerifiers
     , testInstrumentation
+    , pure testLenses
     ]
   return $ testGroup "vdiff" tree
 

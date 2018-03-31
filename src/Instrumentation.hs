@@ -2,8 +2,15 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 
+-- | Implements the core instrumentation functions.
 module Instrumentation
- ( maskAsserts
+ (
+   -- * Handling C files
+  openCFile
+ , prettyp
+ ,  maskAsserts
+   -- * Zipping
+   -- $zipping
  , ZipperState(..)
  , StmtZipper
  , Stmt
@@ -17,10 +24,9 @@ module Instrumentation
  , fromZipper
  , currentStmt
  , printCurrentStmt
+ -- * Internals
  , insertBeforeNthStatement
  , markAllReads
- , openCFile
- , prettyp
  ) where
 
 import           Debug.Trace
@@ -44,26 +50,24 @@ import           Control.Lens.Operators           ((%=), (%~), (+=), (-=), (.=))
 import           Control.Lens.Setter              (mapped)
 import           Control.Monad.State
 
-import           System.Exit
-
 prettyp :: Pretty a => a -> String
 prettyp = render . Language.C.pretty
 
--- short-hand for open, parse and type annotate
-openCFile :: HasLogFunc env => FilePath -> RIO env (CTranslationUnit SemPhase)
+-- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
+openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe (CTranslationUnit SemPhase))
 openCFile fn = do
   x <- liftIO $ parseCFilePre fn
   case x of
     Left parseError -> do
       logError $ "parse error: " <> displayShow parseError
-      liftIO exitFailure
+      return Nothing
     Right tu -> case runTrav_ (analyseAST tu) of
         Left typeError -> do
           logError $ "type error: " <> displayShow typeError
-          liftIO exitFailure
+          return Nothing
         Right (tu', warnings) -> do
           unless (null warnings) $ logWarn $ "warnings: " <> displayShow warnings
-          return tu'
+          return (Just tu')
 
 --------------------------------------------------------------------------------
 type Stmt = CStatement SemPhase
@@ -89,8 +93,11 @@ readsStatement s = case s of
     readsExpression _                  = []
 
 --------------------------------------------------------------------------------
--- | * Zipping
+-- $zipping
+-- When you want to modify an AST, you probably want to use a zipper. You can use it with any state monad, just make sure it is an instance of 'ZipperState', meaning that it has to store a 'StmtZipper' and a 'siblingIndex', where the latter is counting the skipped statements in the current compound statement.
+-- Inside your state monad you can then use functions like 'go','go_'...
 --------------------------------------------------------------------------------
+
 mkZipper :: Stmt -> StmtZipper
 mkZipper = Z.zipper
 
@@ -133,9 +140,7 @@ go d = do
 go_ :: (Monad m, ZipperState st, MonadState st m) => Direction -> m ()
 go_ d = do
   m <- go d
-  unless m $ do
-    z <- use stmtZipper
-    error ("cannot go " ++ show d)
+  unless m $ error ("cannot go " ++ show d)
 
 insertBefore :: (MonadState st m, ZipperState st) => Stmt -> m ()
 insertBefore ins = do
@@ -165,9 +170,7 @@ printCurrentStmt = do
   liftIO $ P.putStrLn $ prettyp s
 
 
--- this will reset the zipper back to how it was
--- somehow store some information on stack, so we know that after some time we
--- might want to come back out
+-- | This executes a monadic actions but resets the zipper to the value it previously had. This is convenient in combination of zipper modifying functions like 'insertBefore'.
 tryout :: (ZipperState st, MonadState st m) => m a -> m a
 tryout act = do
   z <- use stmtZipper
@@ -351,7 +354,7 @@ simpleIntType :: Type
 simpleIntType = integral (getIntType noFlags)
 
 --------------------------------------------------------------------------------
--- | simple utilities
+-- simple utilities
 --------------------------------------------------------------------------------
 -- | partial!
 insertBeforeNthStatement :: CStatement a -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]

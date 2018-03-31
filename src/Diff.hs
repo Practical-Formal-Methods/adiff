@@ -11,15 +11,17 @@ import           RIO
 import           Data.List        (sortBy)
 import           Data.Ord         (comparing)
 import           Language.C
-import           System.IO        (putStr, putStrLn)
 import           Text.PrettyPrint (render)
+
+import           System.Exit
+import           System.IO
 
 import           Instrumentation
 import           Persistence
 import           Types
 import           Verifier
 
-import           RandomStrategy
+import           Strategy.Random
 
 
 -- | This is a RIO version of persist
@@ -32,27 +34,30 @@ persist' x = do
 cmdDiff :: HasMainEnv a => DiffParameters -> RIO a ()
 cmdDiff params = do
   logInfo "starting diff"
-  ast <- maskAsserts <$> openCFile (params ^. program)
-  stratEnv <- mkStrategyEnv ast params
-  case params ^. strategy of
-    NaiveRandom -> do
-      logInfo "using 'random' strategy"
-      runRIO stratEnv randomStrategy
-
-
-
-    _ -> error "strategy not implemented"
-  undefined
+  mAst <- openCFile (params ^. program)
+  case mAst of
+    Nothing -> liftIO exitFailure
+    Just ast -> do
+      let astMasked = maskAsserts ast
+      stratEnv <- mkStrategyEnv astMasked params
+      case params ^. strategy of
+        NaiveRandom -> do
+          logInfo "using 'random' strategy"
+          runRIO stratEnv randomStrategy
+        _ -> error "strategy not implemented"
 
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
 cmdParseTest :: HasLogFunc env => FilePath -> RIO env ()
-cmdParseTest fn = openCFile fn >>= liftIO . putStrLn . render . pretty
+cmdParseTest fn = openCFile fn >>= liftIO . putStrLn . render . maybe "" pretty
 
 
 cmdMarkReads :: HasLogFunc env => FilePath -> RIO env ()
-cmdMarkReads fn = liftIO . putStrLn . render . pretty . markAllReads =<< openCFile fn
+cmdMarkReads fn = do
+  (Just ast) <- openCFile fn
+  let ast' = markAllReads ast
+  liftIO . putStrLn . render . pretty $ ast'
 
 cmdVersions :: RIO a ()
 cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
