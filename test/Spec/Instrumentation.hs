@@ -10,10 +10,6 @@ import qualified RIO.ByteString.Lazy              as LBS
 import           System.FilePath                  (replaceExtension,
                                                    takeBaseName)
 
-
-import qualified Prelude                          as P
-
-
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.TravMonad
@@ -57,7 +53,7 @@ testWalk :: TestTree
 testWalk = testCase "walks"  $ do
   ast <- parseAndAnalyseFile simpleReads
   let (Just stmt) = ast ^? (ix "main" . functionDefinition . body)
-  x <- runStateT walk1 (SimpleState (mkZipper stmt) 0)
+  _ <- runStateT walk1 (SimpleState (mkZipper stmt) 0)
   return ()
 
 
@@ -67,11 +63,11 @@ testWalk = testCase "walks"  $ do
       findReads >>= \v -> assertBool' "find x " (varNames v == ["x"])
       go_ Down
       go_ Down --into the compound statement
-      findReads >>= \v -> assertBool' "find nothing " (varNames v == [])
+      findReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
       go_ Next
       findReads >>= \v -> assertBool' "find y" (varNames v  == ["y"])
       go_ Next
-      findReads >>= \v -> assertBool' "find nothing " (varNames v == [])
+      findReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
       go_ Next
       findReads >>= \v -> assertBool' "find x" (varNames v  == ["x"])
       go_ Next
@@ -80,15 +76,11 @@ testWalk = testCase "walks"  $ do
 
 
 
-testInsertions = testCase "insertions"  $ do
-  ast <- parseAndAnalyseFile simpleReads
+testInsertions :: TestTree
+testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion" $ \ast -> do
   let (Just stmt ) = ast ^? (ix "main" . functionDefinition . body)
   (_,st) <- runStateT inserter (SimpleState (mkZipper stmt) 0)
-  P.putStrLn "final result"
-  print' $ fromZipper (st ^. stmtZipper)
-  return ()
-
-
+  return $ LC8.pack $ prettyp $ fromZipper (st ^. stmtZipper)
   where
     inserter = do
       go_ Down
@@ -99,11 +91,6 @@ testInsertions = testCase "insertions"  $ do
       insertBefore $ dummyStmt "dummy_02"
       go_ Next
       insertBefore $ dummyStmt "dummy_03"
-      -- go_ Next
-      -- printCurrentStmt
-      -- insertBefore dummyStmt
-      -- go_ Next
-      -- insertBefore dummyStmt
       return ()
 
 --------------------------------------------------------------------------------
@@ -135,7 +122,7 @@ testMarkAllReads = do
   where
     mar :: String -> IO LBS.ByteString
     mar fn = do
-      tu <- runRIO NoLogging $ openCFile fn
+      (Just tu) <- runRIO NoLogging $ openCFile fn
       let bs = render . pretty . markAllReads $ tu
       return $ LC8.pack bs
 
@@ -159,20 +146,14 @@ assertBool' s b = liftIO $ assertBool s b
 varNames :: [(Ident,b)] -> [String]
 varNames = map (identToString.fst)
 
-print' = P.putStrLn . render . pretty
-
+simpleReads :: ByteString
 simpleReads = $(embedFile "assets/test/reads/simple_reads.c")
 
 parseAndAnalyseFile :: ByteString -> IO (CTranslationUnit SemPhase)
-parseAndAnalyseFile bs =  do
-  case parseC bs (initPos "simple_reads.c") of
-    Left err -> assertFailure "simple_reads.c should be parseable"
-    Right ast -> do
+parseAndAnalyseFile bs =
+  case parseC bs (initPos "nofilename") of
+    Left _-> assertFailure "should be parseable"
+    Right ast ->
       case runTrav_ (analyseAST ast) of
-        Left typeError  -> assertFailure "simple_reads should be typeable"
+        Left _          -> assertFailure "should be typeable"
         Right (ast', _) -> return ast'
-
--- for every position in `findAllPositions` insert does not throw an exception,
--- requires a generator for CFiles, or a large corpus TODO
-
-
