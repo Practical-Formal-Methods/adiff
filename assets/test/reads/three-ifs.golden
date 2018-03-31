@@ -1,0 +1,19 @@
+int main()
+{
+    int x, y;
+    __VERIFIER_read(x);
+    if (x)
+    {
+        ;
+    }
+    __VERIFIER_read(x);
+    if (x)
+    {
+        ;
+    }
+    __VERIFIER_read(x);
+    if (x)
+    {
+        ;
+    }
+}
