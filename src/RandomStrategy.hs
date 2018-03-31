@@ -8,28 +8,38 @@ module RandomStrategy (randomStrategy) where
 import qualified Prelude                       as P
 import           RIO
 
-import           Language.C.Analysis.SemRep    hiding (Stmt)
-import           Language.C.Analysis.TypeUtils
-import           Language.C.Data
-import           Language.C.Syntax
-import           System.Random
-
 import           Control.Lens.Getter           (use)
 import           Control.Lens.Operators
 import           Control.Monad.State
+import           Language.C
+import           Language.C.Analysis.SemRep    hiding (Stmt)
+import           Language.C.Analysis.TypeUtils
+import           Language.C.Data.Lens
+import           System.IO                     (hPutStr)
+import           System.Random
 
+import           Data
 import           Instrumentation
+import           Persistence
+import           Types
 
+import           Strategy.Util
+
+
+type RandomM env a = StateT RandomState (RIO env) a
 
 -- does not terminate
-randomStrategy :: (HasLogFunc env) => Stmt -> RIO env ()
-randomStrategy stmt = do
+randomStrategy :: (HasLogFunc env, HasTranslationUnit env, HasDiffParameters env) => RIO env ()
+randomStrategy = do
+  tu <- view translationUnit
+  let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
   gen <- liftIO getStdGen
-  let st = RandomState (mkZipper stmt) 0 gen
+  let st = RandomState (mkZipper bdy) 0 gen
   (_,_t) <- runStateT randomStrategy' st
   return ()
 
-randomStrategy' :: (HasLogFunc env) => StateT RandomState (RIO env) ()
+
+randomStrategy' :: (HasLogFunc env, HasTranslationUnit env, HasDiffParameters env) => RandomM env ()
 randomStrategy' = do
   randomStep
   vars <- findReads
@@ -39,6 +49,13 @@ randomStrategy' = do
       (v,ty) <- chooseOneOf vars
       asrt <- mkAssertion v ty
       insertBefore asrt
+      tu <- buildTranslationUnit
+      (res :: [VerifierRun]) <- lift $ verify tu
+      logInfo $ "results: " <> display (tshow res)
+  -- iterate
+  randomStrategy'
+
+
 
 -- -- | state for our algorithm
 data RandomState = RandomState
@@ -77,10 +94,20 @@ randomStep :: (HasLogFunc env) => StateT RandomState (RIO env) ()
 randomStep = do
   d <- chooseOneOf [Up, Down, Next, Prev]
   success <- go d
-  logDebug $ "one step " <> display (tshow d)
-  unless success randomStep
+  if success
+    then logDebug $ "one step " <> display (tshow d)
+    else randomStep
 
 type UInt = Int32 -- TODO: this is not true
+
+-- |
+buildTranslationUnit :: (HasTranslationUnit env) => StateT RandomState (RIO env)  (CTranslationUnit SemPhase)
+buildTranslationUnit = do
+  z <- use stmtZipper
+  let stmt = fromZipper z
+  tu <- view translationUnit
+  let modif = (ix "main" . functionDefinition . body) .~ stmt
+  return $ modif tu
 
 mkAssertion :: (HasRandomGen st, MonadState st m) => Ident -> Type -> m Stmt
 mkAssertion varName ty = do

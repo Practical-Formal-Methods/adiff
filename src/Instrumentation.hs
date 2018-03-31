@@ -19,15 +19,18 @@ module Instrumentation
  , printCurrentStmt
  , insertBeforeNthStatement
  , markAllReads
+ , openCFile
+ , prettyp
  ) where
 
+import           Debug.Trace
 import qualified Prelude                          as P
 import           RIO
-import Debug.Trace
 
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
+import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Text.PrettyPrint                 (render)
@@ -41,9 +44,31 @@ import           Control.Lens.Operators           ((%=), (%~), (+=), (-=), (.=))
 import           Control.Lens.Setter              (mapped)
 import           Control.Monad.State
 
+import           System.Exit
+
+prettyp :: Pretty a => a -> String
+prettyp = render . Language.C.pretty
+
+-- short-hand for open, parse and type annotate
+openCFile :: HasLogFunc env => FilePath -> RIO env (CTranslationUnit SemPhase)
+openCFile fn = do
+  x <- liftIO $ parseCFilePre fn
+  case x of
+    Left parseError -> do
+      logError $ "parse error: " <> displayShow parseError
+      liftIO exitFailure
+    Right tu -> case runTrav_ (analyseAST tu) of
+        Left typeError -> do
+          logError $ "type error: " <> displayShow typeError
+          liftIO exitFailure
+        Right (tu', warnings) -> do
+          unless (null warnings) $ logWarn $ "warnings: " <> displayShow warnings
+          return tu'
+
 --------------------------------------------------------------------------------
 type Stmt = CStatement SemPhase
 type StmtZipper= Z.Zipper Stmt Stmt
+
 
 -- | find reads in a statement
 readsStatement :: Stmt -> [(Ident,Type)]
@@ -137,10 +162,7 @@ currentStmt = do
 printCurrentStmt :: (MonadState st m, ZipperState st, MonadIO m) => m ()
 printCurrentStmt = do
   s <- currentStmt
-  liftIO $ P.putStrLn $ render $ pretty s
-
-showp :: (Pretty p) => p -> String
-showp = render . pretty
+  liftIO $ P.putStrLn $ prettyp s
 
 
 -- this will reset the zipper back to how it was
@@ -149,8 +171,10 @@ showp = render . pretty
 tryout :: (ZipperState st, MonadState st m) => m a -> m a
 tryout act = do
   z <- use stmtZipper
+  s <- use siblingIndex
   x <- act
   stmtZipper .= z
+  siblingIndex .= s
   return x
 
 data TraverseState = TraverseState
@@ -170,8 +194,8 @@ markAllReadsStmt s =
   in fromZipper $ st ^. stmtZipper
 
 
-  
- 
+
+
 
 -- horizontal :: [Int] -> State TraverseState ()
 -- horizontal []     = return ()
