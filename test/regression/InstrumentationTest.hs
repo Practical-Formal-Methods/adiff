@@ -11,8 +11,6 @@ import           System.FilePath                  (replaceExtension,
                                                    takeBaseName)
 
 import           Language.C
-import           Language.C.Analysis.AstAnalysis2
-import           Language.C.Analysis.TravMonad
 import           Text.PrettyPrint                 (render)
 
 import           Control.Lens.Operators           ((^?))
@@ -23,21 +21,14 @@ import           Language.C.Data.Lens
 
 import           Util
 
+
+
 testInstrumentation :: IO TestTree
 testInstrumentation = do
   tests <- sequence [testZipping]
   return $ testGroup "instrumentation" tests
 
 
--- | simple structure for zipper
-data SimpleState = SimpleState
-  { _stmtZipper   :: StmtZipper
-  , _siblingIndex :: Int
-  }
-
-instance ZipperState SimpleState where
-  stmtZipper = lens _stmtZipper (\s z -> s { _stmtZipper = z})
-  siblingIndex = lens _siblingIndex (\s i -> s { _siblingIndex = i})
 
 --------------------------------------------------------------------------------
 testZipping :: IO TestTree
@@ -129,32 +120,5 @@ testMarkAllReads = do
 
 
 
---------------------------------------------------------------------------------
--- properties
---------------------------------------------------------------------------------
--- TODO: test property: Any walk does not change the file
-
---------------------------------------------------------------------------------
--- ** Little Helpers
---------------------------------------------------------------------------------
 
 
-
-assertBool' :: (MonadIO m) => String -> Bool -> m ()
-assertBool' s b = liftIO $ assertBool s b
-
-
-varNames :: [(Ident,b)] -> [String]
-varNames = map (identToString.fst)
-
-simpleReads :: ByteString
-simpleReads = $(embedFile "assets/test/reads/simple_reads.c")
-
-parseAndAnalyseFile :: ByteString -> IO (CTranslationUnit SemPhase)
-parseAndAnalyseFile bs =
-  case parseC bs (initPos "nofilename") of
-    Left _-> assertFailure "should be parseable"
-    Right ast ->
-      case runTrav_ (analyseAST ast) of
-        Left _          -> assertFailure "should be typeable"
-        Right (ast', _) -> return ast'

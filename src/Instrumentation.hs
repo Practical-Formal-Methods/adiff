@@ -109,7 +109,7 @@ class ZipperState state where
 
 
 data Direction = Up | Down | Next | Prev
-  deriving (Eq, Show)
+  deriving (Eq, Enum, Bounded, Show)
 
 data ZipperException = ZipperException
   deriving Show
@@ -196,60 +196,48 @@ markAllReadsStmt s =
   let (_, st) = runState (explore [0]) (TraverseState (mkZipper s) 0 )
   in fromZipper $ st ^. stmtZipper
 
-
-
-
-
--- horizontal :: [Int] -> State TraverseState ()
--- horizontal []     = return ()
--- horizontal (n:ns) =
---   -- go to given position
---   whenM (and <$> replicateM n (go Next)) $
---     -- go vertical
---     vertical (n + 1 : ns)
-
--- vertical :: [Int] -> State TraverseState ()
--- vertical h = do
---   v <- findReads
---   unless (null v) $ insertBefore $ mkReadMarker v
---   -- depth-first
---   b <- go Down
---   if b then horizontal (0 : h)
---   else do
---     b' <- go Next
---     if b' then vertical h
---     else go Up >> horizontal h
-
+prettyp' (CCompound _ _ _) = "{}"
+prettyp' s = prettyp s
 
 
 -- first parameter is the number of explored siblings per level (deepest first)
 explore :: [Int] -> State TraverseState ()
-explore [] = return ()
-explore (n:ns) = do
+explore st = do
   v <- findReads
-  unless (null v) $ insertBefore $ mkReadMarker v
-  let na = if (null v) then n else n + 1
+  x <- currentStmt
+  traceM ("XX: explore:" ++ prettyp' x)
+  -- unless (null v) $ insertBefore $ mkReadMarker v
+
   d <- go Down
   if d
-    then explore (0 : na : ns)
+    then do
+      completed <- use siblingIndex
+      explore (completed : st)
     else do
        x <- go Next
        if x
-         then explore (na+1:ns)
-         else do
-          u <- go Up
-          if u
-          then ascend ns
-          else return () -- finished
+         then do
+          -- completed <- use siblingIndex
+          explore st
+         else ascend st
 
+-- ascend like explore, but it can't go down
 ascend [] = return ()
 ascend (n:ns) = do
-  new <- and <$> replicateM (n + 1) (go Next)
-  if new
-    then explore (n + 1 : ns)
-    else do
-      go Up
-      ascend ns
+  x <- currentStmt
+  -- traceM ("XX: ascend A :" ++ prettyp x ++ " n = " ++ show n)
+  u <- go Up -- why can this fail?
+  when u $ do
+    replicateM_ n (go_ Next) -- at original position
+    y <- currentStmt
+    -- traceM ("XX: ascend B :" ++ prettyp y)
+    new <- go Next
+    if new
+      then explore (ns)
+      else ascend ns
+      -- x <- go Up -- why can this fail?
+      -- traceM $ "successfully went up" ++ show x
+      -- when x (ascend ns)
 
 
 

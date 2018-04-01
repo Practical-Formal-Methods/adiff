@@ -1,9 +1,9 @@
 int main() {
-	int x,y;
+	int x,y,z;
 
-	if (x) { ; }
-	if (x) { ; }
-	if (x) { ; }
+	if (x) { 1; }
+	if (y) { 2; }
+	if (z) { 3; }
 
 
 
