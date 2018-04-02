@@ -29,7 +29,6 @@ module Instrumentation
  , markAllReads
  ) where
 
-import           Debug.Trace
 import qualified Prelude                          as P
 import           RIO
 
@@ -207,7 +206,6 @@ explore :: [Int] -> State TraverseState ()
 explore st = do
   v <- findReads
   x <- currentStmt
-  traceM ("XX: explore:" ++ prettyp' x)
   unless (null v) $ insertBefore $ mkReadMarker v
 
   d <- go Down
@@ -348,11 +346,10 @@ simpleIntType = integral (getIntType noFlags)
 --------------------------------------------------------------------------------
 -- | partial!
 insertBeforeNthStatement :: CStatement a -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]
-insertBeforeNthStatement s n items = trace ("insert before " ++ show n) $ insertBeforeNthStatement' s n items
-insertBeforeNthStatement' s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
-insertBeforeNthStatement' s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement' s (n-1) xs
-insertBeforeNthStatement' s n (x:xs)                   = x : insertBeforeNthStatement' s n xs
-insertBeforeNthStatement' _  _ _                       = error "illegal insertAt"
+insertBeforeNthStatement s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
+insertBeforeNthStatement s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement s (n-1) xs
+insertBeforeNthStatement s n (x:xs)                   = x : insertBeforeNthStatement s n xs
+insertBeforeNthStatement _  _ _                       = error "illegal insertAt"
 
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM p t   = p >>= flip when t
