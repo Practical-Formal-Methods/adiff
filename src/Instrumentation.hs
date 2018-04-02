@@ -91,6 +91,7 @@ readsStatement s = case s of
     readsExpression (CBinary _ l r _)  = readsExpression l <> readsExpression r
     readsExpression (CUnary _ e _)     = readsExpression e
     readsExpression (CAssign _ _ e2 _) = readsExpression e2
+    readsExpression (CCall _ es _)     = concatMap readsExpression es
     readsExpression _                  = []
 
 --------------------------------------------------------------------------------
