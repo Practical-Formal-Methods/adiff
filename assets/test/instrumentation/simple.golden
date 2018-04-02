@@ -1,0 +1,15 @@
+    {
+        int x, y, z;
+        if (x > 0)
+        {
+            int a;
+            dummy_01;
+            foo();
+            dummy_02;
+            y = y + 1;
+            dummy_03;
+            bar();
+            x = x + 1;
+            z = z + 1;
+        }
+    }

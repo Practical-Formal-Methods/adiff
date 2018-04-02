@@ -1,16 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Spec.Verifier where
+module Main where
 
 import           Data.FileEmbed
 import           RIO
-import qualified RIO.ByteString   as BS
+import qualified RIO.ByteString as BS
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
 import           Data
 import           Types
-import           Verifier
+import           Verifier (allVerifiers)
+
+main :: IO ()
+main = defaultMain  $ testGroup "vdiff-integration" [testVerifiers]
 
 
 testVerifiers :: TestTree

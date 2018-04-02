@@ -1,0 +1,26 @@
+int main()
+{
+    int x;
+    __VERIFIER_read(x);
+    while (x < 5)
+    {
+        ;
+    }
+    for (int i = x; i < 5; i++)
+    {
+        ;
+    }
+    __VERIFIER_read(x);
+    if (x > 5)
+    {
+        ;
+    }
+    __VERIFIER_read(x);
+    switch (x)
+    {
+    case 0:
+        return 1;
+    default:
+        return 0;
+    }
+}

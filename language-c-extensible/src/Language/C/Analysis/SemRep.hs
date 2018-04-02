@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Analysis.Syntax
@@ -59,6 +60,9 @@ import qualified Data.Map          as Map
 import           Data.Maybe
 import           Language.C.Data
 import           Language.C.Syntax
+
+
+import           Data.Generics     hiding (Generic)
 
 -- | accessor class : struct\/union\/enum names
 class HasSUERef a where
@@ -235,7 +239,7 @@ instance Declaration FunDef where
 -- | Parameter declaration
 data ParamDecl = ParamDecl VarDecl NodeInfo
                | AbstractParamDecl VarDecl NodeInfo
-    deriving (Show, Typeable {-! ,CNode !-} )
+    deriving (Show, Typeable, Data {-! ,CNode !-} )
 
 instance Declaration ParamDecl where
   getVarDecl (ParamDecl vd _)         = vd
@@ -264,7 +268,7 @@ identOfTypeDef (TypeDef ide _ _ _) = ide
 
 -- | Generic variable declarations
 data VarDecl = VarDecl VarName DeclAttrs Type
-              deriving (Show, Typeable)
+              deriving (Show, Typeable, Data)
 
 instance Declaration VarDecl where
   getVarDecl = id
@@ -278,7 +282,7 @@ isExtDecl = hasLinkage . declStorage
 -- They specify the storage and linkage of a declared object.
 data DeclAttrs = DeclAttrs FunctionAttrs Storage Attributes
                  -- ^ @DeclAttrs fspecs storage attrs@
-               deriving (Show, Typeable)
+               deriving (Show, Typeable, Data)
 
 -- | get the 'Storage' of a declaration
 declStorage :: (Declaration d) => d -> Storage
@@ -352,14 +356,14 @@ data Type =
      -- ^ function type
      | TypeDefType TypeDefRef TypeQuals Attributes
      -- ^ a defined type
-     deriving (Show, Typeable)
+     deriving (Show, Typeable, Data)
 
 -- | Function types are of the form @FunType return-type params isVariadic@.
 --
 -- If the parameter types aren't yet known, the function has type @FunTypeIncomplete type attrs@.
 data FunType = FunType Type [ParamDecl] Bool
             |  FunTypeIncomplete Type
-               deriving (Show, Typeable)
+               deriving (Show, Typeable, Data)
 
 
 -- | An array type may either have unknown size or a specified array size, the latter either variable or constant.
@@ -369,7 +373,7 @@ data ArraySize =  UnknownArraySize Bool
                 -- ^ @UnknownArraySize is-starred@
                 | ArraySize Bool Expr
                 -- ^ @FixedSizeArray is-static size-expr@
-               deriving (Typeable)
+               deriving (Typeable, Data)
 
 instance Show ArraySize where
   show arrSize = "ArraySize"
@@ -393,7 +397,7 @@ data BuiltinType = TyVaList
 -- | typdef references
 -- If the actual type is known, it is attached for convenience
 data TypeDefRef = TypeDefRef Ident Type NodeInfo
-               deriving (Show, Typeable {-! ,CNode !-})
+               deriving (Show, Typeable, Data {-! ,CNode !-})
 
 -- | integral types (C99 6.7.2.2)
 data IntType =
@@ -572,7 +576,7 @@ type AsmName = CStrLit
 --
 -- /TODO/: ultimatively, we want to parse attributes and represent them in a typed way
 data Attr = Attr Ident [Expr] NodeInfo
-            deriving (Typeable {-! ,CNode !-})
+            deriving (Typeable, Data {-! ,CNode !-})
 
 instance Show Attr where
   show (Attr i _ ni) = "Attribute " ++ show i ++ " [] " ++ show ni
@@ -594,6 +598,20 @@ mergeAttributes = (++)
 type Stmt = CStat
 -- | 'Expr' is currently an alias for 'CExpr' (Syntax)
 type Expr = CExpr
+
+
+deriving instance Data GlobalDecls
+deriving instance Data TypeDef
+deriving instance Data TagDef
+deriving instance Data CompType
+deriving instance Data MemberDecl
+deriving instance Data EnumType
+deriving instance Data Enumerator
+deriving instance Data IdentDecl
+deriving instance Data Decl
+deriving instance Data ObjDef
+deriving instance Data FunDef
+
 -- GENERATED START
 
 instance CNode TagDef where

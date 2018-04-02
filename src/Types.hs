@@ -1,3 +1,6 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell       #-}
+
 module Types
   ( module Types
   , module Data.Default
@@ -5,12 +8,12 @@ module Types
 
 import           RIO
 
+import           Control.Lens.TH
+import           Data
 import           Data.Default
 import qualified Database.SQLite.Simple as SQL
+import           Language.C
 import           System.IO              (FilePath)
-
-import           Data
-
 
 data Strategy = NaiveRandom -- ^ naive random strategy
               | SmartGuided -- ^ not implemented yet
@@ -32,6 +35,9 @@ class (HasLogFunc a, HasDatabase a) => HasMainEnv a
 class HasTimeLimit a where
   timeLimitL :: Lens' a Microseconds
 
+class HasDiffParameters env where
+  diffParameters :: Lens' env DiffParameters
+
 -- | ** The main environment
 -- | This is the main environment that is available for all commands.
 data MainEnv = MainEnv
@@ -45,7 +51,6 @@ instance HasLogFunc MainEnv where
 
 instance HasDatabase MainEnv where
   databaseL = lens _database (\e d -> e {_database = d})
-
 
 -- | Every verifier is supposed to run in this environment
 data VerifierEnv = VerifierEnv
@@ -63,6 +68,29 @@ mkVerifierEnv :: (HasLogFunc env ) => Microseconds -> RIO env VerifierEnv
 mkVerifierEnv timeLimit = do
   lg <- view logFuncL
   return $ VerifierEnv lg timeLimit
+
+class HasTranslationUnit env where
+  translationUnit :: Lens' env (CTranslationUnit SemPhase)
+
+data StrategyEnv = StrategyEnv
+  { _strategyLogFunc         :: LogFunc
+  , _strategyTranslationUnit :: CTranslationUnit SemPhase
+  , _strategyDiffParameters  :: DiffParameters
+  }
+
+instance HasTranslationUnit StrategyEnv where
+  translationUnit = lens _strategyTranslationUnit (\e t -> e {_strategyTranslationUnit = t})
+
+instance HasLogFunc StrategyEnv where
+  logFuncL = lens _strategyLogFunc (\e f -> e {_strategyLogFunc = f})
+
+instance HasDiffParameters StrategyEnv where
+  diffParameters = lens _strategyDiffParameters (\e p -> e {_strategyDiffParameters = p})
+
+mkStrategyEnv :: (HasMainEnv env) => (CTranslationUnit SemPhase) -> DiffParameters -> RIO env StrategyEnv
+mkStrategyEnv tu dp = do
+  lg <- view logFuncL
+  return $ StrategyEnv  lg tu dp
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
@@ -95,10 +123,12 @@ instance Default Verifier where
 
 
 data DiffParameters = DiffParameters
-  { strategy   :: Strategy
-  , iterations :: Int
-  , verifiers  :: [Verifier]
-  , program    :: FilePath
+  { _strategy   :: Strategy
+  , _iterations :: Int
+  , _verifiers  :: [Verifier]
+  , _program    :: FilePath
   }
+
+makeLenses ''DiffParameters
 
 type Property = String

@@ -21,6 +21,7 @@ module Language.C (
     module Language.C.Syntax,
     module Language.C.Pretty,
     module Language.C.Parser,
+    SemPhase
 )
 where
 import Language.C.Data
@@ -28,6 +29,7 @@ import Language.C.Syntax
 import Language.C.Pretty
 import Language.C.Parser
 import Language.C.System.Preprocess
+import Language.C.Analysis.AstAnalysis2 (SemPhase)
 
 -- | preprocess (if necessary) and parse a C source file
 --

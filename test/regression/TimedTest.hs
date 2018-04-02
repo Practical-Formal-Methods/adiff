@@ -1,4 +1,4 @@
-module Spec.Timed where
+module TimedTest where
 
 import           RIO
 import           System.Process

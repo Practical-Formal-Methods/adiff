@@ -1,0 +1,17 @@
+int f(int);
+int main()
+{
+    int x, y;
+    {
+        {
+            __VERIFIER_read(x);
+            f(x);
+        }
+    }
+    {
+        {
+            __VERIFIER_read(y);
+            f(y);
+        }
+    }
+}

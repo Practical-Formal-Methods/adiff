@@ -18,7 +18,6 @@ default-extensions:
   - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
-  - PartialTypeSignatures
   - ScopedTypeVariables
   - DeriveFunctor
   - GeneralizedNewtypeDeriving
@@ -39,16 +38,33 @@ library:
   source-dirs:      src
 
 tests:
-  spec:
-    main: Spec.hs
-    source-dirs: test
+  regression:
+    main: Regression.hs
+    source-dirs: test/regression
     dependencies:
       - rio >= 0.0.3
       - tasty 
       - tasty-hunit
-      - tasty-quickcheck
+      - tasty-hedgehog
+      - tasty-golden
+      - hedgehog
       - vdiff
       - file-embed
+      - filepath
+    ghc-options: -threaded
+  integration:
+    main: Integration.hs
+    source-dirs: test/integration
+    dependencies:
+      - rio >= 0.0.3
+      - tasty 
+      - tasty-hunit
+      - tasty-hedgehog
+      - tasty-golden
+      - hedgehog
+      - vdiff
+      - file-embed
+      - filepath
     ghc-options: -threaded
 
 
@@ -69,5 +85,8 @@ dependencies:
   - safe
   - sqlite-simple
   - transformers
+  - mtl
   - text
   - unix
+  - lens
+  - uniplate

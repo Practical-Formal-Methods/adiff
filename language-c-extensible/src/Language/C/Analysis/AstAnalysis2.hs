@@ -25,6 +25,7 @@ import           Language.C.Syntax.Constants
 import           Language.C.Syntax.Ops
 import           Language.C.Syntax.Utils
 
+import           Data.Generics                    hiding (Generic)
 
 
 
@@ -1021,3 +1022,33 @@ deriving instance Show (CStringLiteral SemPhase)
 deriving instance Show (CStorageSpecifier SemPhase)
 deriving instance Show (CConstant SemPhase)
 deriving instance Show (CFunctionSpecifier SemPhase)
+
+
+deriving instance Data SemPhase
+deriving instance Data (CAlignmentSpecifier SemPhase)
+deriving instance Data (CArraySize SemPhase)
+deriving instance Data (CAssemblyOperand SemPhase)
+deriving instance Data (CAssemblyStatement SemPhase)
+deriving instance Data (CAttribute SemPhase)
+deriving instance Data (CBuiltinThing SemPhase)
+deriving instance Data (CCompoundBlockItem SemPhase)
+deriving instance Data (CDeclaration SemPhase)
+deriving instance Data (CDeclarationSpecifier SemPhase)
+deriving instance Data (CDeclarator SemPhase)
+deriving instance Data (CDerivedDeclarator SemPhase)
+deriving instance Data (CEnumeration SemPhase)
+deriving instance Data (CExpression SemPhase)
+deriving instance Data (CExternalDeclaration SemPhase)
+deriving instance Data (CFunctionDef SemPhase)
+deriving instance Data (CInitializer SemPhase)
+deriving instance Data (CPartDesignator SemPhase)
+deriving instance Data (CStatement SemPhase)
+deriving instance Data (CStructureUnion SemPhase)
+deriving instance Data (CTypeQualifier SemPhase)
+deriving instance Data (CTypeSpecifier SemPhase)
+deriving instance Data (CStringLiteral SemPhase)
+deriving instance Data (CStorageSpecifier SemPhase)
+deriving instance Data (CConstant SemPhase)
+deriving instance Data (CFunctionSpecifier SemPhase)
+deriving instance Data (CTranslationUnit SemPhase)
+
