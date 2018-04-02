@@ -45,6 +45,7 @@ import           Data.Generics.Uniplate.Data      ()
 import           Data.Generics.Uniplate.Zipper    (fromZipper)
 import qualified Data.Generics.Uniplate.Zipper    as Z
 
+import           Control.Lens.Cons
 import           Control.Lens.Getter              (use)
 import           Control.Lens.Operators           ((%=), (%~), (+=), (-=), (.=))
 import           Control.Lens.Setter              (mapped)
@@ -104,8 +105,8 @@ mkZipper = Z.zipper
 -- this is what every strategy needs to move around in the AST
 class ZipperState state where
   stmtZipper    :: Lens' state StmtZipper
-  siblingIndex :: Lens' state Int
-  {-# MINIMAL stmtZipper, siblingIndex #-}
+  stmtPosition :: Lens' state [Int]
+  {-# MINIMAL stmtZipper, stmtPosition #-}
 
 
 data Direction = Up | Down | Next | Prev
@@ -129,10 +130,10 @@ go d = do
     Nothing -> return False
     Just z -> do
       case d of
-        Up   -> siblingIndex .= 0
-        Down -> siblingIndex .= 0
-        Prev -> siblingIndex -= 1
-        Next -> siblingIndex += 1
+        Up   -> stmtPosition %= P.tail -- pop
+        Down -> stmtPosition %= (0:) -- push 0
+        Prev -> stmtPosition . _head -= 1
+        Next -> stmtPosition . _head += 1
       stmtZipper .= z
       return True
 
@@ -144,20 +145,20 @@ go_ d = do
 
 insertBefore :: (MonadState st m, ZipperState st) => Stmt -> m ()
 insertBefore ins = do
-  si <- use siblingIndex
+  (n:_) <- use (stmtPosition)
   -- move up
   go_ Up
   p <- use stmtZipper
   -- check that we are in a compound statement and replace the compound statement
   case Z.hole p of
     (CCompound l items ann) -> do
-          let items' = insertBeforeNthStatement ins si items
+          let items' = insertBeforeNthStatement ins n items
               s' =  CCompound l items' ann
           stmtZipper %= Z.replaceHole s'
     _               -> error "insertBefore was called at a location outside of a compound statement"
   -- move back to the original position
   go_ Down
-  replicateM_ (si+1) (go Next)
+  replicateM_ (n+1) (go Next)
 
 currentStmt :: (MonadState st m, ZipperState st) => m Stmt
 currentStmt = do
@@ -174,30 +175,30 @@ printCurrentStmt = do
 tryout :: (ZipperState st, MonadState st m) => m a -> m a
 tryout act = do
   z <- use stmtZipper
-  s <- use siblingIndex
+  s <- use stmtPosition
   x <- act
   stmtZipper .= z
-  siblingIndex .= s
+  stmtPosition .= s
   return x
 
 data TraverseState = TraverseState
-  { _traverseZipper       :: StmtZipper
-  , _traverseSiblingIndex :: Int
+  { _traverseZipper   :: StmtZipper
+  , _traversePosition :: [Int]
   }
 instance ZipperState TraverseState where
   stmtZipper = lens _traverseZipper $ \s z -> s {_traverseZipper = z}
-  siblingIndex = lens _traverseSiblingIndex $ \s i -> s {_traverseSiblingIndex = i}
+  stmtPosition = lens _traversePosition $ \s i -> s {_traversePosition = i}
 
 markAllReads :: CTranslationUnit SemPhase-> CTranslationUnit SemPhase
 markAllReads = externalDeclarations . mapped . functionDefinition . body  %~ markAllReadsStmt
 
 markAllReadsStmt :: Stmt -> Stmt
 markAllReadsStmt s =
-  let (_, st) = runState (explore [0]) (TraverseState (mkZipper s) 0 )
+  let (_, st) = runState (explore [0]) (TraverseState (mkZipper s) [0] )
   in fromZipper $ st ^. stmtZipper
 
 prettyp' (CCompound _ _ _) = "{}"
-prettyp' s = prettyp s
+prettyp' s                 = prettyp s
 
 
 -- first parameter is the number of explored siblings per level (deepest first)
@@ -206,13 +207,13 @@ explore st = do
   v <- findReads
   x <- currentStmt
   traceM ("XX: explore:" ++ prettyp' x)
-  -- unless (null v) $ insertBefore $ mkReadMarker v
+  unless (null v) $ insertBefore $ mkReadMarker v
 
   d <- go Down
   if d
     then do
-      completed <- use siblingIndex
-      explore (completed : st)
+      (n:ns) <- use stmtPosition
+      explore (n : st)
     else do
        x <- go Next
        if x

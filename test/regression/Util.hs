@@ -69,9 +69,9 @@ parseAndAnalyseFile bs =
 -- | simple structure for zipper
 data SimpleState = SimpleState
   { _stmtZipper   :: StmtZipper
-  , _siblingIndex :: Int
+  , _stmtPosition :: [Int]
   }
 
 instance ZipperState SimpleState where
   stmtZipper = lens _stmtZipper (\s z -> s { _stmtZipper = z})
-  siblingIndex = lens _siblingIndex (\s i -> s { _siblingIndex = i})
+  stmtPosition = lens _stmtPosition (\s i -> s { _stmtPosition = i})

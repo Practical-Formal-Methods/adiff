@@ -32,7 +32,7 @@ randomStrategy = do
   tu <- view translationUnit
   let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
   gen <- liftIO getStdGen
-  let st = RandomState (mkZipper bdy) 0 gen
+  let st = RandomState (mkZipper bdy) [0] gen
   (_,_t) <- runStateT randomStrategy' st
   return ()
 
@@ -58,7 +58,7 @@ randomStrategy' = do
 -- -- | state for our algorithm
 data RandomState = RandomState
   { _stmtZipper   :: StmtZipper
-  , _siblingIndex :: Int
+  , _stmtPosition :: [Int]
   , _randomGen    :: StdGen
   }
 class HasRandomGen st where
@@ -66,7 +66,7 @@ class HasRandomGen st where
 
 instance ZipperState RandomState where
   stmtZipper = lens _stmtZipper (\s z -> s { _stmtZipper = z})
-  siblingIndex = lens _siblingIndex (\s i -> s { _siblingIndex = i})
+  stmtPosition = lens _stmtPosition (\s i -> s { _stmtPosition = i})
 
 instance HasRandomGen RandomState where
   randomGen = lens _randomGen $ \s g -> s {_randomGen = g}

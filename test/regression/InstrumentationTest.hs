@@ -45,7 +45,7 @@ testWalk :: TestTree
 testWalk = testCase "walks"  $ do
   ast <- parseAndAnalyseFile simpleReads
   let (Just stmt) = ast ^? (ix "main" . functionDefinition . body)
-  _ <- runStateT walk1 (SimpleState (mkZipper stmt) 0)
+  _ <- runStateT walk1 (SimpleState (mkZipper stmt) [0])
   return ()
 
 
@@ -71,7 +71,7 @@ testWalk = testCase "walks"  $ do
 testInsertions :: TestTree
 testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion" $ \ast -> do
   let (Just stmt ) = ast ^? (ix "main" . functionDefinition . body)
-  (_,st) <- runStateT inserter (SimpleState (mkZipper stmt) 0)
+  (_,st) <- runStateT inserter (SimpleState (mkZipper stmt) [0])
   return $ LC8.pack $ prettyp $ fromZipper (st ^. stmtZipper)
   where
     inserter = do
