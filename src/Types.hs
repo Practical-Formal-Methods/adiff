@@ -96,10 +96,11 @@ mkStrategyEnv tu dp = do
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
-  = Agreement VerifierResult -- ^ all verifiers agree on an outcome
-  | VerifiersUnsound [VerifierName]  -- ^ verifiers that accept the program although the majority does not
-  | VerifiersIncomplete [VerifierName] -- ^ verifiers reject the program although the majority does not
-  | Disagreement  -- ^ none of the other cases
+  = StrongAgreement Verdict       -- ^ all verifiers agree on an outcome
+  | WeakAgreement   Verdict       -- ^ all verifiers that terminate with sat or unsat agree
+  | Unsoundness    [VerifierName] -- ^ verifiers that accept the program although the majority does not
+  | Incompleteness [VerifierName] -- ^ verifiers reject the program although the majority does not
+  | Disagreement                  -- ^ none of the other cases
 
 
 
