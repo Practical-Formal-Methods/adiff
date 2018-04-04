@@ -70,7 +70,7 @@ tests:
 
 dependencies:
   - base >= 4.7
-  - rio >= 0.0.3
+  - rio >= 0.1.0
   - base16-bytestring
   - bytestring
   - utf8-string

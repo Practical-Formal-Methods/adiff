@@ -355,6 +355,3 @@ insertBeforeNthStatement s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
 insertBeforeNthStatement s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement s (n-1) xs
 insertBeforeNthStatement s n (x:xs)                   = x : insertBeforeNthStatement s n xs
 insertBeforeNthStatement _  _ _                       = error "illegal insertAt"
-
-whenM :: Monad m => m Bool -> m () -> m ()
-whenM p t   = p >>= flip when t

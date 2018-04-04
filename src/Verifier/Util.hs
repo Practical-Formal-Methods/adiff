@@ -50,7 +50,7 @@ debugOutput verifierName out = do
   forM_ ls $ \l ->
     logDebug $ "[" <> toDisplayBuilder verifierName  <> "] " <> toDisplayBuilder l
 
-toDisplayBuilder :: String -> DisplayBuilder
+toDisplayBuilder :: String -> Utf8Builder
 toDisplayBuilder = displayBytesUtf8 . C8.pack
 
 execTimed :: HasTimeLimit env => CreateProcess -> Text -> RIO env (Maybe (ExitCode, Timing), ByteString, ByteString)

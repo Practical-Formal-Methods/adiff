@@ -12,7 +12,7 @@ module Timed
 import           Data.Text.IO       (hPutStr)
 import           Prelude            (read)
 import           RIO
-import qualified RIO.List           as L
+import qualified RIO.List.Partial           as L
 
 import           Control.Concurrent (forkIO, ThreadId)
 import           Data.Default

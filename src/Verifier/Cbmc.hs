@@ -2,7 +2,7 @@ module Verifier.Cbmc (cbmc) where
 
 import qualified Data.ByteString.Char8 as C8
 import           RIO
-import qualified RIO.List              as L
+import qualified RIO.List.Partial      as L
 
 import           Verifier.Util
 
@@ -24,4 +24,4 @@ runCbmc fn = do
          _                                       -> Unknown
 
 cbmcVersion :: IO (Maybe String)
-cbmcVersion = Just . L.head . lines <$> readCreateProcess (shell "cbmc --version") ""
+cbmcVersion = headMay . lines <$> readCreateProcess (shell "cbmc --version") ""
