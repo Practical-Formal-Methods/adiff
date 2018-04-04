@@ -94,8 +94,8 @@ parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the
 parseCmdRun :: Parser Cmd
 parseCmdRun = CmdRun <$> (DiffParameters
       <$> option stratParser (mconcat [ long "strategy"
-                                      , help "guidance algorithm"
-                                      , value NaiveRandom
+                                      , help "guidance algorithm (available: 'random' and 'smart')"
+                                      , value RandomStrategy
                                       , showDefaultWith strategyName
                                       , metavar "STRATEGY"])
       <*> option auto ( long "iterations" <> short 'n' <> help "number of iterations" <> value 1)
@@ -108,8 +108,8 @@ parseCmdRun = CmdRun <$> (DiffParameters
 
 stratParser :: ReadM Strategy
 stratParser = (str :: ReadM Text) >>= \case
-    "naive"        -> return NaiveRandom
-    "smart"          -> return SmartGuided
+    "random"        -> return RandomStrategy
+    "smart"          -> return SmartStrategy
     _ -> readerError "Accepted strategies are 'naive' and 'smart'."
 
 verifierParser :: ReadM [Verifier]

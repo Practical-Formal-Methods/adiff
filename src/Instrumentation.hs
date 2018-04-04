@@ -53,6 +53,7 @@ import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Text.PrettyPrint                 (render)
 
+import Types
 
 prettyp :: Pretty a => a -> String
 prettyp = render . Language.C.pretty
@@ -208,8 +209,9 @@ tryout act = do
   putBrowserState st
   return x
 
-buildTranslationUnit :: (MonadBrowser m) => CTranslationUnit SemPhase -> m (CTranslationUnit SemPhase)
-buildTranslationUnit tu = do
+buildTranslationUnit :: (MonadBrowser m, MonadReader env m, HasTranslationUnit env) => m (CTranslationUnit SemPhase)
+buildTranslationUnit = do
+  tu <- view translationUnit
   st <- getBrowserState
   let stmt = fromZipper (st ^. stmtZipper)
   let modif = (ix "main" . functionDefinition . body) .~ stmt

@@ -34,8 +34,7 @@ randomStrategy' = do
       (v,ty) <- chooseOneOf vars
       asrt <- mkAssertion v ty
       insertBefore asrt
-      tu0 <- view translationUnit
-      tu <- buildTranslationUnit tu0
+      tu <- buildTranslationUnit
       (res :: [VerifierRun]) <- lift $ verify tu
       logInfo $ "results: " <> display (tshow res)
   -- iterate

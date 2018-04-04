@@ -22,6 +22,7 @@ import           Types
 import           Verifier
 
 import           Strategy.Random
+import           Strategy.Smart
 
 
 -- | This is a RIO version of persist
@@ -41,9 +42,12 @@ cmdDiff params = do
       let astMasked = maskAsserts ast
       stratEnv <- mkStrategyEnv astMasked params
       case params ^. strategy of
-        NaiveRandom -> do
+        RandomStrategy -> do
           logInfo "using 'random' strategy"
           runRIO stratEnv randomStrategy
+        SmartStrategy -> do
+          logInfo "using 'smart' strategy"
+          runRIO stratEnv smartStrategy
         _ -> error "strategy not implemented"
 
 

@@ -15,13 +15,13 @@ import qualified Database.SQLite.Simple as SQL
 import           Language.C
 import           System.IO              (FilePath)
 
-data Strategy = NaiveRandom -- ^ naive random strategy
-              | SmartGuided -- ^ not implemented yet
+data Strategy = RandomStrategy -- ^ naive random strategy
+              | SmartStrategy  -- ^ not implemented yet
 
 
 strategyName :: Strategy -> String
-strategyName NaiveRandom = "naive"
-strategyName SmartGuided = "smart"
+strategyName RandomStrategy = "naive"
+strategyName SmartStrategy  = "smart"
 
 type Microseconds = Int
 --------------------------------------------------------------------------------
@@ -87,7 +87,10 @@ instance HasLogFunc StrategyEnv where
 instance HasDiffParameters StrategyEnv where
   diffParameters = lens _strategyDiffParameters (\e p -> e {_strategyDiffParameters = p})
 
+instance IsStrategyEnv StrategyEnv
+
 class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env) => IsStrategyEnv env
+
 
 mkStrategyEnv :: (HasMainEnv env) => (CTranslationUnit SemPhase) -> DiffParameters -> RIO env StrategyEnv
 mkStrategyEnv tu dp = do
