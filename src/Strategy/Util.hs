@@ -1,17 +1,26 @@
 {-# LANGUAGE MultiWayIf #-}
 -- | common things that are necessary to implement strategies.
-module Strategy.Util where
+module Strategy.Util
+  ( module Strategy.Util
+  , Ident
+  , Type
+  ) where
 
 import           Control.Lens
-import           Language.C
 import           RIO                       hiding (view)
 import           System.IO                 (hPutStr)
 import           Text.PrettyPrint.HughesPJ (render)
+import           Language.C
+import           Language.C.Analysis.SemRep hiding (Stmt)
+import           Language.C.Analysis.TypeUtils
+import           System.Random
+
 
 
 import           Data
 import           Persistence               (hash)
 import           Types
+import Instrumentation
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
@@ -43,3 +52,25 @@ conclude  rs = if
   where
     unsats = [ runVerifierName r | r <- rs, verdict (verifierResult r) == Unsat ]
     sats =   [ runVerifierName r | r <- rs, verdict (verifierResult r) == Sat ]
+
+mkAssertion :: (MonadIO m ) => Ident -> Type -> m Stmt
+mkAssertion varName ty = do
+      constv <- if | ty `sameType` integral TyChar -> do
+                      (c :: Char) <- liftIO randomIO
+                      return $ CCharConst (CChar c False) (undefNode, ty)
+                   | ty `sameType` integral TyBool -> do
+                      (b :: Bool) <- liftIO randomIO
+                      let v = if b then 1 else 0
+                      return $ CIntConst (cInteger v) (undefNode, ty)
+                   | ty `sameType` integral TyUInt -> do
+                       (v :: Int32) <- liftIO randomIO
+                       return $ CIntConst (cInteger $ fromIntegral (abs v))  (undefNode, ty)
+                   | otherwise -> do
+                       (v :: Int32) <- liftIO randomIO
+                       return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
+      let  constant'   = CConst constv
+           var        = CVar varName (undefNode, ty)
+           identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
+           expression = CBinary CNeqOp var constant' (undefNode, boolType)
+           stmt       = CExpr (Just $ CCall identifier [expression] (undefNode, voidType)) (undefNode, voidType)
+      return stmt

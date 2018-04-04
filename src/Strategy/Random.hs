@@ -5,13 +5,10 @@
 
 module Strategy.Random (randomStrategy) where
 
-import qualified Prelude                       as P
+import qualified Prelude                as P
 import           RIO
 
 import           Control.Lens.Operators
-import           Language.C
-import           Language.C.Analysis.SemRep    hiding (Stmt)
-import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           System.Random
 
@@ -33,9 +30,7 @@ randomStrategy' :: (HasTranslationUnit env, HasLogFunc env, HasDiffParameters en
 randomStrategy' = do
   randomStep
   vars <- findReads
-  if null vars
-    then randomStrategy' -- start over
-    else tryout $ do
+  unless (null vars) $ tryout $ do
       (v,ty) <- chooseOneOf vars
       asrt <- mkAssertion v ty
       insertBefore asrt
@@ -62,24 +57,3 @@ randomStep = do
   unless success randomStep
 
 
-mkAssertion :: (MonadIO m ) => Ident -> Type -> m Stmt
-mkAssertion varName ty = do
-      constv <- if | ty `sameType` integral TyChar -> do
-                      (c :: Char) <- liftIO randomIO
-                      return $ CCharConst (CChar c False) (undefNode, ty)
-                   | ty `sameType` integral TyBool -> do
-                      (b :: Bool) <- liftIO randomIO
-                      let v = if b then 1 else 0
-                      return $ CIntConst (cInteger v) (undefNode, ty)
-                   | ty `sameType` integral TyUInt -> do
-                       (v :: Int32) <- liftIO randomIO
-                       return $ CIntConst (cInteger $ fromIntegral (abs v))  (undefNode, ty)
-                   | otherwise -> do
-                       (v :: Int32) <- liftIO randomIO
-                       return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
-      let  constant'   = CConst constv
-           var        = CVar varName (undefNode, ty)
-           identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
-           expression = CBinary CNeqOp var constant' (undefNode, boolType)
-           stmt       = CExpr (Just $ CCall identifier [expression] (undefNode, voidType)) (undefNode, voidType)
-      return stmt

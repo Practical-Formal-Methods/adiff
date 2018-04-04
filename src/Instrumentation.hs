@@ -4,6 +4,7 @@
 {-# LANGUAGE TemplateHaskell        #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE IncoherentInstances #-}
 
 -- | Implements the core instrumentation functions.
 module Instrumentation
@@ -14,12 +15,17 @@ module Instrumentation
  ,  maskAsserts
    -- * Zipping
    -- $zipping
- , StmtZipper
  , Stmt
  , Direction(..)
- , MonadBrowser(..)
- , BrowserT
+ , MonadBrowser
+ , BrowserT(..)
  , runBrowserT
+ , findReads
+ , insertBefore
+ , buildTranslationUnit
+ , tryout
+ , go
+ , currentStmt
  , go_
  -- * Internals
  , insertBeforeNthStatement
@@ -112,27 +118,30 @@ newtype BrowserT m a = BrowserT
   { unBrowserT :: StateT BrowserState m a
   } deriving (Functor, Applicative, Monad, MonadState BrowserState, MonadTrans)
 
+
+runBrowserT :: (Monad m) => BrowserT m a -> Stmt -> m (a, Stmt)
+runBrowserT a s = do
+  (x, bs) <- runStateT (unBrowserT a) (BrowserState (Z.zipper s) [0])
+  return (x, fromZipper $ bs ^. stmtZipper)
+
+class (Monad m) => MonadBrowser m where
+  putBrowserState :: BrowserState -> m ()
+  getBrowserState :: m BrowserState
+  modifyBrowserState :: (BrowserState -> BrowserState) -> m ()
+  modifyBrowserState f = getBrowserState >>= putBrowserState . f
+
+instance (Monad m) => MonadBrowser (BrowserT m) where
+  putBrowserState = put
+  getBrowserState = get
+
+--------------------------------------------------------------------------------
 deriving instance MonadIO (BrowserT IO)
 deriving instance MonadReader env (BrowserT (RIO env))
 deriving instance MonadIO (BrowserT (RIO env))
 
-runBrowserT :: (Monad m) => BrowserT m a -> Stmt -> m (a, Stmt)
-runBrowserT a s = do
-  (x, bs) <- runStateT (unBrowserT a) (BrowserState (mkZipper s) [0])
-  return (x, fromZipper $ bs ^. stmtZipper)
-
-class (Monad m) => MonadBrowser m where
-  buildTranslationUnit :: CTranslationUnit SemPhase -> m (CTranslationUnit SemPhase)
-  go :: Direction -> m Bool
-  insertBefore :: Stmt -> m ()
-  findReads :: m [(Ident, Type)]
-  currentStmt :: m Stmt
-  tryout :: m a -> m a
-
-
-mkZipper :: Stmt -> StmtZipper
-mkZipper = Z.zipper
-
+instance (MonadBrowser m) => MonadBrowser (StateT s m) where
+  putBrowserState st = lift $ putBrowserState st
+  getBrowserState    = lift getBrowserState
 
 
 data ZipperException = ZipperException
@@ -141,68 +150,71 @@ data ZipperException = ZipperException
 instance Exception ZipperException
 
 
-instance (Monad m) => MonadBrowser (BrowserT m) where
-  -- | tries to move the zipper into the given direction. returns true if successful.
-  -- go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
-  go d = do
-    p <- use stmtZipper
-    let f = case d of
-          Prev -> Z.left
-          Next -> Z.right
-          Up   -> Z.up
-          Down -> Z.down
-    case f p of
-      Nothing -> return False
-      Just z -> do
-        case d of
-          Up   -> stmtPosition %= P.tail -- pop
-          Down -> stmtPosition %= (0:) -- push 0
-          Prev -> stmtPosition . _head -= 1
-          Next -> stmtPosition . _head += 1
-        stmtZipper .= z
-        return True
+-- | tries to move the zipper into the given direction. returns true if successful.
+go :: (MonadBrowser m) => Direction -> m Bool
+go d = do
+  st <- getBrowserState
+  let f = case d of
+        Prev -> Z.left
+        Next -> Z.right
+        Up   -> Z.up
+        Down -> Z.down
+  case f (st ^. stmtZipper) of
+    Nothing -> return False
+    Just z -> do
+      let st' = case d of
+            Up   -> (stmtPosition %~ P.tail) st -- pop
+            Down -> (stmtPosition %~ (0:)) st  -- push 0
+            Prev -> (stmtPosition . _head -~ 1) st
+            Next -> (stmtPosition . _head +~ 1) st
+      putBrowserState $ (stmtZipper .~ z) st'
+      return True
 
 
-  insertBefore ins = do
-    (n:_) <- use stmtPosition
-    -- move up
-    go_ Up
-    p <- use stmtZipper
-    -- check that we are in a compound statement and replace the compound statement
-    case Z.hole p of
-      (CCompound l items ann) -> do
-            let items' = insertBeforeNthStatement ins n items
-                s' =  CCompound l items' ann
-            stmtZipper %= Z.replaceHole s'
-      _               -> error "insertBefore was called at a location outside of a compound statement"
-    -- move back to the original position
-    go_ Down
-    replicateM_ (n+1) (go Next)
--- findReads :: (Monad m, ZipperState st) => StateT st m [(Ident, Type)]
-  findReads = do
-    p <- use stmtZipper
-    return $ readsStatement (Z.hole p)
+insertBefore :: (MonadBrowser m) => Stmt -> m ()
+insertBefore ins = do
+  st <- getBrowserState
+  let (n:_) = st ^. stmtPosition
+  -- move up
+  go_ Up
+  xx <- currentStmt
+  -- check that we are in a compound statement and replace the compound statement
+  case xx of
+    (CCompound l items ann) -> do
+          let items' = insertBeforeNthStatement ins n items
+              s' =  CCompound l items' ann
+          modifyBrowserState $ stmtZipper %~ Z.replaceHole s'
+    _               -> error "insertBefore was called at a location outside of a compound statement"
+  -- move back to the original position
+  go_ Down
+  replicateM_ (n+1) (go Next)
 
-  currentStmt = do
-    p <- use stmtZipper
-    return $ Z.hole p
+findReads :: (MonadBrowser m) => m [(Ident, Type)]
+findReads = do
+  s <- currentStmt
+  return $ readsStatement s
+
+currentStmt :: (MonadBrowser m) => m Stmt
+currentStmt = do
+  st <- getBrowserState
+  return $ Z.hole (st ^. stmtZipper)
 
 
-  -- | This executes a monadic actions but resets the zipper to the value it previously had. This is convenient in combination of zipper modifying functions like 'insertBefore'.
-  tryout act = do
-    z <- use stmtZipper
-    s <- use stmtPosition
-    x <- act
-    stmtZipper .= z
-    stmtPosition .= s
-    return x
+-- | This executes a monadic actions but resets the zipper to the value it previously had. This is convenient in combination of zipper modifying functions like 'insertBefore'.
+tryout :: MonadBrowser m => m a -> m a
+tryout act = do
+  st <- getBrowserState
+  x <- act
+  putBrowserState st
+  return x
 
-  -- |
-  buildTranslationUnit tu = do
-    z <- use stmtZipper
-    let stmt = fromZipper z
-    let modif = (ix "main" . functionDefinition . body) .~ stmt
-    return $ modif tu
+buildTranslationUnit :: (MonadBrowser m) => CTranslationUnit SemPhase -> m (CTranslationUnit SemPhase)
+buildTranslationUnit tu = do
+  st <- getBrowserState
+  let stmt = fromZipper (st ^. stmtZipper)
+  let modif = (ix "main" . functionDefinition . body) .~ stmt
+  return $ modif tu
+
 
 
 
@@ -246,13 +258,6 @@ explore st = do
         if new
           then explore ns
           else ascend ns
-
-
-
---------------------------------------------------------------------------------
--- | * Finding reads/writes
---------------------------------------------------------------------------------
-
 
 
 --------------------------------------------------------------------------------
