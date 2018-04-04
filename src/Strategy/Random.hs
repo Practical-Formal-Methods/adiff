@@ -8,9 +8,7 @@ module Strategy.Random (randomStrategy) where
 import qualified Prelude                       as P
 import           RIO
 
-import           Control.Lens.Getter           (use)
 import           Control.Lens.Operators
-import           Control.Monad.State
 import           Language.C
 import           Language.C.Analysis.SemRep    hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
@@ -23,21 +21,15 @@ import           Types
 
 import           Strategy.Util
 
-
-type RandomM env a = StateT RandomState (RIO env) a
-
 -- does not terminate
 randomStrategy :: (HasLogFunc env, HasTranslationUnit env, HasDiffParameters env) => RIO env ()
 randomStrategy = do
   tu <- view translationUnit
   let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
-  gen <- liftIO getStdGen
-  let st = RandomState (mkZipper bdy) [0] gen
-  (_,_t) <- runStateT randomStrategy' st
-  return ()
+  void $ runBrowserT randomStrategy' bdy
 
 
-randomStrategy' :: (HasLogFunc env, HasTranslationUnit env, HasDiffParameters env) => RandomM env ()
+randomStrategy' :: (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => BrowserT (RIO env) ()
 randomStrategy' = do
   randomStep
   vars <- findReads
@@ -47,81 +39,44 @@ randomStrategy' = do
       (v,ty) <- chooseOneOf vars
       asrt <- mkAssertion v ty
       insertBefore asrt
-      tu <- buildTranslationUnit
+      tu0 <- view translationUnit
+      tu <- buildTranslationUnit tu0
       (res :: [VerifierRun]) <- lift $ verify tu
       logInfo $ "results: " <> display (tshow res)
   -- iterate
   randomStrategy'
 
 
-
--- -- | state for our algorithm
-data RandomState = RandomState
-  { _stmtZipper   :: StmtZipper
-  , _stmtPosition :: [Int]
-  , _randomGen    :: StdGen
-  }
-class HasRandomGen st where
-  randomGen :: Lens' st StdGen
-
-instance ZipperState RandomState where
-  stmtZipper = lens _stmtZipper (\s z -> s { _stmtZipper = z})
-  stmtPosition = lens _stmtPosition (\s i -> s { _stmtPosition = i})
-
-instance HasRandomGen RandomState where
-  randomGen = lens _randomGen $ \s g -> s {_randomGen = g}
-
-
-chooseOneOf :: (HasRandomGen st, MonadState st m) => [a] ->  m a
+chooseOneOf :: (MonadIO m) => [a] ->  m a
 chooseOneOf options = do
-  g <- use randomGen
-  let (i, g') = randomR (0, length options - 1) g
-  randomGen .= g'
+  i <- liftIO $ getStdRandom $ randomR (0, length options - 1)
   return (options P.!! i)
 
-choose :: (HasRandomGen st, MonadState st m, Random a) => m a
-choose = do
-  g <- use randomGen
-  let (i, g') = random g
-  randomGen .= g'
-  return i
 
 
 -- | walks a random step in the ast
-randomStep :: (HasLogFunc env) => StateT RandomState (RIO env) ()
+randomStep :: (MonadIO m, MonadBrowser m) => m ()
 randomStep = do
   d <- chooseOneOf [Up, Down, Next, Prev]
   success <- go d
-  if success
-    then logDebug $ "one step " <> display (tshow d)
-    else randomStep
+  unless success randomStep
 
-type UInt = Int32 -- TODO: this is not true
 
--- |
-buildTranslationUnit :: (HasTranslationUnit env) => StateT RandomState (RIO env)  (CTranslationUnit SemPhase)
-buildTranslationUnit = do
-  z <- use stmtZipper
-  let stmt = fromZipper z
-  tu <- view translationUnit
-  let modif = (ix "main" . functionDefinition . body) .~ stmt
-  return $ modif tu
-
-mkAssertion :: (HasRandomGen st, MonadState st m) => Ident -> Type -> m Stmt
+mkAssertion :: (MonadIO m ) => Ident -> Type -> m Stmt
 mkAssertion varName ty = do
       constv <- if | ty `sameType` integral TyChar -> do
-                      (c :: Char) <- choose
+                      (c :: Char) <- liftIO randomIO
                       return $ CCharConst (CChar c False) (undefNode, ty)
                    | ty `sameType` integral TyBool -> do
-                      (b :: Bool) <- choose
+                      (b :: Bool) <- liftIO randomIO
                       let v = if b then 1 else 0
                       return $ CIntConst (cInteger v) (undefNode, ty)
                    | ty `sameType` integral TyUInt -> do
-                      (v :: Int32) <- choose
-                      return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
+                       (v :: Int32) <- liftIO randomIO
+                       return $ CIntConst (cInteger $ fromIntegral (abs v))  (undefNode, ty)
                    | otherwise -> do
-                      (v :: Int32) <- choose
-                      return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
+                       (v :: Int32) <- liftIO randomIO
+                       return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
       let  constant'   = CConst constv
            var        = CVar varName (undefNode, ty)
            identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)

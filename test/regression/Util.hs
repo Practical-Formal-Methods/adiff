@@ -65,13 +65,3 @@ parseAndAnalyseFile bs =
       case runTrav_ (analyseAST ast) of
         Left _          -> assertFailure "should be typeable"
         Right (ast', _) -> return ast'
-
--- | simple structure for zipper
-data SimpleState = SimpleState
-  { _stmtZipper   :: StmtZipper
-  , _stmtPosition :: [Int]
-  }
-
-instance ZipperState SimpleState where
-  stmtZipper = lens _stmtZipper (\s z -> s { _stmtZipper = z})
-  stmtPosition = lens _stmtPosition (\s i -> s { _stmtPosition = i})

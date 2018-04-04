@@ -1,6 +1,9 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 -- | Implements the core instrumentation functions.
 module Instrumentation
@@ -11,27 +14,31 @@ module Instrumentation
  ,  maskAsserts
    -- * Zipping
    -- $zipping
- , ZipperState(..)
  , StmtZipper
  , Stmt
  , Direction(..)
- , go
+ , MonadBrowser(..)
+ , BrowserT
+ , runBrowserT
  , go_
- , findReads
- , tryout
- , insertBefore
- , mkZipper
- , fromZipper
- , currentStmt
- , printCurrentStmt
  -- * Internals
  , insertBeforeNthStatement
  , markAllReads
  ) where
 
 import qualified Prelude                          as P
-import           RIO
+import           RIO                              hiding ((^.))
 
+import           Control.Lens.Cons
+import           Control.Lens.Getter              (use)
+import           Control.Lens.Operators
+import           Control.Lens.Setter              (mapped)
+import           Control.Lens.TH
+import           Control.Monad.State
+import           Data.Functor.Identity
+import           Data.Generics.Uniplate.Data      ()
+import           Data.Generics.Uniplate.Zipper    (fromZipper)
+import qualified Data.Generics.Uniplate.Zipper    as Z
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
@@ -40,15 +47,6 @@ import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Text.PrettyPrint                 (render)
 
-import           Data.Generics.Uniplate.Data      ()
-import           Data.Generics.Uniplate.Zipper    (fromZipper)
-import qualified Data.Generics.Uniplate.Zipper    as Z
-
-import           Control.Lens.Cons
-import           Control.Lens.Getter              (use)
-import           Control.Lens.Operators           ((%=), (%~), (+=), (-=), (.=))
-import           Control.Lens.Setter              (mapped)
-import           Control.Monad.State
 
 prettyp :: Pretty a => a -> String
 prettyp = render . Language.C.pretty
@@ -98,146 +96,156 @@ readsStatement s = case s of
 -- When you want to modify an AST, you probably want to use a zipper. You can use it with any state monad, just make sure it is an instance of 'ZipperState', meaning that it has to store a 'StmtZipper' and a 'siblingIndex', where the latter is counting the skipped statements in the current compound statement.
 -- Inside your state monad you can then use functions like 'go','go_'...
 --------------------------------------------------------------------------------
+data Direction = Up | Down | Next | Prev
+  deriving (Eq, Enum, Bounded, Show)
+
+-- this is what every strategy needs to move around in the AST
+data BrowserState = BrowserState
+  { _stmtZipper   :: StmtZipper
+  , _stmtPosition :: [Int]
+  }
+
+makeFieldsNoPrefix ''BrowserState
+
+
+newtype BrowserT m a = BrowserT
+  { unBrowserT :: StateT BrowserState m a
+  } deriving (Functor, Applicative, Monad, MonadState BrowserState, MonadTrans)
+
+deriving instance MonadIO (BrowserT IO)
+deriving instance MonadReader env (BrowserT (RIO env))
+deriving instance MonadIO (BrowserT (RIO env))
+
+runBrowserT :: (Monad m) => BrowserT m a -> Stmt -> m (a, Stmt)
+runBrowserT a s = do
+  (x, bs) <- runStateT (unBrowserT a) (BrowserState (mkZipper s) [0])
+  return (x, fromZipper $ bs ^. stmtZipper)
+
+class (Monad m) => MonadBrowser m where
+  buildTranslationUnit :: CTranslationUnit SemPhase -> m (CTranslationUnit SemPhase)
+  go :: Direction -> m Bool
+  insertBefore :: Stmt -> m ()
+  findReads :: m [(Ident, Type)]
+  currentStmt :: m Stmt
+  tryout :: m a -> m a
+
 
 mkZipper :: Stmt -> StmtZipper
 mkZipper = Z.zipper
 
--- this is what every strategy needs to move around in the AST
-class ZipperState state where
-  stmtZipper    :: Lens' state StmtZipper
-  stmtPosition :: Lens' state [Int]
-  {-# MINIMAL stmtZipper, stmtPosition #-}
 
-
-data Direction = Up | Down | Next | Prev
-  deriving (Eq, Enum, Bounded, Show)
 
 data ZipperException = ZipperException
   deriving Show
 
 instance Exception ZipperException
 
--- | tries to move the zipper into the given direction. returns true if successful.
-go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
-go d = do
-  p <- use stmtZipper
-  let f = case d of
-        Prev -> Z.left
-        Next -> Z.right
-        Up   -> Z.up
-        Down -> Z.down
-  case f p of
-    Nothing -> return False
-    Just z -> do
-      case d of
-        Up   -> stmtPosition %= P.tail -- pop
-        Down -> stmtPosition %= (0:) -- push 0
-        Prev -> stmtPosition . _head -= 1
-        Next -> stmtPosition . _head += 1
-      stmtZipper .= z
-      return True
+
+instance (Monad m) => MonadBrowser (BrowserT m) where
+  -- | tries to move the zipper into the given direction. returns true if successful.
+  -- go :: (Monad m, ZipperState st, MonadState st m) => Direction -> m Bool
+  go d = do
+    p <- use stmtZipper
+    let f = case d of
+          Prev -> Z.left
+          Next -> Z.right
+          Up   -> Z.up
+          Down -> Z.down
+    case f p of
+      Nothing -> return False
+      Just z -> do
+        case d of
+          Up   -> stmtPosition %= P.tail -- pop
+          Down -> stmtPosition %= (0:) -- push 0
+          Prev -> stmtPosition . _head -= 1
+          Next -> stmtPosition . _head += 1
+        stmtZipper .= z
+        return True
+
+
+  insertBefore ins = do
+    (n:_) <- use stmtPosition
+    -- move up
+    go_ Up
+    p <- use stmtZipper
+    -- check that we are in a compound statement and replace the compound statement
+    case Z.hole p of
+      (CCompound l items ann) -> do
+            let items' = insertBeforeNthStatement ins n items
+                s' =  CCompound l items' ann
+            stmtZipper %= Z.replaceHole s'
+      _               -> error "insertBefore was called at a location outside of a compound statement"
+    -- move back to the original position
+    go_ Down
+    replicateM_ (n+1) (go Next)
+-- findReads :: (Monad m, ZipperState st) => StateT st m [(Ident, Type)]
+  findReads = do
+    p <- use stmtZipper
+    return $ readsStatement (Z.hole p)
+
+  currentStmt = do
+    p <- use stmtZipper
+    return $ Z.hole p
+
+
+  -- | This executes a monadic actions but resets the zipper to the value it previously had. This is convenient in combination of zipper modifying functions like 'insertBefore'.
+  tryout act = do
+    z <- use stmtZipper
+    s <- use stmtPosition
+    x <- act
+    stmtZipper .= z
+    stmtPosition .= s
+    return x
+
+  -- |
+  buildTranslationUnit tu = do
+    z <- use stmtZipper
+    let stmt = fromZipper z
+    let modif = (ix "main" . functionDefinition . body) .~ stmt
+    return $ modif tu
+
+
 
 -- | NOTE: Like go, but throws an error when doing it can't go into the given direction
-go_ :: (Monad m, ZipperState st, MonadState st m) => Direction -> m ()
+go_ :: (MonadBrowser m) => Direction -> m ()
 go_ d = do
   m <- go d
   unless m $ error ("cannot go " ++ show d)
 
-insertBefore :: (MonadState st m, ZipperState st) => Stmt -> m ()
-insertBefore ins = do
-  (n:_) <- use (stmtPosition)
-  -- move up
-  go_ Up
-  p <- use stmtZipper
-  -- check that we are in a compound statement and replace the compound statement
-  case Z.hole p of
-    (CCompound l items ann) -> do
-          let items' = insertBeforeNthStatement ins n items
-              s' =  CCompound l items' ann
-          stmtZipper %= Z.replaceHole s'
-    _               -> error "insertBefore was called at a location outside of a compound statement"
-  -- move back to the original position
-  go_ Down
-  replicateM_ (n+1) (go Next)
-
-currentStmt :: (MonadState st m, ZipperState st) => m Stmt
-currentStmt = do
-  p <- use stmtZipper
-  return $ Z.hole p
-
-printCurrentStmt :: (MonadState st m, ZipperState st, MonadIO m) => m ()
-printCurrentStmt = do
-  s <- currentStmt
-  liftIO $ P.putStrLn $ prettyp s
 
 
--- | This executes a monadic actions but resets the zipper to the value it previously had. This is convenient in combination of zipper modifying functions like 'insertBefore'.
-tryout :: (ZipperState st, MonadState st m) => m a -> m a
-tryout act = do
-  z <- use stmtZipper
-  s <- use stmtPosition
-  x <- act
-  stmtZipper .= z
-  stmtPosition .= s
-  return x
 
-data TraverseState = TraverseState
-  { _traverseZipper   :: StmtZipper
-  , _traversePosition :: [Int]
-  }
-instance ZipperState TraverseState where
-  stmtZipper = lens _traverseZipper $ \s z -> s {_traverseZipper = z}
-  stmtPosition = lens _traversePosition $ \s i -> s {_traversePosition = i}
 
 markAllReads :: CTranslationUnit SemPhase-> CTranslationUnit SemPhase
 markAllReads = externalDeclarations . mapped . functionDefinition . body  %~ markAllReadsStmt
 
 markAllReadsStmt :: Stmt -> Stmt
-markAllReadsStmt s =
-  let (_, st) = runState (explore [0]) (TraverseState (mkZipper s) [0] )
-  in fromZipper $ st ^. stmtZipper
-
-prettyp' (CCompound _ _ _) = "{}"
-prettyp' s                 = prettyp s
-
+markAllReadsStmt s = snd <$> runIdentity $ runBrowserT (explore [0]) s
 
 -- first parameter is the number of explored siblings per level (deepest first)
-explore :: [Int] -> State TraverseState ()
+explore :: [Int] -> BrowserT Identity ()
 explore st = do
   v <- findReads
-  x <- currentStmt
   unless (null v) $ insertBefore $ mkReadMarker v
-
   d <- go Down
   if d
     then do
-      (n:ns) <- use stmtPosition
+      (n:_) <- use stmtPosition
       explore (n : st)
     else do
        x <- go Next
        if x
-         then do
-          -- completed <- use siblingIndex
-          explore st
+         then explore st
          else ascend st
-
--- ascend like explore, but it can't go down
-ascend [] = return ()
-ascend (n:ns) = do
-  x <- currentStmt
-  -- traceM ("XX: ascend A :" ++ prettyp x ++ " n = " ++ show n)
-  u <- go Up -- why can this fail?
-  when u $ do
-    replicateM_ n (go_ Next) -- at original position
-    y <- currentStmt
-    -- traceM ("XX: ascend B :" ++ prettyp y)
-    new <- go Next
-    if new
-      then explore (ns)
-      else ascend ns
-      -- x <- go Up -- why can this fail?
-      -- traceM $ "successfully went up" ++ show x
-      -- when x (ascend ns)
+  where
+    ascend [] = return ()
+    ascend (n:ns) =
+      whenM (go Up) $ do
+        replicateM_ n (go_ Next)
+        new <- go Next
+        if new
+          then explore ns
+          else ascend ns
 
 
 
@@ -245,10 +253,6 @@ ascend (n:ns) = do
 -- | * Finding reads/writes
 --------------------------------------------------------------------------------
 
-findReads :: (Monad m, ZipperState st) => StateT st m [(Ident, Type)]
-findReads = do
-  p <- use stmtZipper
-  return $ readsStatement (Z.hole p)
 
 
 --------------------------------------------------------------------------------
@@ -334,12 +338,6 @@ dummyAssert = CFunDef specs decl [] body' undefNode
         param = CDecl [CTypeSpec $ CIntType undefNode] [(Just paramDecl, Nothing, Nothing)]  undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
         body' = CCompound [] [] (undefNode, voidType)
-
-
-
-
-simpleIntType :: Type
-simpleIntType = integral (getIntType noFlags)
 
 --------------------------------------------------------------------------------
 -- simple utilities

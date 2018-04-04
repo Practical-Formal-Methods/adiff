@@ -1,10 +1,6 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TemplateHaskell    #-}
-
 module InstrumentationTest where
 
 import qualified Data.ByteString.Lazy.Char8       as LC8
-import           Data.FileEmbed
 import           RIO
 import qualified RIO.ByteString.Lazy              as LBS
 import           System.FilePath                  (replaceExtension,
@@ -14,7 +10,6 @@ import           Language.C
 import           Text.PrettyPrint                 (render)
 
 import           Control.Lens.Operators           ((^?))
-import           Control.Monad.State
 import           Data.Generics.Uniplate.Data      ()
 import           Instrumentation
 import           Language.C.Data.Lens
@@ -41,11 +36,12 @@ testZipping = do
     ]
   return $ testGroup "zipping" tests
 
+
 testWalk :: TestTree
 testWalk = testCase "walks"  $ do
   ast <- parseAndAnalyseFile simpleReads
   let (Just stmt) = ast ^? (ix "main" . functionDefinition . body)
-  _ <- runStateT walk1 (SimpleState (mkZipper stmt) [0])
+  _ <- runBrowserT walk1 stmt
   return ()
 
 
@@ -71,8 +67,8 @@ testWalk = testCase "walks"  $ do
 testInsertions :: TestTree
 testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion" $ \ast -> do
   let (Just stmt ) = ast ^? (ix "main" . functionDefinition . body)
-  (_,st) <- runStateT inserter (SimpleState (mkZipper stmt) [0])
-  return $ LC8.pack $ prettyp $ fromZipper (st ^. stmtZipper)
+  (_,st) <- runBrowserT inserter stmt
+  return $ LC8.pack $ prettyp st
   where
     inserter = do
       go_ Down

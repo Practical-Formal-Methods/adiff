@@ -87,6 +87,8 @@ instance HasLogFunc StrategyEnv where
 instance HasDiffParameters StrategyEnv where
   diffParameters = lens _strategyDiffParameters (\e p -> e {_strategyDiffParameters = p})
 
+class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env) => IsStrategyEnv env
+
 mkStrategyEnv :: (HasMainEnv env) => (CTranslationUnit SemPhase) -> DiffParameters -> RIO env StrategyEnv
 mkStrategyEnv tu dp = do
   lg <- view logFuncL
