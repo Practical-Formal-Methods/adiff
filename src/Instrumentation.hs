@@ -1,10 +1,10 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE MultiWayIf             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE IncoherentInstances #-}
 
 -- | Implements the core instrumentation functions.
 module Instrumentation
@@ -25,6 +25,7 @@ module Instrumentation
  , buildTranslationUnit
  , tryout
  , go
+ , goto
  , currentStmt
  , go_
  -- * Internals
@@ -52,8 +53,13 @@ import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Text.PrettyPrint                 (render)
+import Data.Text (pack)
 
-import Types
+import           Types
+
+
+instance Display (CStatement a) where
+  display = display . pack . prettyp
 
 prettyp :: Pretty a => a -> String
 prettyp = render . Language.C.pretty
@@ -170,6 +176,17 @@ go d = do
             Next -> (stmtPosition . _head +~ 1) st
       putBrowserState $ (stmtZipper .~ z) st'
       return True
+
+
+-- | move to the nth sibling
+goto :: (MonadBrowser m) => Int -> m ()
+goto n = do
+  (p:_) <- _stmtPosition <$> getBrowserState
+  let diff = n - p
+  if
+    | diff > 0 -> replicateM_ diff (go_ Next)
+    | diff < 0 -> replicateM_ diff (go_ Prev)
+    | otherwise -> return ()
 
 
 insertBefore :: (MonadBrowser m) => Stmt -> m ()

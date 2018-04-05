@@ -1,4 +1,5 @@
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE MultiWayIf          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | common things that are necessary to implement strategies.
 module Strategy.Util
   ( module Strategy.Util
@@ -7,38 +8,43 @@ module Strategy.Util
   ) where
 
 import           Control.Lens
-import           RIO                       hiding (view)
-import           System.IO                 (hPutStr)
-import           Text.PrettyPrint.HughesPJ (render)
 import           Language.C
-import           Language.C.Analysis.SemRep hiding (Stmt)
+import           Language.C.Analysis.SemRep    hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
+import           RIO                           hiding (view)
+import           System.IO                     (hPutStr)
 import           System.Random
+import           Text.PrettyPrint.HughesPJ     (render)
 
 
 
 import           Data
-import           Persistence               (hash)
+import           Instrumentation
+import           Persistence
 import           Types
-import Instrumentation
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
 
 -- | runs the given translation unit against the configured verifiers.
-verify :: (HasLogFunc env, HasTranslationUnit env, HasDiffParameters env) => CTranslationUnit SemPhase -> RIO env [VerifierRun]
+verify :: (IsStrategyEnv env) => CTranslationUnit SemPhase -> RIO env [VerifierRun]
 verify tu = do
   vs <- view (diffParameters . verifiers)
   withSystemTempFile "input.c" $ \fp h -> do
         -- write file
+        originalFileName <- view (diffParameters . program)
         let content = render . pretty $ tu
             hsh = hash content
+        persist' $ CProgram content originalFileName
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
         forM vs $ \v -> do
             env <- mkVerifierEnv (15 * 1000 * 1000) -- 15 seconds
             r <- runRIO env $ execute v fp
-            return $ VerifierRun (verifierName v) r hsh
+            let run = VerifierRun (verifierName v) r hsh
+            persist' run
+            return run
+
 
 conclude :: [VerifierRun] -> Conclusion
 conclude  rs = if

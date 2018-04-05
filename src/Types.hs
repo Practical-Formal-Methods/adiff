@@ -76,6 +76,7 @@ data StrategyEnv = StrategyEnv
   { _strategyLogFunc         :: LogFunc
   , _strategyTranslationUnit :: CTranslationUnit SemPhase
   , _strategyDiffParameters  :: DiffParameters
+  , _strategyDatabase        :: SQL.Connection
   }
 
 instance HasTranslationUnit StrategyEnv where
@@ -87,15 +88,19 @@ instance HasLogFunc StrategyEnv where
 instance HasDiffParameters StrategyEnv where
   diffParameters = lens _strategyDiffParameters (\e p -> e {_strategyDiffParameters = p})
 
+instance HasDatabase StrategyEnv where
+  databaseL = lens _strategyDatabase (\e d -> e {_strategyDatabase = d})
+
 instance IsStrategyEnv StrategyEnv
 
-class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env) => IsStrategyEnv env
+class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env, HasDatabase env) => IsStrategyEnv env
 
 
-mkStrategyEnv :: (HasMainEnv env) => (CTranslationUnit SemPhase) -> DiffParameters -> RIO env StrategyEnv
+mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
 mkStrategyEnv tu dp = do
   lg <- view logFuncL
-  return $ StrategyEnv  lg tu dp
+  db <- view databaseL
+  return $ StrategyEnv  lg tu dp db
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
@@ -138,3 +143,5 @@ data DiffParameters = DiffParameters
 makeLenses ''DiffParameters
 
 type Property = String
+
+

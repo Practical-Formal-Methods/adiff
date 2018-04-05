@@ -41,30 +41,35 @@ smartStrategy' :: (IsStrategyEnv env) => Smart env ()
 smartStrategy' = do
   -- find 'best' location
   logDebug "exploring level"
-  rts <- exploreLevel
+  rts <- sortBest <$> exploreLevel
   logDebug $ "ratings are: " <> display (tshow rts)
-  unless (null rts) $ do
-    let best = maxIndex rts
-    -- go there
-    replicateM_ best (go Next)
+  forM_ rts $ \(rating, idx) -> do
+    goto idx
     c <- currentStmt
-    logDebug $ "currently at statement: " <> display (tshow (prettyp c))
-    -- try to go deeper
-    foundNext <- untilJust $ do
-      x <- go Down
-      if x
-        then return $ Just True
-        else do
-          nxt <- go Next
-          if nxt
-            then return (Just False) -- exit
-            else return Nothing -- loop
-    if foundNext
-      then do
-        logDebug "moved down, recursing"
-        smartStrategy' -- recurse
-      else return () -- TODO: What should I do now? Try with second best location...
+    logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
+
   undefined
+  -- unless (null rts) $ do
+  --   let best = maxIndex rts
+  --   -- go there
+  --   replicateM_ best (go Next)
+  --   c <- currentStmt
+  --   logDebug $ "currently at statement: " <> display (tshow (prettyp c))
+  --   -- try to go deeper
+  --   foundNext <- untilJust $ do
+  --     x <- go Down
+  --     if x
+  --       then return $ Just True
+  --       else do
+  --         nxt <- go Next
+  --         if nxt
+  --           then return (Just False) -- exit
+  --           else return Nothing -- loop
+  --   if foundNext
+  --     then do
+  --       logDebug "moved down, recursing"
+  --       smartStrategy' -- recurse
+  --     else return () -- TODO: What should I do now? Try with second best location...
 
 untilJust :: (Monad m) => m (Maybe a) -> m a
 untilJust a = a >>= \case Nothing -> untilJust a
@@ -114,4 +119,7 @@ maximum = foldl' max 0
 
 -- | TODO: This uses reverse, not efficient
 maxIndex :: [Double] -> Int
-maxIndex vs = snd $ P.head $ reverse $ sortWith fst (zip vs [0..])
+maxIndex = snd . P.head . sortBest
+
+sortBest :: [Double] -> [(Double, Int)]
+sortBest vs = reverse $ sortWith fst (zip vs [0..])

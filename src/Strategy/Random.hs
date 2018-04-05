@@ -19,14 +19,14 @@ import           Types
 import           Strategy.Util
 
 -- does not terminate
-randomStrategy :: (HasLogFunc env, HasTranslationUnit env, HasDiffParameters env) => RIO env ()
+randomStrategy :: (IsStrategyEnv env) => RIO env ()
 randomStrategy = do
   tu <- view translationUnit
   let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
   void $ runBrowserT randomStrategy' bdy
 
 
-randomStrategy' :: (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => BrowserT (RIO env) ()
+randomStrategy' :: (IsStrategyEnv env) => BrowserT (RIO env) ()
 randomStrategy' = do
   randomStep
   vars <- findReads

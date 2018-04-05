@@ -25,11 +25,6 @@ import           Strategy.Random
 import           Strategy.Smart
 
 
--- | This is a RIO version of persist
-persist' :: HasDatabase env => Persistent a => a -> RIO env ()
-persist' x = do
-  conn <- view databaseL
-  liftIO $ persist conn x
 
 
 cmdDiff :: HasMainEnv a => DiffParameters -> RIO a ()
