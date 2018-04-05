@@ -61,12 +61,17 @@ execTimed cp inp = do
 withTiming :: (HasLogFunc env, HasTimeLimit env) =>
               CreateProcess
            -> Text
-           -> (ExitCode -> ByteString -> Verdict)
+           -> (ExitCode -> ByteString -> RIO env Verdict)
            -> RIO env VerifierResult
 withTiming cp inp cont = do
   logInfo $ "runing command: " <> displayShow (cmdspec cp)
   (termination, out, _) <- execTimed cp inp
   case termination of
-    Nothing           -> return VerifierTimedOut
-    Just (ec, timing) -> return $ VerifierTerminated (cont ec out) timing
+    Nothing           -> do
+      logInfo "command timed out"
+      return VerifierTimedOut
+    Just (ec, timing) -> do
+      logInfo $ "command terminated with exit code " <> display (tshow ec)
+      vrdct <- cont ec out
+      return $ VerifierTerminated vrdct timing
 

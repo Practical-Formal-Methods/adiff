@@ -37,10 +37,12 @@ taipanVersion = headMay . lines <$> readCreateProcess (shell "Taipan.py --versio
 runUltimate :: String -> RIO VerifierEnv VerifierResult
 runUltimate cmd =
   withSystemTempDirectory "ultimate-tmp" $ \dir -> do
-            (termination, out, _) <- execTimed ((shell cmd) {cwd = Just dir}) ""
-            case (termination, lastMay (C8.lines out))  of
-              (Nothing, _) -> return VerifierTimedOut
-              (Just (ExitSuccess, timing), Just "TRUE")  -> return $ VerifierTerminated Unsat timing
-              (Just (ExitSuccess, timing), Just "FALSE") -> return $ VerifierTerminated Sat timing
-              (Just (_, timing), _)                      -> return $ VerifierTerminated Unknown timing
+    let cmd' = (shell cmd) {cwd = Just dir}
+    withTiming cmd' "" $ \ec out ->
+            case (ec, lastMay (C8.lines out))  of
+              (ExitSuccess, Just "TRUE")  -> return Unsat
+              (ExitSuccess, Just "FALSE") -> return Sat
+              (_, l)                      -> do
+                logWarn $ "unexpected exit code: " <> display (tshow ec) <> ", last line was " <> display (tshow l)
+                return Unknown
 

@@ -18,10 +18,12 @@ runCbmc :: FilePath -> RIO VerifierEnv VerifierResult
 runCbmc fn = do
   let cmd = shell $ "cbmc --32 --error-label ERROR " ++ fn
   withTiming cmd "" $ \ec out ->
-    case (ec, L.last (C8.lines out)) of
-         (ExitSuccess,"VERIFICATION FAILED")     -> Sat
-         (ExitSuccess,"VERIFICATION SUCCESSFUL") -> Unsat
-         _                                       -> Unknown
+    case L.last (C8.lines out) of
+         ("VERIFICATION FAILED")     -> return Sat
+         ("VERIFICATION SUCCESSFUL") -> return Unsat
+         l                           -> do
+           logWarn $ "unexpected return of cbmc: " <> display (tshow ec) <> "last line: " <> display (tshow l)
+           return Unknown
 
 cbmcVersion :: IO (Maybe String)
 cbmcVersion = headMay . lines <$> readCreateProcess (shell "cbmc --version") ""
