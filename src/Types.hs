@@ -109,6 +109,7 @@ data Conclusion
   | Unsoundness    [VerifierName] -- ^ verifiers that accept the program although the majority does not
   | Incompleteness [VerifierName] -- ^ verifiers reject the program although the majority does not
   | Disagreement                  -- ^ none of the other cases
+  deriving (Show)
 
 
 

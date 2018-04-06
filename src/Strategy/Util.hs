@@ -26,6 +26,10 @@ import           Types
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
 
+isCompound ::Stmt -> Bool
+isCompound (CCompound _ _ _ ) = True
+isCompound _                  = False
+
 -- | runs the given translation unit against the configured verifiers.
 verify :: (IsStrategyEnv env) => CTranslationUnit SemPhase -> RIO env [VerifierRun]
 verify tu = do

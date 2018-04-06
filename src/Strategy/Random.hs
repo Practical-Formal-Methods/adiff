@@ -12,7 +12,6 @@ import           Control.Lens.Operators
 import           Language.C.Data.Lens
 import           System.Random
 
-import           Data
 import           Instrumentation
 import           Types
 
@@ -35,8 +34,9 @@ randomStrategy' = do
       asrt <- mkAssertion v ty
       insertBefore asrt
       tu <- buildTranslationUnit
-      (res :: [VerifierRun]) <- lift $ verify tu
-      logInfo $ "results: " <> display (tshow res)
+      res <- lift $ verify tu
+      let conclusion = conclude res
+      logInfo $ "conclusion : " <> display (tshow conclusion)
   -- iterate
   randomStrategy'
 

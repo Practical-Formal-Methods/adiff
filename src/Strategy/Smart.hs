@@ -1,14 +1,16 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE LambdaCase   #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE InstanceSigs           #-}
+{-# LANGUAGE LambdaCase             #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
 module Strategy.Smart (smartStrategy) where
 
-import qualified Prelude                as P
 import           RIO
 
-import           Control.Lens.Operators
+import           Control.Lens         hiding (view)
 import           Control.Monad.State
-import           GHC.Exts               (sortWith)
+import           Data.List            (sortBy)
 import           Language.C.Data.Lens
 
 import           Instrumentation
@@ -18,13 +20,15 @@ import           Types
 
 data SmartState = SmartState
   {
-    _limit :: Int
-  , _depth :: Int
+    _budget :: Int
+  , _depth  :: Int
   }
+
+makeFieldsNoPrefix ''SmartState
 
 newtype Smart env a = Smart
   { unSmart :: StateT SmartState (BrowserT (RIO env)) a
-  } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env)
+  } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
 
 runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
 runSmart initState = runBrowserT (runStateT (unSmart smartStrategy') initState)
@@ -34,42 +38,53 @@ smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
   let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
-  let initState = SmartState undefined undefined
+  let initState = SmartState 10 undefined -- TODO: What should the initial budget be?
   void $ runSmart initState stmt
+
 
 smartStrategy' :: (IsStrategyEnv env) => Smart env ()
 smartStrategy' = do
-  -- find 'best' location
-  logDebug "exploring level"
-  rts <- sortBest <$> exploreLevel
-  logDebug $ "ratings are: " <> display (tshow rts)
-  forM_ rts $ \(rating, idx) -> do
-    goto idx
-    c <- currentStmt
-    logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
+  whenM ((>0) <$> use budget) $ do
+    -- if in compound statement, go down
+    in_compound <- isCompound <$> currentStmt
+    if in_compound
+      then go Down >> smartStrategy'
+      else do
+        -- find 'best' location
+        logDebug "exploring level"
+        rts <- sortBest <$> exploreLevel
+        logDebug $ "ratings are: " <> display (tshow rts)
+        forM_ rts $ \(rating, idx) -> do
+          goto idx
+          c <- currentStmt
+          logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
+          -- try to find a place go down
+          whenM goDownAtNextChange $ do
+          -- recurse from here, but remember a limit of runs after which we will come backup again
+            withBudget 3 smartStrategy'
+            go_ Up
 
-  undefined
-  -- unless (null rts) $ do
-  --   let best = maxIndex rts
-  --   -- go there
-  --   replicateM_ best (go Next)
-  --   c <- currentStmt
-  --   logDebug $ "currently at statement: " <> display (tshow (prettyp c))
-  --   -- try to go deeper
-  --   foundNext <- untilJust $ do
-  --     x <- go Down
-  --     if x
-  --       then return $ Just True
-  --       else do
-  --         nxt <- go Next
-  --         if nxt
-  --           then return (Just False) -- exit
-  --           else return Nothing -- loop
-  --   if foundNext
-  --     then do
-  --       logDebug "moved down, recursing"
-  --       smartStrategy' -- recurse
-  --     else return () -- TODO: What should I do now? Try with second best location...
+
+
+-- | sets the budget to a smaller limit, but still subtracts from the original value
+-- (TODO: Use this when recursing on some smaller part)
+withBudget :: (IsStrategyEnv env) => Int -> Smart env a -> Smart env a
+withBudget n act = do
+  logDebug $ "withBudget: " <> display n
+  act -- TODO: Implement withBudget
+
+-- | moves the cursor down into the next statement if possible. If successful
+-- returns True, otherwise False.
+goDownAtNextChange :: (MonadBrowser m) => m Bool
+goDownAtNextChange = untilJust $ do
+    dwn <- go Down
+    if dwn
+      then return $ Just True
+      else do
+       next <- go Next
+       if next
+         then return Nothing
+         else return $ Just False
 
 untilJust :: (Monad m) => m (Maybe a) -> m a
 untilJust a = a >>= \case Nothing -> untilJust a
@@ -77,30 +92,38 @@ untilJust a = a >>= \case Nothing -> untilJust a
 
 
 -- go through the level and calculate a 'score', the more disagreement at a statement, the higher the score.
--- TODO: Implement: This computation is wrapped in tryout, so it won't change the callees' location
-exploreLevel :: (IsStrategyEnv env) => Smart env [Double]
+-- This computation is wrapped in tryout, so it won't change the callees' location
+exploreLevel :: (IsStrategyEnv env) => Smart env [(Double, AstPosition)]
 exploreLevel = tryout $ do
-  x <- scoreStatement
+  pos <- currentPosition
+  rating <- exploreStatement
+  let el = (rating, pos)
   nxt <- go Next
   if nxt
-    then (x:) <$> exploreLevel
-    else return [x]
+    then (el:) <$> exploreLevel
+    else return [el]
 
 
 
 -- | produces a score of the current statement. If the statement has no reads
 -- the score is 0, in all other cases the score depends on the "level of
 -- disagreement" of the verifiers
-scoreStatement :: (IsStrategyEnv env) => Smart env Double
-scoreStatement = do
+exploreStatement :: (IsStrategyEnv env) => Smart env Double
+exploreStatement = do
   vs <- findReads
   scores <- forM vs $ \(i,ty) ->
     tryout $ do
       asrt <- mkAssertion i ty
       insertBefore asrt
       tu <- buildTranslationUnit
-      res <- liftRIO $ verify tu
-      return $ toScore $ conclude res
+      bdg <- use budget
+      if bdg > 0
+        then do
+          res <- liftRIO $ verify tu
+          budget -= 1
+          let conclusion = conclude res
+          return $ toScore conclusion
+        else return 0
   return $ maximum scores
 
 
@@ -117,9 +140,6 @@ toScore  Disagreement       = 3
 maximum :: [Double] -> Double
 maximum = foldl' max 0
 
--- | TODO: This uses reverse, not efficient
-maxIndex :: [Double] -> Int
-maxIndex = snd . P.head . sortBest
 
-sortBest :: [Double] -> [(Double, Int)]
-sortBest vs = reverse $ sortWith fst (zip vs [0..])
+sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]
+sortBest = sortBy (flip $ comparing fst)
