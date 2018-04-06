@@ -27,7 +27,9 @@ module Instrumentation
  , go
  , goto
  , currentStmt
+ , currentPosition
  , go_
+ , AstPosition(..)
  -- * Internals
  , insertBeforeNthStatement
  , markAllReads
@@ -46,6 +48,7 @@ import           Data.Functor.Identity
 import           Data.Generics.Uniplate.Data      ()
 import           Data.Generics.Uniplate.Zipper    (fromZipper)
 import qualified Data.Generics.Uniplate.Zipper    as Z
+import           Data.Text                        (pack)
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
@@ -53,7 +56,6 @@ import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Text.PrettyPrint                 (render)
-import Data.Text (pack)
 
 import           Types
 
@@ -146,6 +148,8 @@ deriving instance MonadIO (BrowserT IO)
 deriving instance MonadReader env (BrowserT (RIO env))
 deriving instance MonadIO (BrowserT (RIO env))
 
+
+
 instance (MonadBrowser m) => MonadBrowser (StateT s m) where
   putBrowserState st = lift $ putBrowserState st
   getBrowserState    = lift getBrowserState
@@ -177,15 +181,44 @@ go d = do
       putBrowserState $ (stmtZipper .~ z) st'
       return True
 
+newtype AstPosition = AstPosition
+  { indices :: [Int]
+  } deriving (Eq, Ord, Show)
 
--- | move to the nth sibling
-goto :: (MonadBrowser m) => Int -> m ()
-goto n = do
+instance Display AstPosition where
+ display (AstPosition xs) = foldl' f "" xs
+  where f b x = display b <> "/" <> display x
+
+-- Important note: a position contains the indices ordered from top to bottom
+-- whereas the stmtPosition in the BrowserState is from bottom to top.
+
+currentPosition :: MonadBrowser m => m (AstPosition)
+currentPosition = do
+  st <- getBrowserState
+  return $ AstPosition (reverse $ st ^. stmtPosition)
+
+-- TODO: Improve implementation
+goto :: (MonadBrowser m) => AstPosition -> m ()
+goto (AstPosition xs) = do
+  --- move to the top
+  toTop
+  goto' xs
+  where
+    toTop = go Up >>= \u -> if u then toTop else return ()
+    goto' []     = error "a position should never be empty"
+    goto' [y]    = gotoSibling y 
+    goto' (y:ys) = gotoSibling y >> go Down >> goto' ys
+
+
+
+-- | Move to the nth sibling. Be careful!
+gotoSibling :: (MonadBrowser m) => Int -> m ()
+gotoSibling n = do
   (p:_) <- _stmtPosition <$> getBrowserState
   let diff = n - p
   if
     | diff > 0 -> replicateM_ diff (go_ Next)
-    | diff < 0 -> replicateM_ diff (go_ Prev)
+    | diff < 0 -> replicateM_ (- diff) (go_ Prev)
     | otherwise -> return ()
 
 

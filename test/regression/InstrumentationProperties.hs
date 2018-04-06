@@ -11,9 +11,9 @@ import qualified Hedgehog.Gen         as Gen
 import qualified Hedgehog.Range       as Range
 import           Test.Tasty.Hedgehog
 
-import           Util
 import           Instrumentation
 import           Language.C.Data.Lens
+import           Util
 
 --------------------------------------------------------------------------------
 -- properties
@@ -24,6 +24,7 @@ testInstrumentationProperties = testGroup "properties"
   [
     testRandomWalk
   , testInsert
+  , testGoto
   ]
 
 
@@ -66,6 +67,54 @@ testInsert = testProperty "insertBefore, does not modify location" $ property $ 
         return (x,y)
   ((x,y),_) <- runBrowserT actn stmt
   prettyp x === prettyp y
+
+
+deriving instance MonadIO (BrowserT (PropertyT IO))
+
+-- test property: goto current position should not change anything
+
+testGoto :: TestTree
+testGoto = testGroup "goto" [testGoto1, testGoto2]
+
+testGoto1 :: TestTree
+testGoto1 = testProperty "(goto . currentPosition) does not modify location" $ property $ do
+  stmt <- genTestStmts "assets/test/reads"
+  ds <- forAll genDirectionList
+  let actn = do
+        mapM_ go ds
+        x <- currentStmt
+        p <- currentPosition
+        goto p
+        y <- currentStmt
+        return (x,y)
+  ((x,y), _) <- runBrowserT actn stmt
+  prettyp x === prettyp y
+
+testGoto2 :: TestTree
+testGoto2 = testProperty "with random positions" $ property $ do
+  stmt <- genTestStmts "assets/test/reads"
+  (p,s) <- forAll $ genPosition stmt
+  let actn = do
+        goto p
+        currentStmt
+  (s', _) <- runBrowserT actn stmt
+  prettyp s === prettyp s'
+
+
+
+-- | traverses the tree randomly 
+genPosition :: Stmt ->  Gen (AstPosition, Stmt)
+genPosition stmt = do
+  ds <- genDirectionList
+  let actn = do
+        mapM_ go ds
+        p <- currentPosition
+        s <- currentStmt
+        return (p,s)
+  (x, _) <- runBrowserT actn stmt
+  return x
+
+  
 
 
 controlReads :: ByteString
