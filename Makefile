@@ -43,9 +43,11 @@ Dockerfile : docker compile
 test:
 	stack test vdiff:regression
 
+
 # integration
 test-integration: vdiff-docker
+	stack test vdiff:integration --no-run-tests
 	docker run vdiff:latest /bin/bash -lc "integration --color=always"
 
 
-.PHONY : test
+.PHONY : test test-integration

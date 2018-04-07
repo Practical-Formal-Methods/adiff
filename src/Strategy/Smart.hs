@@ -21,7 +21,6 @@ import           Types
 data SmartState = SmartState
   {
     _budget :: Int
-  , _depth  :: Int
   }
 
 makeFieldsNoPrefix ''SmartState
@@ -38,7 +37,8 @@ smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
   let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
-  let initState = SmartState 10 undefined -- TODO: What should the initial budget be?
+  budget <- view (diffParameters . budget)
+  let initState = SmartState budget
   void $ runSmart initState stmt
 
 

@@ -206,7 +206,7 @@ goto (AstPosition xs) = do
   where
     toTop = go Up >>= \u -> if u then toTop else return ()
     goto' []     = error "a position should never be empty"
-    goto' [y]    = gotoSibling y 
+    goto' [y]    = gotoSibling y
     goto' (y:ys) = gotoSibling y >> go Down >> goto' ys
 
 

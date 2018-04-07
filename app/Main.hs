@@ -98,7 +98,7 @@ parseCmdRun = CmdRun <$> (DiffParameters
                                       , value RandomStrategy
                                       , showDefaultWith strategyName
                                       , metavar "STRATEGY"])
-      <*> option auto ( long "iterations" <> short 'n' <> help "number of iterations" <> value 1)
+      <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
       <*> option verifierParser (mconcat [ long "verifiers"
                                         , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
                                         , value []

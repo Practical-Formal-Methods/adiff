@@ -1,5 +1,6 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
 module Types
   ( module Types
@@ -135,13 +136,13 @@ instance Default Verifier where
 
 
 data DiffParameters = DiffParameters
-  { _strategy   :: Strategy
-  , _iterations :: Int
-  , _verifiers  :: [Verifier]
-  , _program    :: FilePath
+  { _strategy  :: Strategy
+  , _budget    :: Int
+  , _verifiers :: [Verifier]
+  , _program   :: FilePath
   }
 
-makeLenses ''DiffParameters
+makeFieldsNoPrefix ''DiffParameters
 
 type Property = String
 

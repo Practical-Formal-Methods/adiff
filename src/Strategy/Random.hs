@@ -2,13 +2,16 @@
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Strategy.Random (randomStrategy) where
 
 import qualified Prelude                as P
 import           RIO
 
+import           Control.Lens
 import           Control.Lens.Operators
+import           Control.Monad.State
 import           Language.C.Data.Lens
 import           System.Random
 
@@ -17,7 +20,14 @@ import           Types
 
 import           Strategy.Util
 
--- does not terminate
+newtype RandomState = RandomState { _budget :: Int }
+makeFieldsNoPrefix ''RandomState
+
+
+newtype Random env a = Random
+  { unSmart :: StateT RandomState (BrowserT (RIO env)) a
+  } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
+
 randomStrategy :: (IsStrategyEnv env) => RIO env ()
 randomStrategy = do
   tu <- view translationUnit
