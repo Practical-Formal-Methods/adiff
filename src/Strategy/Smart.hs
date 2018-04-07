@@ -29,9 +29,6 @@ newtype Smart env a = Smart
   { unSmart :: StateT SmartState (BrowserT (RIO env)) a
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
 
-runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
-runSmart initState = runBrowserT (runStateT (unSmart smartStrategy') initState)
-
 smartStrategy :: (IsStrategyEnv env) => RIO env ()
 smartStrategy = do
   logInfo "starting with smartStrategy"
@@ -41,9 +38,14 @@ smartStrategy = do
   let initState = SmartState budget
   void $ runSmart initState stmt
 
+runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
+runSmart initState = runBrowserT (runStateT (unSmart smartStrategy') initState)
+
+
 
 smartStrategy' :: (IsStrategyEnv env) => Smart env ()
 smartStrategy' = do
+  -- when budget is not depleted
   whenM ((>0) <$> use budget) $ do
     -- if in compound statement, go down
     in_compound <- isCompound <$> currentStmt
@@ -59,9 +61,10 @@ smartStrategy' = do
           c <- currentStmt
           logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
           -- try to find a place go down
-          whenM goDownAtNextChange $ do
+          whenM goDownAtNextChance $ do
           -- recurse from here, but remember a limit of runs after which we will come backup again
-            withBudget 3 smartStrategy'
+            bdg <- use budget
+            withBudget (bdg `div` 10 + 1) smartStrategy' -- TODO: be smarter here
             go_ Up
 
 
@@ -75,8 +78,8 @@ withBudget n act = do
 
 -- | moves the cursor down into the next statement if possible. If successful
 -- returns True, otherwise False.
-goDownAtNextChange :: (MonadBrowser m) => m Bool
-goDownAtNextChange = untilJust $ do
+goDownAtNextChance :: (MonadBrowser m) => m Bool
+goDownAtNextChance = untilJust $ do
     dwn <- go Down
     if dwn
       then return $ Just True
@@ -119,9 +122,7 @@ exploreStatement = do
       bdg <- use budget
       if bdg > 0
         then do
-          res <- liftRIO $ verify tu
-          budget -= 1
-          let conclusion = conclude res
+          (res, conclusion) <- verify tu
           return $ toScore conclusion
         else return 0
   return $ maximum scores

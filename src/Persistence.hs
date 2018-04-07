@@ -33,9 +33,9 @@ class Persistent a where
 
 instance Persistent CProgram where
   persist conn p = SQL.execute conn "INSERT INTO programs(code_hash, origin, content) VALUES(?,?,?) " row
-    where row = [ toField (hash (programSource p))
-                , toField (programOriginalFilename p)
-                , toField (programSource p)
+    where row = [ toField (p ^. hash)
+                , toField (p ^. originalFilename)
+                , toField (p ^. source)
                 ]
 
 instance Persistent VerifierRun where
@@ -58,5 +58,5 @@ persist' x = do
 -- * Utilities
 --------------------------------------------------------------------------------
 
-hash :: String -> Hashed a
-hash =  Hashed . Hex.encode . SHA1.hash . C8.pack
+mkHash :: String -> Hashed
+mkHash =  Hashed . Hex.encode . SHA1.hash . C8.pack

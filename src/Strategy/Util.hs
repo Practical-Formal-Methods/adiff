@@ -7,13 +7,14 @@ module Strategy.Util
   , Type
   ) where
 
-import           Control.Lens
+import           Control.Lens hiding ((^.))
 import           Language.C
 import           Language.C.Analysis.SemRep    hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
 import           RIO                           hiding (view)
 import           System.IO                     (hPutStr)
 import           System.Random
+import Control.Monad.State
 import           Text.PrettyPrint.HughesPJ     (render)
 
 
@@ -30,24 +31,37 @@ isCompound ::Stmt -> Bool
 isCompound (CCompound _ _ _ ) = True
 isCompound _                  = False
 
--- | runs the given translation unit against the configured verifiers.
-verify :: (IsStrategyEnv env) => CTranslationUnit SemPhase -> RIO env [VerifierRun]
+verify :: (IsStrategyEnv env, Monad m, MonadReader env m, MonadIO m, MonadState st m, HasBudget st Int) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
 verify tu = do
+  (prog, res) <- verify' tu
+  let conclusion = conclude res
+  case conclusion of
+    Unsoundness _ -> logInfo $ "found unsoundness with program " <> display (prog ^. hash)
+    Incompleteness _ -> logInfo $ "found incompleteness with program " <> display (prog ^. hash)
+    _ -> return ()
+  return (res, conclusion)
+
+-- | runs the given translation unit against the configured verifiers.
+verify' :: (IsStrategyEnv env, Monad m, MonadReader env m, MonadIO m, MonadState st m, HasBudget st Int) => CTranslationUnit SemPhase -> m (CProgram, [VerifierRun])
+verify' tu = do
+  budget -= 1
   vs <- view (diffParameters . verifiers)
-  withSystemTempFile "input.c" $ \fp h -> do
+  env <- ask
+  runRIO env $ withSystemTempFile "input.c" $ \fp h -> do
         -- write file
         originalFileName <- view (diffParameters . program)
         let content = render . pretty $ tu
-            hsh = hash content
-        persist' $ CProgram content originalFileName
+            program' = CProgram content originalFileName (mkHash content)
+        persist' program'
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
-        forM vs $ \v -> do
-            env <- mkVerifierEnv (15 * 1000 * 1000) -- 15 seconds
-            r <- runRIO env $ execute v fp
-            let run = VerifierRun (verifierName v) r hsh
-            persist' run
-            return run
+        runs <- forM vs $ \v -> do
+                env <- mkVerifierEnv (15 * 1000 * 1000) -- 15 seconds
+                r <- runRIO env $ execute v fp
+                let run = VerifierRun (verifierName v) r (program' ^. hash)
+                persist' run
+                return run
+        return (program', runs)
 
 
 conclude :: [VerifierRun] -> Conclusion

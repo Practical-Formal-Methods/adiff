@@ -1,19 +1,32 @@
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TemplateHaskell        #-}
+
 -- | the experimental data
 module Data where
 
+import           Control.Lens
 import           Data.ByteString
+import qualified Data.ByteString.Base16         as Hex
 import qualified Data.ByteString.Char8          as C8
+import           Data.Text.Encoding
 import           Database.SQLite.Simple.ToField
 
 import           RIO
 
 import           Timed
 
+newtype Hashed = Hashed { getHash :: ByteString }
+  deriving (Show, Eq)
+
+
 -- | An instrumented program
 data CProgram = CProgram
-  { programSource           :: String
-  , programOriginalFilename :: String
+  { _source           :: String
+  , _originalFilename :: String
+  , _hash             :: Hashed
   } deriving Show
+makeFieldsNoPrefix ''CProgram
 
 
 type VerifierName = String
@@ -25,7 +38,7 @@ newtype Timeout = Timeout Int
 data VerifierRun = VerifierRun
   { runVerifierName :: VerifierName
   , verifierResult  :: VerifierResult
-  , verifierCode    :: Hashed String
+  , verifierCode    :: Hashed
   } deriving (Show)
 
 
@@ -55,9 +68,9 @@ instance ToField Verdict where
   toField Unknown = toField ("unknown" :: String)
 
 
-newtype Hashed a = Hashed { getHash :: ByteString }
-  deriving (Show, Eq)
 
-instance ToField (Hashed a) where
+instance ToField Hashed where
   toField x = toField (C8.unpack $ getHash x)
 
+instance Display Hashed where
+  display x =  display $ decodeUtf8 $  Hex.encode (getHash x)

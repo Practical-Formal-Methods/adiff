@@ -6,11 +6,10 @@
 
 module Strategy.Random (randomStrategy) where
 
-import qualified Prelude                as P
+import qualified Prelude              as P
 import           RIO
 
-import           Control.Lens
-import           Control.Lens.Operators
+import           Control.Lens         hiding (view)
 import           Control.Monad.State
 import           Language.C.Data.Lens
 import           System.Random
@@ -24,31 +23,37 @@ newtype RandomState = RandomState { _budget :: Int }
 makeFieldsNoPrefix ''RandomState
 
 
-newtype Random env a = Random
-  { unSmart :: StateT RandomState (BrowserT (RIO env)) a
-  } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
+newtype RandomS env a = RandomS
+  { unRandom :: StateT RandomState (BrowserT (RIO env)) a
+  } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState RandomState)
+
+runRandomS :: IsStrategyEnv env => RandomState -> Stmt -> RIO env (((), RandomState), Stmt)
+runRandomS initState = runBrowserT (runStateT (unRandom randomStrategy') initState)
+
 
 randomStrategy :: (IsStrategyEnv env) => RIO env ()
 randomStrategy = do
   tu <- view translationUnit
   let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
-  void $ runBrowserT randomStrategy' bdy
+  b <- view (diffParameters . budget)
+  let initState = RandomState b
+  void $ runRandomS initState bdy
 
 
-randomStrategy' :: (IsStrategyEnv env) => BrowserT (RIO env) ()
-randomStrategy' = do
-  randomStep
-  vars <- findReads
-  unless (null vars) $ tryout $ do
-      (v,ty) <- chooseOneOf vars
-      asrt <- mkAssertion v ty
-      insertBefore asrt
-      tu <- buildTranslationUnit
-      res <- lift $ verify tu
-      let conclusion = conclude res
-      logInfo $ "conclusion : " <> display (tshow conclusion)
-  -- iterate
-  randomStrategy'
+randomStrategy' :: (IsStrategyEnv env) => RandomS env ()
+randomStrategy' =
+  whenM ((>0) <$> use budget) $ do
+    randomStep
+    vars <- findReads
+    unless (null vars) $ tryout $ do
+        (v,ty) <- chooseOneOf vars
+        asrt <- mkAssertion v ty
+        insertBefore asrt
+        tu <- buildTranslationUnit
+        (_, conclusion) <- verify tu
+        logInfo $ "conclusion : " <> display (tshow conclusion)
+    -- iterate
+    randomStrategy'
 
 
 chooseOneOf :: (MonadIO m) => [a] ->  m a
