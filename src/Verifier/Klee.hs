@@ -22,7 +22,7 @@ kleeVersion = do
 kleeRun :: FilePath -> RIO VerifierEnv VerifierResult
 kleeRun fn = withKleeH $ \kleeH ->
     withSystemTempFile "file.bc" $ \bc _ -> do
-      liftIO $ callCommand $ "clang -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
+      liftIO $ callCommand $ "clang-3.8 -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
       (termination, out, _) <- execTimed (shell $ "klee " ++ bc) ""
       case (termination, BS.null out) of
         (Nothing, _) -> return VerifierTimedOut
