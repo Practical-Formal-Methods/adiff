@@ -99,6 +99,7 @@ parseCmdRun = CmdRun <$> (DiffParameters
                                       , showDefaultWith strategyName
                                       , metavar "STRATEGY"])
       <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
+      <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
       <*> option verifierParser (mconcat [ long "verifiers"
                                         , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
                                         , value []

@@ -138,6 +138,7 @@ instance Default Verifier where
 data DiffParameters = DiffParameters
   { _strategy  :: Strategy
   , _budget    :: Int
+  , _timelimit :: Int
   , _verifiers :: [Verifier]
   , _program   :: FilePath
   }
