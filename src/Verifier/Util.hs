@@ -56,7 +56,7 @@ toDisplayBuilder = displayBytesUtf8 . C8.pack
 execTimed :: HasTimeLimit env => CreateProcess -> Text -> RIO env (Maybe (ExitCode, Timing), ByteString, ByteString)
 execTimed cp inp = do
   tl <- view timeLimitL
-  liftIO $ exec cp inp tl
+  liftIO $ exec cp True inp tl
 
 withTiming :: (HasLogFunc env, HasTimeLimit env) =>
               CreateProcess
