@@ -18,13 +18,7 @@ clean:
 	rm -f docker/*.tmp
 	rm -f Dockerfile
 
-#Dockerfile : docker
-#	stack sdist
-#	echo "ENV  vdiff_version=$(VERSION)" > docker/vdiff.tmp
-#	echo "COPY \"$(SDIST)/vdiff-$(VERSION).tar.gz\" /tmp" >> docker/vdiff.tmp
-#	echo "RUN cd /tmp && tar -xf vdiff-$(VERSION).tar.gz && cd vdiff-$(VERSION) && stack init && stack install" >> docker/vdiff.tmp
-
-Dockerfile : docker compile
+Dockerfile : compile docker
 	echo "# Install vdiff into docker" > docker/vdiff.tmp
 	echo "RUN apt-get install -y time vim" >> docker/vdiff.tmp
 	echo "ENV vdiff_version=\"$(VERSION)\"" >> docker/vdiff.tmp
@@ -36,6 +30,7 @@ Dockerfile : docker compile
 	      	docker/ultimate.in\
 	       	docker/cpachecker.in\
 	       	docker/seahorn.in\
+		docker/klee.in\
 	       	docker/vdiff.tmp\
 	       	docker/samples.in > Dockerfile
 
