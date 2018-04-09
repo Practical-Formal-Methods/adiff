@@ -67,3 +67,13 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \v
       Right Nothing -> return "unknown"
       Right (Just v) -> return v
     putStrLn sv
+
+cmdRunVerifiers :: (HasLogFunc env) => [Verifier] -> FilePath -> RIO env ()
+cmdRunVerifiers vs fn = do
+  lg <- view logFuncL
+  let tl = 15 * 1000 * 1000
+      verifierEnv = VerifierEnv lg tl
+  forM_ vs $ \v -> do
+    res <- runRIO verifierEnv $ execute v fn
+    logInfo $ display $ tshow res
+

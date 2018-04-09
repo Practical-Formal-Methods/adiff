@@ -29,10 +29,11 @@ main = do
 
 runCommands :: HasMainEnv env => MainParameters -> RIO env ()
 runCommands param = case cmd param of
-                      (CmdRun dp)       -> cmdDiff dp
-                      (CmdParseTest fn) -> cmdParseTest fn
-                      (CmdMarkReads fn) -> cmdMarkReads fn
-                      CmdVersions       -> cmdVersions
+                      (CmdRun dp)           -> cmdDiff dp
+                      (CmdParseTest fn)     -> cmdParseTest fn
+                      (CmdMarkReads fn)     -> cmdMarkReads fn
+                      CmdVersions           -> cmdVersions
+                      CmdRunVerifiers vs fn -> cmdRunVerifiers vs fn
 
 
 
@@ -51,6 +52,7 @@ data MainParameters = MainParameters
 data Cmd  = CmdRun DiffParameters
           | CmdParseTest FilePath
           | CmdMarkReads FilePath
+          | CmdRunVerifiers [Verifier] FilePath
           | CmdVersions
 
 
@@ -64,7 +66,7 @@ opts = info (parseMainParameters <**> helper)
 
 parseMainParameters :: Parser MainParameters
 parseMainParameters = MainParameters <$> parseLogLevel <*> parseDatabasePath <*> parseCmd
-  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRun
+  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRun <|> parseCmdRunVerifiers
 
 parseLogLevel :: Parser LogLevel
 parseLogLevel = option levelP (long "log-level" <> help helpText <> metavar "LOGLEVEL" <> value LevelWarn)
@@ -106,6 +108,14 @@ parseCmdRun = CmdRun <$> (DiffParameters
                                         , metavar "VERIFIERS"
                                         ])
       <*> argument str (metavar "FILE"))
+
+parseCmdRunVerifiers = CmdRunVerifiers
+  <$> option verifierParser (mconcat [ long "run"
+                                        , help ("the compared verifiers (available: " ++ show (map verifierName (allVerifiers ++ debuggingVerifiers)) ++ ")"  )
+                                        , value allVerifiers
+                                        ])
+  <*> argument str (metavar "FILE")
+
 
 stratParser :: ReadM Strategy
 stratParser = (str :: ReadM Text) >>= \case
