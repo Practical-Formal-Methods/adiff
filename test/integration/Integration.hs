@@ -29,7 +29,7 @@ testSimple = testGroup "unsat" $ map test [ (v, r) | v <- allVerifiers', r <- [S
 
     test (v, expected) = testCase (verifierName v ++ " " ++ show expected) $ do
       logOptions <- logOptionsHandle stderr True
-      let logOptions' = setLogMinLevel LevelDebug $ setLogVerboseFormat True logOptions
+      let logOptions' = setLogMinLevel LevelWarn $ setLogVerboseFormat False logOptions
       withLogFunc  logOptions' $ \lg -> do
         let verifierEnv   = VerifierEnv lg (15 * 1000 * 1000)
         runRIO verifierEnv $ withSystemTempFile "input.c" $ \fp h -> do
