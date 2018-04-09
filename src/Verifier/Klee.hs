@@ -24,7 +24,7 @@ kleeRun fn = withKleeH $ \kleeH ->
     withSystemTempFile "file.bc" $ \bc _ -> do
       liftIO $ callCommand $ "clang-3.8 -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
       let cmd = shell $ "klee " ++ bc
-      withTiming cmd "" $ \ec out ->
+      withTiming cmd "" $ \ec out err ->
         case (ec, BS.null out) of
           (ExitSuccess, True)  -> return Unsat
           (ExitSuccess, False) -> return Sat

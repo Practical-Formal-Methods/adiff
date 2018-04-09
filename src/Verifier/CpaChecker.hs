@@ -15,7 +15,7 @@ cpaChecker = def { verifierName = "cpachecker", execute = cpaExecute, version = 
 cpaExecute :: FilePath -> RIO VerifierEnv VerifierResult
 cpaExecute fn = withSpec reachSafety $ \spec -> do
   let cmd = shell $ "cpa.sh -default -nolog -noout -spec " ++ spec ++ " " ++ fn
-  withTiming cmd "" $ \_ out -> do
+  withTiming cmd "" $ \_ out _ -> do
       let out' = filter ("Verification result" `BS.isPrefixOf`) $ C8.lines out
       let verdict = case out' of
             (s:_) | "Verification result: TRUE" `BS.isPrefixOf` s -> Unsat

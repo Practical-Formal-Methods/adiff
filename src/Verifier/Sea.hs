@@ -21,7 +21,7 @@ runSea :: Bool -> FilePath -> RIO VerifierEnv VerifierResult
 runSea crab fn = do
   let flags = if crab then "--crab" else ""
       cmd = (shell $ "./sea " ++ flags ++ " pf "  ++ fn) {cwd = Just "/verifiers/seahorn/bin"}
-  withTiming cmd "" $ \_ out ->
+  withTiming cmd "" $ \_ out _ ->
     case lastMay (C8.lines out) of
       Just "sat"   -> return Sat
       Just "unsat" -> return Unsat

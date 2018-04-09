@@ -30,6 +30,7 @@ import           Types
 import qualified Data.ByteString.Char8 as C8
 import           Data.Default          (def)
 import           Data.FileEmbed
+import qualified Data.Text             as T
 import           Safe
 import           System.Exit
 import           System.Process
@@ -44,11 +45,11 @@ reachSafety :: Property
 reachSafety = "CHECK( init(main()), LTL(G ! call(__VERIFIER_error())) )"
 
 
-debugOutput :: HasLogFunc env => String -> String -> RIO env ()
-debugOutput verifierName out = do
-  let ls = lines out
+debugOutput :: HasLogFunc env => Text -> ByteString -> RIO env ()
+debugOutput vn out = do
+  let ls = C8.lines out
   forM_ ls $ \l ->
-    logDebug $ "[" <> toDisplayBuilder verifierName  <> "] " <> toDisplayBuilder l
+    logDebug $  "[" <> display vn <> "] " <> displayBytesUtf8 l
 
 toDisplayBuilder :: String -> Utf8Builder
 toDisplayBuilder = displayBytesUtf8 . C8.pack
@@ -62,17 +63,17 @@ execTimed cp inp = do
 withTiming :: (HasLogFunc env, HasTimeLimit env) =>
               CreateProcess
            -> Text
-           -> (ExitCode -> ByteString -> RIO env Verdict)
+           -> (ExitCode -> ByteString -> ByteString -> RIO env Verdict)
            -> RIO env VerifierResult
 withTiming cp inp cont = do
   logInfo $ "runing command: " <> displayShow (cmdspec cp)
-  (termination, out, _) <- execTimed cp inp
+  (termination, out, err) <- execTimed cp inp
   case termination of
     Nothing           -> do
       logInfo "command timed out"
       return VerifierTimedOut
     Just (ec, timing) -> do
       logInfo $ "command terminated with exit code " <> display (tshow ec)
-      vrdct <- cont ec out
+      vrdct <- cont ec out err
       return $ VerifierTerminated vrdct timing
 

@@ -38,7 +38,7 @@ runUltimate :: String -> RIO VerifierEnv VerifierResult
 runUltimate cmd =
   withSystemTempDirectory "ultimate-tmp" $ \dir -> do
     let cmd' = (shell cmd) {cwd = Just dir}
-    withTiming cmd' "" $ \ec out ->
+    withTiming cmd' "" $ \ec out _ ->
             case (ec, lastMay (C8.lines out))  of
               (ExitSuccess, Just "TRUE")  -> return Unsat
               (ExitSuccess, Just "FALSE") -> return Sat
