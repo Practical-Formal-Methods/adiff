@@ -10,7 +10,7 @@ import qualified Prelude              as P
 import           RIO
 
 import           Control.Lens         hiding (view)
-import           Control.Monad.State
+import           Control.Monad.State.Strict
 import           Language.C.Data.Lens
 import           System.Random
 
@@ -19,7 +19,7 @@ import           Types
 
 import           Strategy.Util
 
-newtype RandomState = RandomState { _budget :: Int }
+data RandomState = RandomState { _budget :: !Int }
 makeFieldsNoPrefix ''RandomState
 
 

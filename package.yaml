@@ -26,13 +26,13 @@ default-extensions:
   - FlexibleInstances
   - StandaloneDeriving
 
-ghc-options: -threaded
 
 executables:
   vdiff:
     source-dirs: app
     main: Main.hs
     dependencies: vdiff
+    ghc-options: -threaded -O2
 
 library:
   source-dirs:      src

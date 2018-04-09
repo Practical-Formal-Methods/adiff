@@ -9,7 +9,7 @@ module Strategy.Smart (smartStrategy) where
 import           RIO
 
 import           Control.Lens         hiding (view)
-import           Control.Monad.State
+import           Control.Monad.State.Strict
 import           Data.List            (sortBy)
 import           Language.C.Data.Lens
 
@@ -20,7 +20,7 @@ import           Types
 
 data SmartState = SmartState
   {
-    _budget :: Int
+    _budget :: !Int
   }
 
 makeFieldsNoPrefix ''SmartState

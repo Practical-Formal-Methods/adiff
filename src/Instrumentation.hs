@@ -43,7 +43,7 @@ import           Control.Lens.Getter              (use)
 import           Control.Lens.Operators
 import           Control.Lens.Setter              (mapped)
 import           Control.Lens.TH
-import           Control.Monad.State
+import           Control.Monad.State.Strict
 import           Data.Functor.Identity
 import           Data.Generics.Uniplate.Data      ()
 import           Data.Generics.Uniplate.Zipper    (fromZipper)
@@ -116,8 +116,8 @@ data Direction = Up | Down | Next | Prev
 
 -- this is what every strategy needs to move around in the AST
 data BrowserState = BrowserState
-  { _stmtZipper   :: StmtZipper
-  , _stmtPosition :: [Int]
+  { _stmtZipper   :: !StmtZipper
+  , _stmtPosition :: ![Int]
   }
 
 makeFieldsNoPrefix ''BrowserState
