@@ -100,8 +100,8 @@ parseCmdRun = CmdRun <$> (DiffParameters
                                       , metavar "STRATEGY"])
       <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
       <*> option verifierParser (mconcat [ long "verifiers"
-                                        , help ("the compared verifiers (available: " ++ show (map verifierName allVerifiers) ++ ")"  )
-                                        , value []
+                                        , help ("the compared verifiers (available: " ++ show (map verifierName (allVerifiers ++ debuggingVerifiers)) ++ ")"  )
+                                        , value allVerifiers
                                         , metavar "VERIFIERS"
                                         ])
       <*> argument str (metavar "FILE"))
@@ -116,9 +116,9 @@ verifierParser :: ReadM [Verifier]
 verifierParser = str >>= \s -> if s == ""
                                then pure []
                                else let reqVer = words s
-                                        unavailable = reqVer L.\\ map verifierName allVerifiers
+                                        unavailable = reqVer L.\\ map verifierName (allVerifiers ++ debuggingVerifiers)
                                     in
                                       if null unavailable
-                                      then pure $ filter (\v -> verifierName v `elem` reqVer) allVerifiers
+                                      then pure $ filter (\v -> verifierName v `elem` reqVer) (allVerifiers ++ debuggingVerifiers)
                                       else readerError $ "unknown verifier(s): " ++ unwords unavailable
 
