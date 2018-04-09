@@ -23,12 +23,12 @@ kleeRun :: FilePath -> RIO VerifierEnv VerifierResult
 kleeRun fn = withKleeH $ \kleeH ->
     withSystemTempFile "file.bc" $ \bc _ -> do
       liftIO $ callCommand $ "clang-3.8 -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
-      (termination, out, _) <- execTimed (shell $ "klee " ++ bc) ""
-      case (termination, BS.null out) of
-        (Nothing, _) -> return VerifierTimedOut
-        (Just (ExitSuccess, timing), True) -> return $ VerifierTerminated Unsat timing
-        (Just (ExitSuccess, timing), False) -> return $ VerifierTerminated Sat timing
-        (Just (code, timing),_) -> error "unexpected outcome in klee"
+      let cmd = shell $ "klee " ++ bc
+      withTiming cmd "" $ \ec out ->
+        case (ec, BS.null out) of
+          (ExitSuccess, True)  -> return Unsat
+          (ExitSuccess, False) -> return Sat
+          _                    -> error "unexpected outcome in klee"
 
 
 withKleeH :: (MonadUnliftIO m) => (FilePath -> m a) -> m a

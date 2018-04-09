@@ -53,6 +53,7 @@ debugOutput verifierName out = do
 toDisplayBuilder :: String -> Utf8Builder
 toDisplayBuilder = displayBytesUtf8 . C8.pack
 
+{-# DEPRECATED execTimed "use withTiming instead" #-}
 execTimed :: HasTimeLimit env => CreateProcess -> Text -> RIO env (Maybe (ExitCode, Timing), ByteString, ByteString)
 execTimed cp inp = do
   tl <- view timeLimitL

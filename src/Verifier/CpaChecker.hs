@@ -15,16 +15,13 @@ cpaChecker = def { verifierName = "cpachecker", execute = cpaExecute, version = 
 cpaExecute :: FilePath -> RIO VerifierEnv VerifierResult
 cpaExecute fn = withSpec reachSafety $ \spec -> do
   let cmd = shell $ "cpa.sh -default -nolog -noout -spec " ++ spec ++ " " ++ fn
-  (termination,out,_) <- execTimed cmd ""
-  case termination of
-    Nothing -> return VerifierTimedOut
-    (Just (ec, timing)) -> do
+  withTiming cmd "" $ \_ out -> do
       let out' = filter ("Verification result" `BS.isPrefixOf`) $ C8.lines out
       let verdict = case out' of
             (s:_) | "Verification result: TRUE" `BS.isPrefixOf` s -> Unsat
                   | "Verification result: FALSE" `BS.isPrefixOf` s -> Sat
             _ -> Unknown
-      return $ VerifierTerminated verdict timing
+      return verdict
 
 
 cpaVersion :: IO (Maybe String)
