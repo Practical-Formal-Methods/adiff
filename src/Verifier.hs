@@ -16,6 +16,13 @@ import           Verifier.Ultimate
 import           Verifier.Debug
 
 allVerifiers :: [Verifier]
-allVerifiers = sort [cbmc, cpaChecker, klee, utaipan, uautomizer, seahorn]
+allVerifiers = [ cbmc
+               , cpaChecker
+               , klee
+               , seacrab
+               , seahorn
+               , uautomizer
+               , utaipan
+               ]
 
 

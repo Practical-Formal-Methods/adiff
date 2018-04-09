@@ -1,4 +1,4 @@
-module Verifier.Sea(seahorn) where
+module Verifier.Sea(seahorn, seacrab) where
 
 import           RIO
 
@@ -7,18 +7,22 @@ import           Verifier.Util
 
 seahorn :: Verifier
 seahorn = def { verifierName = "seahorn"
-              , execute = runSeahorn
+              , execute = runSea False
+              }
+
+seacrab :: Verifier
+seacrab = def { verifierName = "seacrab"
+              , execute = runSea True
               }
 
 -- | Apparently, the script "sea" has to be run from the directory it is installed in.
 -- At the moment, the path /verifiers/seahorn/bin is hard coded. TODO: Use which or similar to change cwd based on that.
-runSeahorn :: FilePath -> RIO VerifierEnv VerifierResult
-runSeahorn fn = do
-  let cmd = (shell $ "./sea pf "  ++ fn) {cwd = Just "/verifiers/seahorn/bin"}
-  (termination, out, _) <- execTimed cmd ""
-  case termination of
-    Nothing -> return VerifierTimedOut
-    (Just (ec, timing)) -> case lastMay (C8.lines out) of
-              Just "sat"   -> return $ VerifierTerminated Sat  timing
-              Just "unsat" -> return $ VerifierTerminated Unsat timing
-              _            -> return $ VerifierTerminated Unknown timing
+runSea :: Bool -> FilePath -> RIO VerifierEnv VerifierResult
+runSea crab fn = do
+  let flags = if crab then "--crab" else ""
+      cmd = (shell $ "./sea " ++ flags ++ " pf "  ++ fn) {cwd = Just "/verifiers/seahorn/bin"}
+  withTiming cmd "" $ \_ out ->
+    case lastMay (C8.lines out) of
+      Just "sat"   -> return Sat
+      Just "unsat" -> return Unsat
+      _            -> return Unknown
