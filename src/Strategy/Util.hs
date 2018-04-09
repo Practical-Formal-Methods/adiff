@@ -46,6 +46,7 @@ verify' :: (IsStrategyEnv env, Monad m, MonadReader env m, MonadIO m, MonadState
 verify' tu = do
   budget -= 1
   vs <- view (diffParameters . verifiers)
+  time <- view (diffParameters . timelimit)
   env <- ask
   runRIO env $ withSystemTempFile "input.c" $ \fp h -> do
         -- write file
@@ -56,7 +57,7 @@ verify' tu = do
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
         runs <- forM vs $ \v -> do
-                env <- mkVerifierEnv (15 * 1000 * 1000) -- 15 seconds
+                env <- mkVerifierEnv time
                 r <- runRIO env $ execute v fp
                 let run = VerifierRun (verifierName v) r (program' ^. hash)
                 persist' run

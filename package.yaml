@@ -80,7 +80,7 @@ dependencies:
   - language-c
   - optparse-applicative
   - pretty
-  - process
+  - process >= 1.6.3
   - random
   - safe
   - sqlite-simple

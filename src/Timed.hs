@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- | Provides a simple way to execute any @CreateProcess@ wrapped in a call to /usr/bin/time
 -- | It's a very simple implementation. Also: Please do not use it for lazy IO as the string printed to stderr will be fully evaluated.
 module Timed
@@ -9,15 +11,15 @@ module Timed
   , maxResidentMemory
   ) where
 
-import           Data.Text.IO       (hPutStr)
-import           Prelude            (read)
+import           Data.Text.IO          (hPutStr)
+import           Prelude               (read)
 import           RIO
-import qualified RIO.List.Partial           as L
+import qualified RIO.List.Partial      as L
 
-import           Control.Concurrent (forkIO, ThreadId)
-import           Data.Default
-import qualified Data.ByteString as BS
+import           Control.Concurrent    (ThreadId, forkIO)
+import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as C8
+import           Data.Default
 
 import           System.Process
 
@@ -60,18 +62,19 @@ readNonBlockingUntilTerminated ph h ref mutex = do
           bs <- BS.hGetNonBlocking h (64 * 1024)
           modifyIORef ref (<> bs)
     terminate = tryPutMVar mutex () >> return ()
-      
-        
 
-exec :: CreateProcess -> Text -> Int -> IO (Maybe (ExitCode, Timing), ByteString, ByteString)
-exec cp input microsecs = do
+
+
+exec :: CreateProcess -> Bool -> Text -> Int -> IO (Maybe (ExitCode, Timing), ByteString, ByteString)
+exec cp rkill input microsecs = do
   let cp' = (wrapTime cp) { std_in = CreatePipe
                           , std_out = CreatePipe
                           , std_err = CreatePipe
+                          , create_group = True -- so we can kill later the whole group if necessary
                           }
   withCreateProcess cp' $ \(Just inh) (Just outh) (Just errh) ph -> do
     -- set-up "killer" thread
-    _ <- terminateDelayed ph microsecs
+    _ <- terminateDelayed ph rkill microsecs
 
     -- set up streams
     hPutStr inh input >> hFlush inh
@@ -102,11 +105,19 @@ exec cp input microsecs = do
                             (timing, err') <- parseTimed err
                             return (Just (code, timing), out, err')
 
-terminateDelayed :: ProcessHandle -> Int -> IO ThreadId
-terminateDelayed ph microsecs = forkIO $ do
+terminateDelayed :: ProcessHandle
+                 -> Bool -- killall complete process group
+                 -> Int -- microseconds
+                 -> IO ThreadId -- thread id of the created 'terminator process'
+terminateDelayed ph rkill microsecs = forkIO $ do
       threadDelay microsecs
       getProcessExitCode ph >>= \case
-        Nothing -> terminateProcess ph
+        Nothing ->
+          if rkill
+            then do
+              (Just pid) <- getPid ph
+              callCommand $ "kill -9 -" ++ show pid
+            else terminateProcess ph
         Just _ -> return ()
 
 wrapTime :: CreateProcess -> CreateProcess
