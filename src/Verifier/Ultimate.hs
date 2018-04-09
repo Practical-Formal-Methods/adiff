@@ -2,9 +2,8 @@ module Verifier.Ultimate(uautomizer, utaipan) where
 
 import           RIO
 
-import           Verifier.Util
-
 import qualified Data.ByteString.Char8 as C8
+import           Verifier.Util
 
 uautomizer :: Verifier
 uautomizer = def { verifierName = "uautomizer"
@@ -37,7 +36,7 @@ taipanVersion = headMay . lines <$> readCreateProcess (shell "Taipan.py --versio
 runUltimate :: String -> RIO VerifierEnv VerifierResult
 runUltimate cmd =
   withSystemTempDirectory "ultimate-tmp" $ \dir -> do
-    let cmd' = (shell cmd) {cwd = Just dir}
+    let cmd' = (shell cmd) { cwd = Just dir}
     withTiming cmd' "" $ \ec out _ ->
             case (ec, lastMay (C8.lines out))  of
               (ExitSuccess, Just "TRUE")  -> return Unsat

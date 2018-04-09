@@ -8,12 +8,16 @@ module Verifier.Util
   , withSystemTempFile
   , hFlush
   , embedFile
-  , module System.Process
   , withSpec
   , reachSafety
   , debugOutput
   , execTimed
   , withTiming
+  , Verifier.Util.callCommand
+  , Sys.readCreateProcess
+  , Sys.shell
+  , Sys.proc
+  , Sys.CreateProcess(..)
   , Timing
   , VerifierEnv
   )
@@ -30,10 +34,14 @@ import           Types
 import qualified Data.ByteString.Char8 as C8
 import           Data.Default          (def)
 import           Data.FileEmbed
-import qualified Data.Text             as T
 import           Safe
 import           System.Exit
-import           System.Process
+import           System.Process as Sys
+
+callCommand :: HasLogFunc env => [String] ->  RIO env ()
+callCommand cmd = do
+  logDebug $ display $ tshow cmd
+  liftIO $ Sys.callCommand $ unwords cmd
 
 withSpec :: (MonadUnliftIO m) => Property -> (FilePath -> m a) -> m a
 withSpec p f = withSystemTempFile "spec.prp" $ \fp hndl -> do

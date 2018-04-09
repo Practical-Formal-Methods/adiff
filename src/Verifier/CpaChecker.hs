@@ -26,7 +26,7 @@ cpaExecute fn = withSpec reachSafety $ \spec -> do
 
 cpaVersion :: IO (Maybe String)
 cpaVersion = do
-    (_,out,_) <- readCreateProcessWithExitCode (shell "cpa.sh -h") ""
+    out <- readCreateProcess (shell "cpa.sh -h") ""
     let v = listToMaybe $ filter (\l -> "CPAchecker" `isPrefixOf` l) $ lines out
     return v
 

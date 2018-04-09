@@ -8,6 +8,7 @@ module Verifier.Debug
 
 import           RIO
 import           Safe
+import           System.Process
 import           Verifier.Util
 
 debuggingVerifiers :: [Verifier]

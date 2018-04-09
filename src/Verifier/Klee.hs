@@ -3,11 +3,11 @@
 module Verifier.Klee (klee) where
 
 import           RIO
-import qualified RIO.ByteString        as BS
+import qualified RIO.ByteString as BS
 import           Safe
 import           Verifier.Util
 
-import qualified Data.ByteString.Char8 as C8
+
 klee :: Verifier
 klee = def { verifierName = "klee"
            , execute = kleeRun
@@ -16,23 +16,35 @@ klee = def { verifierName = "klee"
 
 kleeVersion :: IO (Maybe String)
 kleeVersion = do
-  (_,out,_) <- readCreateProcessWithExitCode (shell "klee --version") ""
+  out <- readCreateProcess (shell "klee --version") ""
   return $ (headMay . lines) out
 
 kleeRun :: FilePath -> RIO VerifierEnv VerifierResult
-kleeRun fn = withKleeH $ \kleeH ->
-    withSystemTempFile "file.bc" $ \bc _ -> do
-      liftIO $ callCommand $ "clang-3.8 -emit-llvm -I " ++ kleeH ++ " -c -g " ++ fn ++ " -o " ++ bc
-      let cmd = shell $ "klee " ++ bc
-      withTiming cmd "" $ \ec out err ->
-        case (ec, BS.null out) of
-          (ExitSuccess, True)  -> return Unsat
-          (ExitSuccess, False) -> return Sat
-          _                    -> error "unexpected outcome in klee"
+kleeRun fn = withSystemTempDirectory "kleedir" $ \dir -> do
+  -- write klee.h into this directory
+  let pathKleeH = dir ++ "/klee.h"
+      pathProgram = dir ++ "/program.c"
+      pathBC = dir ++ "/program.bc"
+  -- save the klee.h header file into this directory
+  writeFileBinary pathKleeH kleeH
+  -- prepend an include statement
+  writeFileUtf8 pathProgram "#include \"klee.h\"\n"
+  callCommand ["cat", fn, ">>",  pathProgram]
+  -- replace call to __VERIFIER_assert
+  callCommand ["sed -i -e", "'s/__VERIFIER_error();/klee_assert(0);/'", pathProgram]
+  -- compile with clang
+  callCommand ["clang-3.8", "-emit-llvm -c -g",  pathProgram, "-o",  pathBC]
+
+  -- run klee with timing
+  withTiming (proc "klee " [pathBC]) "" $ \ec _ err -> do
+    let hasError = "ASSERTION FAIL" `BS.isInfixOf` err
+    case (ec, hasError) of
+      (ExitSuccess, True)  -> return Sat
+      (ExitSuccess, False) -> return Unsat
+      _                    -> do
+        logWarn $ "unexpected behaviour of klee (" <> displayShow ec <> ")"
+        return Unknown
 
 
-withKleeH :: (MonadUnliftIO m) => (FilePath -> m a) -> m a
-withKleeH actn = withSystemTempFile "klee.h"$ \f h -> do
-  liftIO $ C8.hPutStrLn h $(embedFile "assets/klee.h")
-  liftIO $ hFlush h
-  actn f
+kleeH :: ByteString
+kleeH = $(embedFile "assets/klee.h")

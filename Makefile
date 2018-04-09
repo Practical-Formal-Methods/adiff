@@ -41,7 +41,7 @@ test:
 
 # integration
 test-integration: vdiff-docker
-	stack test vdiff:integration --no-run-tests
+	stack build vdiff:integration --no-run-tests
 	docker run vdiff:latest /bin/bash -lc "integration --color=always"
 
 
