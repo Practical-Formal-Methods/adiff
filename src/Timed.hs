@@ -97,14 +97,13 @@ exec cp rkill input microsecs = do
     -- let err' = C8.unlines $ L.init $ C8.lines err
     case code of
       ExitSuccess -> do
-        let Just (timing, err') = parseTimed err
+        (timing, err') <- parseTimed_ err
         return (Just (code, timing), out, err')
       ExitFailure n -> if n < 0
                        then return (Nothing, out, err)
-                       else
-                            case parseTimed err of
-                              Just (timing, err') -> return (Just (code, timing), out, err')
-                              Nothing -> error $ "terminated, but couldn't parse the output of `time`, stderr output was " <> show err
+                       else do
+                         (timing, err') <- parseTimed_ err
+                         return (Just (code, timing), out, err')
 
 terminateDelayed :: ProcessHandle
                  -> Bool -- killall complete process group
@@ -125,14 +124,21 @@ wrapTime :: CreateProcess -> CreateProcess
 wrapTime cp = cp'
   where
     cp' = cp {cmdspec = modify (cmdspec cp) }
-    modify (ShellCommand cmd)   = ShellCommand ("/usr/bin/time -f " ++ format ++ " sh -c '" ++ cmd ++ "'")
+    modify (ShellCommand cmd)   = ShellCommand ("/usr/bin/time -f '" ++ format ++ "' sh -c '" ++ cmd ++ "'")
     modify (RawCommand fp args) = RawCommand "/usr/bin/time" ("-f":format:fp:args)
-    format = "\"%U %S %e %M\""
+    format = "%U %S %e %M"
 
 data TimedError = ParsingError
   deriving Show
 
 instance Exception TimedError
+
+
+parseTimed_ :: ByteString -> IO (Timing, ByteString)
+parseTimed_ bs = case parseTimed bs of
+                   Just res -> return res
+                   Nothing -> error $ "terminated, but couldn't parse the output of `time`, output was " <> show bs
+
 
 parseTimed :: ByteString -> Maybe (Timing, ByteString)
 parseTimed str = do
