@@ -9,7 +9,7 @@ import           Options.Applicative
 
 import           Diff
 import           Persistence
-import           Types
+import           Types               hiding (strategy, verifiers)
 import           Verifier
 
 
@@ -65,66 +65,69 @@ opts = info (parseMainParameters <**> helper)
 
 
 parseMainParameters :: Parser MainParameters
-parseMainParameters = MainParameters <$> parseLogLevel <*> parseDatabasePath <*> parseCmd
-  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRun <|> parseCmdRunVerifiers
-
-parseLogLevel :: Parser LogLevel
-parseLogLevel = option levelP (long "log-level" <> help helpText <> metavar "LOGLEVEL" <> value LevelWarn)
-  where
-    helpText = "Allowed values: debug, info, warning, error"
-    levelP = (str :: ReadM Text ) >>= \case
-      "debug"   -> return LevelDebug
-      "info"    -> return LevelInfo
-      "warning" -> return LevelWarn
-      "error"   -> return LevelError
-      s -> readerError $ "unknown log level " ++ show s
+parseMainParameters = MainParameters <$> level <*> databasePath <*> parseCmd
+  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
 
 
-parseDatabasePath :: Parser String
-parseDatabasePath = option str (long "database" <> short 'd' <> help "path to sqlite3 database" <> value ":memory:")
+
+databasePath :: Parser String
+databasePath = option str options
+  where options = mconcat [ long "database"
+                          , short 'd'
+                          , help "path to sqlite3 database (if not given, an in-memory database is used)"
+                          , value ":memory:"
+                          , action "file"
+                          ]
 
 
 parseCmdVersion :: Parser Cmd
 parseCmdVersion = CmdVersions <$ switch ( long "versions" <> help "prints versions of the available verifiers" )
 
 parseCmdTest :: Parser Cmd
-parseCmdTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints the given file") <*> argument str (metavar "FILE")
+parseCmdTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints the given file") <*> cFile
 
 parseCmdMarkReads :: Parser Cmd
-parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> argument str (metavar "FILE")
+parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> cFile
 
-parseCmdRun :: Parser Cmd
-parseCmdRun = CmdRun <$> (DiffParameters
-      <$> option stratParser (mconcat [ long "strategy"
-                                      , help "guidance algorithm (available: 'random' and 'smart')"
-                                      , value RandomStrategy
-                                      , showDefaultWith strategyName
-                                      , metavar "STRATEGY"])
-      <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
+parseCmdRunDiff :: Parser Cmd
+parseCmdRunDiff = CmdRun <$> (DiffParameters
+      <$> strategy       <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
       <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
-      <*> option verifierParser (mconcat [ long "verifiers"
-                                        , help ("the compared verifiers (available: " ++ show (map verifierName (allVerifiers ++ debuggingVerifiers)) ++ ")"  )
-                                        , value allVerifiers
-                                        , metavar "VERIFIERS"
-                                        ])
-      <*> argument str (metavar "FILE"))
+      <*> verifiers
+      <*> cFile
+      )
 
-parseCmdRunVerifiers = CmdRunVerifiers
-  <$> option verifierParser (mconcat [ long "run"
-                                        , help ("the compared verifiers (available: " ++ show (map verifierName (allVerifiers ++ debuggingVerifiers)) ++ ")"  )
-                                        , value allVerifiers
-                                        ])
-  <*> argument str (metavar "FILE")
+parseCmdRunVerifiers :: Parser Cmd
+parseCmdRunVerifiers = switch (long "run") *> (CmdRunVerifiers <$> verifiers <*>  cFile)
 
 
-stratParser :: ReadM Strategy
-stratParser = (str :: ReadM Text) >>= \case
-    "random"        -> return RandomStrategy
-    "smart"          -> return SmartStrategy
-    _ -> readerError "Accepted strategies are 'naive' and 'smart'."
+cFile :: Parser FilePath
+cFile =  argument str options
+  where options = mconcat [ metavar "FILE"
+                          , help "a C file"
+                          , action "file"
+                          ]
+strategy :: Parser Strategy
+strategy = option stratParser options
+  where options = mconcat [ long "strategy"
+                          , help "guidance algorithm (available: 'random' and 'smart')"
+                          , value RandomStrategy
+                          , showDefaultWith strategyName
+                          , metavar "STRATEGY"
+                          , completeWith ["random", "smart"]
+                          ]
+        stratParser = (str :: ReadM Text) >>= \case
+          "random"        -> return RandomStrategy
+          "smart"          -> return SmartStrategy
+          _ -> readerError "Accepted strategies are 'naive' and 'smart'."
 
-verifierParser :: ReadM [Verifier]
-verifierParser = str >>= \s -> if s == ""
+verifiers :: Parser [Verifier]
+verifiers = option verifierParser options
+  where options = mconcat [ long "verifiers"
+                          , help ("the compared verifiers (available: " ++ show (map verifierName (allVerifiers ++ debuggingVerifiers)) ++ ")"  )
+                          , value allVerifiers
+                          ]
+        verifierParser = str >>= \s -> if s == ""
                                then pure []
                                else let reqVer = words s
                                         unavailable = reqVer L.\\ map verifierName (allVerifiers ++ debuggingVerifiers)
@@ -133,3 +136,20 @@ verifierParser = str >>= \s -> if s == ""
                                       then pure $ filter (\v -> verifierName v `elem` reqVer) (allVerifiers ++ debuggingVerifiers)
                                       else readerError $ "unknown verifier(s): " ++ unwords unavailable
 
+level :: Parser LogLevel
+level = option levelP options
+  where
+    options = mconcat [ long "log-level"
+                      , help helpText
+                      , metavar "LOGLEVEL"
+                      , value LevelWarn
+                      , completeWith values
+                      ]
+    values = ["debug", "info", "warning", "error"]
+    helpText = "Allowed values: " ++ concat (L.intersperse ", " values)
+    levelP = (str :: ReadM Text ) >>= \case
+      "debug"   -> return LevelDebug
+      "info"    -> return LevelInfo
+      "warning" -> return LevelWarn
+      "error"   -> return LevelError
+      s -> readerError $ "unknown log-level " ++ show s
