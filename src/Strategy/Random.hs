@@ -1,15 +1,16 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE MultiWayIf            #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE MultiWayIf             #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
 module Strategy.Random (randomStrategy) where
 
-import qualified Prelude              as P
+import qualified Prelude                    as P
 import           RIO
 
-import           Control.Lens         hiding (view)
+import           Control.Lens               hiding (view)
 import           Control.Monad.State.Strict
 import           Language.C.Data.Lens
 import           System.Random
@@ -19,7 +20,10 @@ import           Types
 
 import           Strategy.Util
 
-data RandomState = RandomState { _budget :: !Int }
+data RandomState = RandomState
+  { _budget                :: !Int
+  , _stepsWithoutInsertion :: !Int
+  }
 makeFieldsNoPrefix ''RandomState
 
 
@@ -36,18 +40,22 @@ randomStrategy = do
   tu <- view translationUnit
   let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
   b <- view (diffParameters . budget)
-  let initState = RandomState b
+  let initState = RandomState b 0
   void $ runRandomS initState bdy
 
 
 randomStrategy' :: (IsStrategyEnv env) => RandomS env ()
-randomStrategy' =
-  whenM ((>0) <$> use budget) $ do
+randomStrategy' = do
+  bdg <- use budget
+  stps <- use stepsWithoutInsertion
+  when (bdg > 0 && stps < 1000) $ do
     randomStep
+    stepsWithoutInsertion += 1
     vars <- findReads
     unless (null vars) $ tryout $ do
         (v,ty) <- chooseOneOf vars
         asrt <- mkAssertion v ty
+        stepsWithoutInsertion .= 0
         insertBefore asrt
         tu <- buildTranslationUnit
         (_, conclusion) <- verify tu
