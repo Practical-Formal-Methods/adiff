@@ -12,7 +12,6 @@ module Timed
   ) where
 
 import           Data.Text.IO          (hPutStr)
-import           Prelude               (read)
 import           RIO
 import qualified RIO.List.Partial      as L
 
@@ -20,6 +19,7 @@ import           Control.Concurrent    (ThreadId, forkIO)
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as C8
 import           Data.Default
+import           Text.Read             (readMaybe)
 
 import           System.Process
 
@@ -61,7 +61,7 @@ readNonBlockingUntilTerminated ph h ref mutex = do
     readChunk = do
           bs <- BS.hGetNonBlocking h (64 * 1024)
           modifyIORef ref (<> bs)
-    terminate = tryPutMVar mutex () >> return ()
+    terminate = void $ tryPutMVar mutex ()
 
 
 
@@ -97,13 +97,14 @@ exec cp rkill input microsecs = do
     -- let err' = C8.unlines $ L.init $ C8.lines err
     case code of
       ExitSuccess -> do
-        (timing, err') <- parseTimed err
+        let Just (timing, err') = parseTimed err
         return (Just (code, timing), out, err')
       ExitFailure n -> if n < 0
                        then return (Nothing, out, err)
-                       else do
-                            (timing, err') <- parseTimed err
-                            return (Just (code, timing), out, err')
+                       else
+                            case parseTimed err of
+                              Just (timing, err') -> return (Just (code, timing), out, err')
+                              Nothing -> error $ "terminated, but couldn't parse the output of `time`, stderr output was " <> show err
 
 terminateDelayed :: ProcessHandle
                  -> Bool -- killall complete process group
@@ -133,15 +134,18 @@ data TimedError = ParsingError
 
 instance Exception TimedError
 
--- TODO: IO exceptions are not nice
-parseTimed :: ByteString -> IO (Timing, ByteString)
+parseTimed :: ByteString -> Maybe (Timing, ByteString)
 parseTimed str = do
   let l = C8.lines str
       w = C8.words $ L.last l
   case map C8.unpack w  of
     [u, s, e, m] -> do
-                      let timing = Timing (read u) (read s) (read e) (read m)
-                      return (timing, C8.unlines (L.init l))
-    _            -> throwIO ParsingError
+      u' <- readMaybe u
+      s' <- readMaybe s
+      e' <- readMaybe e
+      m' <- readMaybe m
+      let timing = Timing u' s' e' m'
+      return (timing, C8.unlines (L.init l))
+    _            -> Nothing
 
 

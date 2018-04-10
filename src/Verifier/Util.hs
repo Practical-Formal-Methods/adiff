@@ -74,7 +74,7 @@ withTiming :: (HasLogFunc env, HasTimeLimit env) =>
            -> (ExitCode -> ByteString -> ByteString -> RIO env Verdict)
            -> RIO env VerifierResult
 withTiming cp inp cont = do
-  logInfo $ "runing command: " <> displayShow (cmdspec cp)
+  logInfo $ "running command (withTiming) " <> displayShow (cmdspec cp)
   (termination, out, err) <- execTimed cp inp
   case termination of
     Nothing           -> do
