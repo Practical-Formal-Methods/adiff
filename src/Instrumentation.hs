@@ -92,7 +92,7 @@ readsStatement :: Stmt -> [(Ident,Type)]
 readsStatement s = case s of
   (CExpr (Just e) _)  -> readsExpression e
   (CExpr Nothing _)   -> []
-  (CIf e _ _ _)       -> readsExpression e -- [internalIdent "x"]
+  (CIf e _ _ _)       -> readsExpression e
   (CWhile e _ _ _)    -> readsExpression e
   (CLabel _ stmt _ _) -> readsStatement stmt
   (CSwitch e _ _)     -> readsExpression e
@@ -117,12 +117,11 @@ readsStatement s = case s of
     readsDeclaration :: CDeclaration SemPhase -> ([(Ident, Type)], [Ident])
     readsDeclaration (CDecl _ declrs _) = (reads, declared)
       where
-        reads = concatMap readsInitializer initializers :: [(Ident,Type)]
+        reads        = concatMap readsInitializer initializers :: [(Ident,Type)]
         initializers = catMaybes $ map (\(_,x,_) -> x) declrs
-        declarators = catMaybes $ map (\(x,_,_) -> x) declrs :: [CDeclarator SemPhase]
-        declared = catMaybes $ map identifier declarators
-          where
-            identifier (CDeclr mi _ _ _ _) = mi
+        declarators  = catMaybes $ map (\(x,_,_) -> x) declrs :: [CDeclarator SemPhase]
+        declared     = catMaybes $ map identifier declarators
+          where identifier (CDeclr mi _ _ _ _) = mi
     readsDeclaration _ = ([],[])
 
 --------------------------------------------------------------------------------
