@@ -36,7 +36,7 @@ kleeRun fn = withSystemTempDirectory "kleedir" $ \dir -> do
   callCommand ["clang-3.8", "-emit-llvm -c -g",  pathProgram, "-o",  pathBC]
 
   -- run klee with timing
-  withTiming (proc "klee " [pathBC]) "" $ \ec _ err -> do
+  withTiming (shell $ "klee " ++pathBC) "" $ \ec _ err -> do
     let hasError = "ASSERTION FAIL" `BS.isInfixOf` err
     case (ec, hasError) of
       (ExitSuccess, True)  -> return Sat
