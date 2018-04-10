@@ -7,22 +7,25 @@
 module Strategy.Smart (smartStrategy) where
 
 import           RIO
+import qualified RIO.Map                    as Map
 
-import           Control.Lens         hiding (view)
+import           Control.Lens               hiding (view)
 import           Control.Monad.State.Strict
-import           Data.List            (sortBy)
+import           Data.List                  (sortBy)
 import           Language.C.Data.Lens
 
+import           Data
 import           Instrumentation
 import           Strategy.Util
+import           Timed
 import           Types
 
 
 data SmartState = SmartState
-  {
-    _budget :: !Int
+  { _budget   :: !Int                     -- ^ remaining budget
+  , _averages :: Map VerifierName Double  -- ^ average runtime for each verifier
+  , _runN     :: !Int                     -- ^ number of past runs
   }
-
 makeFieldsNoPrefix ''SmartState
 
 newtype Smart env a = Smart
@@ -34,8 +37,8 @@ smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
   let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
-  budget <- view (diffParameters . budget)
-  let initState = SmartState budget
+  bdgt <- view (diffParameters . budget)
+  let initState = SmartState bdgt Map.empty 0
   void $ runSmart initState stmt
 
 runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
@@ -122,10 +125,27 @@ exploreStatement = do
       bdg <- use budget
       if bdg > 0
         then do
+           -- run verifiers
           (res, conclusion) <- verify tu
+          -- update moving average
+          updateAverages res
+          -- calculate score from conclusion (TODO: Also use timing differences)
           return $ toScore conclusion
         else return 0
   return $ maximum scores
+
+-- "cumulative moving average"
+updateAverages :: (IsStrategyEnv env) => [VerifierRun] -> Smart env ()
+updateAverages rs = do
+  n <- fromIntegral <$> use runN
+  tl <- fromIntegral <$> view (diffParameters . timelimit)
+  forM_ rs $ \r -> do
+    let newTime = maybe tl elapsedWall (timing (verifierResult r))
+    averages . ix (runVerifierName r) %= updateAverage n newTime
+
+  where updateAverage n newTime old = (n * old + newTime ) /  (n + 1)
+
+
 
 
 -- subject to change
