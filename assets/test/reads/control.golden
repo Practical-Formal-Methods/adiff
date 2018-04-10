@@ -6,6 +6,7 @@ int main()
     {
         ;
     }
+    __VERIFIER_read(x);
     for (int i = x; i < 5; i++)
     {
         ;

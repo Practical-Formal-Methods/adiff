@@ -96,6 +96,10 @@ readsStatement s = case s of
   (CWhile e _ _ _)    -> readsExpression e
   (CLabel _ stmt _ _) -> readsStatement stmt
   (CSwitch e _ _)     -> readsExpression e
+  (CFor (Left me1) me2 me3 _ _) -> concat $ catMaybes $ (fmap.fmap $ readsExpression) [me1, me2, me3]
+  (CFor (Right decl) me2 me3 _ _) -> let reads2 = concat $ catMaybes $ (fmap.fmap $ readsExpression) [me2, me3]
+                                         (reads1, exclude) = readsDeclaration decl
+                                     in filter (\x -> fst x `notElem` exclude)  (reads1 ++ reads2)
   _                   -> []
 
   where
@@ -105,6 +109,21 @@ readsStatement s = case s of
     readsExpression (CAssign _ _ e2 _) = readsExpression e2
     readsExpression (CCall _ es _)     = concatMap readsExpression es
     readsExpression _                  = []
+
+    readsInitializer :: CInitializer SemPhase -> [(Ident,Type)]
+    readsInitializer (CInitExpr e _) = readsExpression e
+    readsInitializer (CInitList lst _) = concat $ map (readsInitializer.snd) lst
+
+    readsDeclaration :: CDeclaration SemPhase -> ([(Ident, Type)], [Ident])
+    readsDeclaration (CDecl _ declrs _) = (reads, declared)
+      where
+        reads = concatMap readsInitializer initializers :: [(Ident,Type)]
+        initializers = catMaybes $ map (\(_,x,_) -> x) declrs
+        declarators = catMaybes $ map (\(x,_,_) -> x) declrs :: [CDeclarator SemPhase]
+        declared = catMaybes $ map identifier declarators
+          where
+            identifier (CDeclr mi _ _ _ _) = mi
+    readsDeclaration _ = ([],[])
 
 --------------------------------------------------------------------------------
 -- $zipping
