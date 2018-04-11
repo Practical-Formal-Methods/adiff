@@ -34,8 +34,6 @@ executables:
     dependencies: vdiff
     ghc-options: -threaded -O2
 
-
-executables:
   vdiff-viewer:
     source-dirs: app/vdiff-viewer
     main: Main.hs
