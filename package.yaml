@@ -29,9 +29,18 @@ default-extensions:
 
 executables:
   vdiff:
-    source-dirs: app
+    source-dirs: app/vdiff
     main: Main.hs
     dependencies: vdiff
+    ghc-options: -threaded -O2
+
+
+executables:
+  vdiff-viewer:
+    source-dirs: app/vdiff-viewer
+    main: Main.hs
+    dependencies:
+      - vdiff
     ghc-options: -threaded -O2
 
 library:
@@ -90,3 +99,5 @@ dependencies:
   - unix
   - lens
   - uniplate
+  - pptable >= 0.3.0
+  - containers

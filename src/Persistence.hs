@@ -10,8 +10,8 @@ import qualified Database.SQLite.Simple         as SQL
 import           Database.SQLite.Simple.ToField
 
 import           Data
-import           Types
 import           Timed
+import           Types
 --------------------------------------------------------------------------------
 -- * Persistence
 --------------------------------------------------------------------------------
@@ -49,10 +49,27 @@ instance Persistent VerifierRun where
     SQL.execute conn "INSERT INTO runs(verifier_name,result,time,memory,code_hash) VALUES (?,?,?,?,?)" row
 
 -- | This is a RIO version of persist
-persist' :: HasDatabase env => Persistent a => a -> RIO env ()
+persist' :: (HasDatabase env, Persistent a) => a -> RIO env ()
 persist' x = do
   conn <- view databaseL
   liftIO $ persist conn x
+
+
+query_ :: (SQL.FromRow r, HasDatabase env) => SQL.Query -> RIO env [r]
+query_ q = do
+  conn <- view databaseL
+  liftIO $ SQL.query_ conn q
+
+query :: (HasDatabase env, SQL.ToRow q, SQL.FromRow r) => SQL.Query -> q -> RIO env [r]
+query q params = do
+  conn <- view databaseL
+  liftIO $ SQL.query conn q params
+
+fold_ :: (HasDatabase env, SQL.FromRow row) => SQL.Query -> a -> (a -> row -> IO a) -> RIO env a
+fold_ q z f = do
+  conn <- view databaseL
+  liftIO $ SQL.fold_ conn q z f
+
 
 --------------------------------------------------------------------------------
 -- * Utilities
