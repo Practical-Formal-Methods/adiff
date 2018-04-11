@@ -55,8 +55,8 @@ instance HasDatabase MainEnv where
 
 -- | Every verifier is supposed to run in this environment
 data VerifierEnv = VerifierEnv
-  { _verifierEnvLogger :: LogFunc
-  , _timeLimit         :: Microseconds
+  { _verifierEnvLogger :: !LogFunc
+  , _timeLimit         :: !Microseconds
   }
 instance HasLogFunc VerifierEnv where
   logFuncL = lens _verifierEnvLogger (\e l -> e { _verifierEnvLogger = l})
@@ -74,10 +74,10 @@ class HasTranslationUnit env where
   translationUnit :: Lens' env (CTranslationUnit SemPhase)
 
 data StrategyEnv = StrategyEnv
-  { _strategyLogFunc         :: LogFunc
-  , _strategyTranslationUnit :: CTranslationUnit SemPhase
-  , _strategyDiffParameters  :: DiffParameters
-  , _strategyDatabase        :: SQL.Connection
+  { _strategyLogFunc         :: !LogFunc
+  , _strategyTranslationUnit :: !(CTranslationUnit SemPhase)
+  , _strategyDiffParameters  :: !DiffParameters
+  , _strategyDatabase        :: !SQL.Connection
   }
 
 instance HasTranslationUnit StrategyEnv where
@@ -105,10 +105,10 @@ mkStrategyEnv tu dp = do
 
 -- TODO: Does this partitioning make sense?
 data Conclusion
-  = StrongAgreement Verdict       -- ^ all verifiers agree on an outcome
-  | WeakAgreement   Verdict       -- ^ all verifiers that terminate with sat or unsat agree
-  | Unsoundness    [VerifierName] -- ^ verifiers that accept the program although the majority does not
-  | Incompleteness [VerifierName] -- ^ verifiers reject the program although the majority does not
+  = StrongAgreement !Verdict       -- ^ all verifiers agree on an outcome
+  | WeakAgreement   !Verdict       -- ^ all verifiers that terminate with sat or unsat agree
+  | Unsoundness    ![VerifierName] -- ^ verifiers that accept the program although the majority does not
+  | Incompleteness ![VerifierName] -- ^ verifiers reject the program although the majority does not
   | Disagreement                  -- ^ none of the other cases
   deriving (Show)
 

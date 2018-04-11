@@ -24,10 +24,10 @@ import           Text.Read             (readMaybe)
 import           System.Process
 
 data Timing = Timing
-  { userTime          :: Double -- ^ time spend in user space (in seconds)
-  , systemTime        :: Double -- ^ time spend in kernel mode (in seconds)
-  , elapsedWall       :: Double -- ^ elapsed wall time (in seconds)
-  , maxResidentMemory :: Int    -- ^ maximum residential memory (in kilobytes)
+  { userTime          :: !Double -- ^ time spend in user space (in seconds)
+  , systemTime        :: !Double -- ^ time spend in kernel mode (in seconds)
+  , elapsedWall       :: !Double -- ^ elapsed wall time (in seconds)
+  , maxResidentMemory :: !Int    -- ^ maximum residential memory (in kilobytes)
   } deriving (Show)
 
 instance Display Timing where
