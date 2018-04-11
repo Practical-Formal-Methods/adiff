@@ -11,14 +11,31 @@ import qualified Data.ByteString.Base16         as Hex
 import qualified Data.ByteString.Char8          as C8
 import           Data.Text.Encoding
 import           Database.SQLite.Simple.ToField
+import           Database.SQLite.Simple.FromField
 
 import           RIO
 
 import           Timed
 
 newtype Hashed = Hashed { getHash :: ByteString }
-  deriving (Show, Eq)
+  deriving (Eq)
 
+
+instance ToField Hashed where
+  toField x = toField (C8.unpack $ getHash x)
+
+instance Display Hashed where
+  display x =  display $ decodeUtf8 $  Hex.encode (getHash x)
+
+instance Show Hashed where
+  show x = C8.unpack $ Hex.encode $ getHash x
+
+instance FromField Hashed where
+  fromField x = do
+    (s :: Text) <- fromField x
+    let sbs = encodeUtf8 s
+        unhex = fst $ Hex.decode sbs
+    return $ Hashed unhex
 
 -- | An instrumented program
 data CProgram = CProgram
@@ -69,8 +86,3 @@ instance ToField Verdict where
 
 
 
-instance ToField Hashed where
-  toField x = toField (C8.unpack $ getHash x)
-
-instance Display Hashed where
-  display x =  display $ decodeUtf8 $  Hex.encode (getHash x)

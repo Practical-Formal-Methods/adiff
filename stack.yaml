@@ -3,14 +3,7 @@ packages:
 - .
 - ./language-c-extensible
 extra-deps:
-- rio-0.1.0.0
-- suspend-0.2.0.0
-- timers-0.2.0.3
+- pptable-0.3.0.0
 - process-1.6.3.0
-- unliftio-0.2.6.0
-
+- rio-0.1.0.0
 resolver: lts-11.3
-
-# docker:
-#   enable: true
-#   image: "vdiff:latest"
