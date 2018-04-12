@@ -45,20 +45,16 @@ instance Default Timing where
 
 readNonBlockingUntilTerminated :: ProcessHandle -> Handle -> IORef BS.Builder -> MVar () -> IO ()
 readNonBlockingUntilTerminated ph h ref mutex = do
-      open <- hIsOpen h
-      if open
-        then do
-          -- Read any outstanding input.
-          readChunk
-          -- Check on the process.
-          s <- getProcessExitCode ph
-          -- Exit or loop.
-          case s of
-              Nothing -> readNonBlockingUntilTerminated ph h ref mutex
-              Just _ -> do
-                readChunk
-                terminate
-        else terminate
+  -- Read any outstanding input.
+  readChunk
+  -- Check on the process.
+  s <- getProcessExitCode ph
+  -- Exit or loop.
+  case s of
+      Nothing -> readNonBlockingUntilTerminated ph h ref mutex
+      Just _ -> do
+        readChunk
+        terminate
   where
     readChunk = do
           bs <- BS.hGetNonBlocking h (64 * 1024)
