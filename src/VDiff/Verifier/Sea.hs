@@ -1,9 +1,10 @@
-module Verifier.Sea(seahorn, seacrab) where
+module VDiff.Verifier.Sea(seahorn, seacrab) where
 
 import           RIO
 
 import qualified Data.ByteString.Char8 as C8
-import           Verifier.Util
+
+import           VDiff.Verifier.Util
 
 seahorn :: Verifier
 seahorn = def { verifierName = "seahorn"

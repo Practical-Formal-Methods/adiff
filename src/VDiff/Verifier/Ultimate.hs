@@ -1,9 +1,10 @@
-module Verifier.Ultimate(uautomizer, utaipan) where
+module VDiff.Verifier.Ultimate(uautomizer, utaipan) where
 
 import           RIO
 
 import qualified Data.ByteString.Char8 as C8
-import           Verifier.Util
+
+import           VDiff.Verifier.Util
 
 uautomizer :: Verifier
 uautomizer = def { verifierName = "uautomizer"

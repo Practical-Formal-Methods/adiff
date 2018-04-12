@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
-module Strategy.Random (randomStrategy) where
+module VDiff.Strategy.Random (randomStrategy) where
 
 import qualified Prelude                    as P
 import           RIO
@@ -15,10 +15,9 @@ import           Control.Monad.State.Strict
 import           Language.C.Data.Lens
 import           System.Random
 
-import           Instrumentation
-import           Types
-
-import           Strategy.Util
+import           VDiff.Instrumentation
+import           VDiff.Strategy.Util
+import           VDiff.Types
 
 data RandomState = RandomState
   { _budget                :: !Int

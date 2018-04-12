@@ -1,8 +1,8 @@
 {-# LANGUAGE MultiWayIf          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | common things that are necessary to implement strategies.
-module Strategy.Util
-  ( module Strategy.Util
+module VDiff.Strategy.Util
+  ( module VDiff.Strategy.Util
   , Ident
   , Type
   ) where
@@ -19,10 +19,10 @@ import           Text.PrettyPrint.HughesPJ     (render)
 
 
 
-import           Data
-import           Instrumentation
-import           Persistence
-import           Types
+import           VDiff.Data
+import           VDiff.Instrumentation
+import           VDiff.Persistence
+import           VDiff.Types
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 

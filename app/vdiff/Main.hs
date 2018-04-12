@@ -4,10 +4,10 @@ module Main where
 
 import           RIO
 
-import           Arguments
-import           Diff
-import           Persistence
-import           Types       hiding (strategy, verifiers)
+import           VDiff.Arguments
+import           VDiff.Diff
+import           VDiff.Persistence
+import           VDiff.Types       hiding (strategy, verifiers)
 
 
 main :: IO ()

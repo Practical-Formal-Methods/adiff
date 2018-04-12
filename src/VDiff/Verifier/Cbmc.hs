@@ -1,10 +1,10 @@
-module Verifier.Cbmc (cbmc) where
+module VDiff.Verifier.Cbmc (cbmc) where
 
 import qualified Data.ByteString.Char8 as C8
 import           RIO
 import qualified RIO.List.Partial      as L
 
-import           Verifier.Util
+import           VDiff.Verifier.Util
 
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.

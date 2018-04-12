@@ -10,7 +10,7 @@
 -- disagreement. The 'stronger' the disagreement, the higher the score.
 -- smartStrategy' then allocates budgets proportional to this core to the
 -- statements and recurses on each statement.
-module Strategy.Smart (smartStrategy) where
+module VDiff.Strategy.Smart (smartStrategy) where
 
 import           RIO
 import qualified RIO.Map                    as Map
@@ -20,11 +20,11 @@ import           Control.Monad.State.Strict
 import           Data.List                  (sortBy)
 import           Language.C.Data.Lens
 
-import           Data
-import           Instrumentation
-import           Strategy.Util
-import           Timed
-import           Types
+import           VDiff.Data
+import           VDiff.Instrumentation
+import           VDiff.Strategy.Util
+import           VDiff.Timed
+import           VDiff.Types
 
 
 data SmartState = SmartState

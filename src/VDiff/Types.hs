@@ -2,19 +2,20 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
-module Types
-  ( module Types
+module VDiff.Types
+  ( module VDiff.Types
   , module Data.Default
   ) where
 
 import           RIO
 
 import           Control.Lens.TH
-import           Data
 import           Data.Default
 import qualified Database.SQLite.Simple as SQL
 import           Language.C
 import           System.IO              (FilePath)
+
+import           VDiff.Data
 
 data Strategy = RandomStrategy -- ^ naive random strategy
               | SmartStrategy  -- ^ not implemented yet

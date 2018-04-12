@@ -1,5 +1,5 @@
-module Verifier.Util
-  ( Types.Verifier(..)
+module VDiff.Verifier.Util
+  ( VDiff.Types.Verifier(..)
   , System.Exit.ExitCode(..)
   , VerifierResult(..)
   , Verdict(..)
@@ -13,7 +13,7 @@ module Verifier.Util
   , debugOutput
   , execTimed
   , withTiming
-  , Verifier.Util.callCommand
+  , VDiff.Verifier.Util.callCommand
   , Sys.readCreateProcess
   , Sys.shell
   , Sys.proc
@@ -24,19 +24,18 @@ module Verifier.Util
 
 where
 
-import           RIO
-import           System.IO             (hPutStr)
-
-import           Data
-import           Timed
-import           Types
-
 import qualified Data.ByteString.Char8 as C8
 import           Data.Default          (def)
 import           Data.FileEmbed
+import           RIO
 import           Safe
 import           System.Exit
-import           System.Process as Sys
+import           System.IO             (hPutStr)
+import           System.Process        as Sys
+
+import           VDiff.Data
+import           VDiff.Timed
+import           VDiff.Types
 
 callCommand :: HasLogFunc env => [String] ->  RIO env ()
 callCommand cmd = do

@@ -1,7 +1,7 @@
 -- | argument parsers that are used by both vdiff and vdiff-viewer
 
-module Arguments
-  ( module Arguments
+module VDiff.Arguments
+  ( module VDiff.Arguments
   , module Options.Applicative
   ) where
 
@@ -9,8 +9,8 @@ import           Options.Applicative
 import           RIO
 import qualified RIO.List            as L
 
-import Types
-import Verifier
+import VDiff.Types
+import VDiff.Verifier
 
 databasePath :: Parser String
 databasePath = option str options
