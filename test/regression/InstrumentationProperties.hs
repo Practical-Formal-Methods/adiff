@@ -7,13 +7,13 @@ import           RIO
 import           Control.Lens
 import           Data.FileEmbed
 import           Hedgehog
-import qualified Hedgehog.Gen         as Gen
-import qualified Hedgehog.Range       as Range
+import qualified Hedgehog.Gen          as Gen
+import qualified Hedgehog.Range        as Range
 import           Test.Tasty.Hedgehog
 
-import           Instrumentation
 import           Language.C.Data.Lens
 import           Util
+import           VDiff.Instrumentation
 
 --------------------------------------------------------------------------------
 -- properties
@@ -102,7 +102,7 @@ testGoto2 = testProperty "with random positions" $ property $ do
 
 
 
--- | traverses the tree randomly 
+-- | traverses the tree randomly
 genPosition :: Stmt ->  Gen (AstPosition, Stmt)
 genPosition stmt = do
   ds <- genDirectionList
@@ -114,7 +114,7 @@ genPosition stmt = do
   (x, _) <- runBrowserT actn stmt
   return x
 
-  
+
 
 
 controlReads :: ByteString

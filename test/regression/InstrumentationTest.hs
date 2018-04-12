@@ -10,8 +10,9 @@ import           Text.PrettyPrint            (render)
 
 import           Control.Lens.Operators      ((^?))
 import           Data.Generics.Uniplate.Data ()
-import           Instrumentation
 import           Language.C.Data.Lens
+
+import           VDiff.Instrumentation
 
 import           Util
 
