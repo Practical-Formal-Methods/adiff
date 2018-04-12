@@ -55,6 +55,7 @@ import           Language.C.Analysis.SemRep       hiding (Stmt)
 import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
+import           Language.C.System.GCC
 import           Text.PrettyPrint                 (render)
 
 import           Types
@@ -69,7 +70,7 @@ prettyp = render . Language.C.pretty
 -- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
 openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe (CTranslationUnit SemPhase))
 openCFile fn = do
-  x <- liftIO $ parseCFilePre fn
+  x <- liftIO $ parseCFile (newGCC "gcc") Nothing [] fn
   case x of
     Left parseError -> do
       logError $ "parse error: " <> displayShow parseError

@@ -1,16 +1,15 @@
 module InstrumentationTest where
 
-import qualified Data.ByteString.Lazy.Char8       as LC8
+import qualified Data.ByteString.Lazy.Char8  as LC8
 import           RIO
-import qualified RIO.ByteString.Lazy              as LBS
-import           System.FilePath                  (replaceExtension,
-                                                   takeBaseName)
+import qualified RIO.ByteString.Lazy         as LBS
+import           System.FilePath             (replaceExtension, takeBaseName)
 
 import           Language.C
-import           Text.PrettyPrint                 (render)
+import           Text.PrettyPrint            (render)
 
-import           Control.Lens.Operators           ((^?))
-import           Data.Generics.Uniplate.Data      ()
+import           Control.Lens.Operators      ((^?))
+import           Data.Generics.Uniplate.Data ()
 import           Instrumentation
 import           Language.C.Data.Lens
 
@@ -33,6 +32,7 @@ testZipping = do
     , pure testInsertions
     , pure testInsertBefore
     , testMarkAllReads
+    , pure testPreprocessor
     ]
   return $ testGroup "zipping" tests
 
@@ -81,6 +81,11 @@ testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion"
       insertBefore $ dummyStmt "dummy_03"
       return ()
 
+testPreprocessor :: TestTree
+testPreprocessor = vsGoldenFile "assets/test/gcc/1.c" "preprocess" $ \ast ->
+  return $ LC8.pack $ prettyp ast
+
+
 --------------------------------------------------------------------------------
 
 testInsertBefore :: TestTree
@@ -113,8 +118,4 @@ testMarkAllReads = do
       (Just tu) <- runRIO NoLogging $ openCFile fn
       let bs = render . pretty . markAllReads $ tu
       return $ LC8.pack bs
-
-
-
-
 
