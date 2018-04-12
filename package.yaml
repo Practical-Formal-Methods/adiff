@@ -32,14 +32,14 @@ executables:
     source-dirs: app/vdiff
     main: Main.hs
     dependencies: vdiff
-    ghc-options: -threaded -O2
+    ghc-options: -threaded -O2 -rtsopts
 
   vdiff-viewer:
     source-dirs: app/vdiff-viewer
     main: Main.hs
     dependencies:
       - vdiff
-    ghc-options: -threaded -O2
+    ghc-options: -threaded -O2 -rtsopts
 
 library:
   source-dirs:      src
