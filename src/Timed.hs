@@ -11,23 +11,25 @@ module Timed
   , maxResidentMemory
   ) where
 
-import           Data.Text.IO          (hPutStr)
+import           Data.Text.IO            (hPutStr)
 import           RIO
-import qualified RIO.List.Partial      as L
+import qualified RIO.List.Partial        as L
 
-import           Control.Concurrent    (ThreadId, forkIO)
-import qualified Data.ByteString       as BS
-import qualified Data.ByteString.Char8 as C8
+import           Control.Concurrent      (ThreadId, forkIO)
+import qualified Data.ByteString         as BS
+import qualified Data.ByteString.Builder as BS
+import qualified Data.ByteString.Char8   as C8
+import qualified Data.ByteString.Lazy    as LBS
 import           Data.Default
-import           Text.Read             (readMaybe)
+import           Text.Read               (readMaybe)
 
 import           System.Process
 
 data Timing = Timing
-  { userTime          :: Double -- ^ time spend in user space (in seconds)
-  , systemTime        :: Double -- ^ time spend in kernel mode (in seconds)
-  , elapsedWall       :: Double -- ^ elapsed wall time (in seconds)
-  , maxResidentMemory :: Int    -- ^ maximum residential memory (in kilobytes)
+  { userTime          :: !Double -- ^ time spend in user space (in seconds)
+  , systemTime        :: !Double -- ^ time spend in kernel mode (in seconds)
+  , elapsedWall       :: !Double -- ^ elapsed wall time (in seconds)
+  , maxResidentMemory :: !Int    -- ^ maximum residential memory (in kilobytes)
   } deriving (Show)
 
 instance Display Timing where
@@ -41,26 +43,22 @@ instance Default Timing where
   def = Timing 0 0 0 0
 
 
-readNonBlockingUntilTerminated :: ProcessHandle -> Handle -> IORef ByteString -> MVar () -> IO ()
+readNonBlockingUntilTerminated :: ProcessHandle -> Handle -> IORef BS.Builder -> MVar () -> IO ()
 readNonBlockingUntilTerminated ph h ref mutex = do
-      open <- hIsOpen h
-      if open
-        then do
-          -- Read any outstanding input.
-          readChunk
-          -- Check on the process.
-          s <- getProcessExitCode ph
-          -- Exit or loop.
-          case s of
-              Nothing -> readNonBlockingUntilTerminated ph h ref mutex
-              Just _ -> do
-                readChunk
-                terminate
-        else terminate
+  -- Read any outstanding input.
+  readChunk
+  -- Check on the process.
+  s <- getProcessExitCode ph
+  -- Exit or loop.
+  case s of
+      Nothing -> readNonBlockingUntilTerminated ph h ref mutex
+      Just _ -> do
+        readChunk
+        terminate
   where
     readChunk = do
           bs <- BS.hGetNonBlocking h (64 * 1024)
-          modifyIORef ref (<> bs)
+          when (BS.length bs > 0) $ modifyIORef ref (<> BS.byteString bs)
     terminate = void $ tryPutMVar mutex ()
 
 
@@ -91,8 +89,10 @@ exec cp rkill input microsecs = do
     -- wait for reader threads
     takeMVar m_out
     takeMVar m_err
-    out <- readIORef out_ref
-    err <- readIORef err_ref
+    out <- LBS.toStrict . BS.toLazyByteString <$> readIORef out_ref
+    err <- LBS.toStrict . BS.toLazyByteString <$> readIORef err_ref
+
+
     -- timing <- parseTimed err
     -- let err' = C8.unlines $ L.init $ C8.lines err
     case code of

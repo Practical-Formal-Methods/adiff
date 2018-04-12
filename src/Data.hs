@@ -39,9 +39,9 @@ instance FromField Hashed where
 
 -- | An instrumented program
 data CProgram = CProgram
-  { _source           :: String
-  , _originalFilename :: String
-  , _hash             :: Hashed
+  { _source           :: !String
+  , _originalFilename :: !String
+  , _hash             :: !Hashed
   } deriving Show
 makeFieldsNoPrefix ''CProgram
 
@@ -53,9 +53,9 @@ newtype Timeout = Timeout Int
 
 -- | A run of one verifier against one instrumented program
 data VerifierRun = VerifierRun
-  { runVerifierName :: VerifierName
-  , verifierResult  :: VerifierResult
-  , verifierCode    :: Hashed
+  { runVerifierName :: !VerifierName
+  , verifierResult  :: !VerifierResult
+  , verifierCode    :: !Hashed
   } deriving (Show)
 
 
@@ -65,7 +65,7 @@ data Verdict = Sat | Unsat | Unknown
 
 -- | The result of the verification
 data VerifierResult
-  = VerifierTerminated Verdict Timing
+  = VerifierTerminated !Verdict !Timing
   | VerifierTimedOut
   deriving Show
 
