@@ -16,7 +16,7 @@ import           Language.C.Data.Lens
 import           System.Random
 
 import           VDiff.Instrumentation
-import           VDiff.Strategy.Util
+import           VDiff.Strategy.Common
 import           VDiff.Types
 
 data RandomState = RandomState

@@ -22,7 +22,7 @@ import           Language.C.Data.Lens
 
 import           VDiff.Data
 import           VDiff.Instrumentation
-import           VDiff.Strategy.Util
+import           VDiff.Strategy.Common
 import           VDiff.Timed
 import           VDiff.Types
 

@@ -1,8 +1,8 @@
 {-# LANGUAGE MultiWayIf          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | common things that are necessary to implement strategies.
-module VDiff.Strategy.Util
-  ( module VDiff.Strategy.Util
+module VDiff.Strategy.Common
+  ( module VDiff.Strategy.Common
   , Ident
   , Type
   ) where
