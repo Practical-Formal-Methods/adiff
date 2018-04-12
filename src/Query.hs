@@ -76,7 +76,7 @@ programByHash hsh = do
   prgs <- fold_ "SELECT * FROM programs" [] f
   return $ headMay prgs
   where
-    f ls prg = if (hsh `isInfixOf` (show $ prg ^. hash)) -- TODO: wrong use of show here
+    f ls prg = if (hsh `isInfixOf` (show $ prg ^. hash))
                then return (prg:ls)
                else return ls
 
