@@ -4,6 +4,12 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
+-- | This is another simple strategy. Whenever this strategy finds a compound
+-- statement, it first 'explores' each block item to get a 'score'. This score
+-- is calculated by inserting one assertion per variable and checking for
+-- disagreement. The 'stronger' the disagreement, the higher the score.
+-- smartStrategy' then allocates budgets proportional to this core to the
+-- statements and recurses on each statement.
 module Strategy.Smart (smartStrategy) where
 
 import           RIO
@@ -58,6 +64,8 @@ smartStrategy' = do
         -- find 'best' location
         logDebug "exploring level"
         rts <- sortBest <$> exploreLevel
+        let totalRating = sum $ map fst rts
+        totalBudget <- fromIntegral <$> use budget
         logDebug $ "ratings are: " <> display (tshow rts)
         forM_ rts $ \(rating, idx) -> do
           goto idx
@@ -65,19 +73,24 @@ smartStrategy' = do
           logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
           -- try to find a place go down
           whenM goDownAtNextChance $ do
-          -- recurse from here, but remember a limit of runs after which we will come backup again
-            bdg <- use budget
-            withBudget (bdg `div` 10 + 1) smartStrategy' -- TODO: be smarter here
+            -- allocate budget proportional to the rating
+            let newBudget = ceiling $ totalBudget / totalRating * rating
+            withBudget newBudget smartStrategy'
             go_ Up
 
 
 
 -- | sets the budget to a smaller limit, but still subtracts from the original value
--- (TODO: Use this when recursing on some smaller part)
 withBudget :: (IsStrategyEnv env) => Int -> Smart env a -> Smart env a
 withBudget n act = do
+  x <- use budget
+  budget .= n
   logDebug $ "withBudget: " <> display n
-  act -- TODO: Implement withBudget
+  result <- act
+  x' <- use budget
+  let usedBudget = x - x'
+  budget -= usedBudget
+  return result
 
 -- | moves the cursor down into the next statement if possible. If successful
 -- returns True, otherwise False.
@@ -97,8 +110,9 @@ untilJust a = a >>= \case Nothing -> untilJust a
                           Just x -> return x
 
 
--- go through the level and calculate a 'score', the more disagreement at a statement, the higher the score.
--- This computation is wrapped in tryout, so it won't change the callees' location
+-- | go through the level and calculate a 'score', the more disagreement at a
+-- statement, the higher the score. This computation is wrapped in tryout, so it
+-- won't change the callees' location
 exploreLevel :: (IsStrategyEnv env) => Smart env [(Double, AstPosition)]
 exploreLevel = tryout $ do
   pos <- currentPosition
