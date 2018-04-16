@@ -3,6 +3,7 @@
 -- | common things that are necessary to implement strategies.
 module VDiff.Strategy.Common
   ( module VDiff.Strategy.Common
+  , module VDiff.Strategy.Common.ConstantPool
   , Ident
   , Type
   ) where
@@ -15,6 +16,7 @@ import           RIO                           hiding (view)
 import           System.IO                     (hPutStr)
 import           System.Random
 import Control.Monad.State
+import Safe
 import           Text.PrettyPrint.HughesPJ     (render)
 
 
@@ -23,6 +25,7 @@ import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Persistence
 import           VDiff.Types
+import VDiff.Strategy.Common.ConstantPool
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
@@ -95,7 +98,16 @@ mkAssertion varName ty = do
                        return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
       let  constant'   = CConst constv
            var        = CVar varName (undefNode, ty)
-           identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
            expression = CBinary CNeqOp var constant' (undefNode, boolType)
-           stmt       = CExpr (Just $ CCall identifier [expression] (undefNode, voidType)) (undefNode, voidType)
-      return stmt
+      return (assertStmt expression)
+
+assertStmt :: CExpression SemPhase -> CStatement SemPhase
+assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (undefNode, voidType)
+  where
+    identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
+
+chooseOneOf :: (MonadIO m) => [a] ->  m (Maybe a)
+chooseOneOf options = do
+  i <- liftIO $ getStdRandom $ randomR (0, length options - 1)
+  return (options `atMay` i)
+  

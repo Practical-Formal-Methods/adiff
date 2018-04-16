@@ -7,13 +7,11 @@
 
 module VDiff.Strategy.Random (randomStrategy) where
 
-import qualified Prelude                    as P
 import           RIO
 
 import           Control.Lens               hiding (view)
 import           Control.Monad.State.Strict
 import           Language.C.Data.Lens
-import           System.Random
 
 import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
@@ -52,7 +50,7 @@ randomStrategy' = do
     stepsWithoutInsertion += 1
     vars <- findReads
     unless (null vars) $ tryout $ do
-        (v,ty) <- chooseOneOf vars
+        (Just (v,ty)) <- chooseOneOf vars
         asrt <- mkAssertion v ty
         stepsWithoutInsertion .= 0
         insertBefore asrt
@@ -63,17 +61,12 @@ randomStrategy' = do
     randomStrategy'
 
 
-chooseOneOf :: (MonadIO m) => [a] ->  m a
-chooseOneOf options = do
-  i <- liftIO $ getStdRandom $ randomR (0, length options - 1)
-  return (options P.!! i)
-
 
 
 -- | walks a random step in the ast
 randomStep :: (MonadIO m, MonadBrowser m) => m ()
 randomStep = do
-  d <- chooseOneOf [Up, Down, Next, Prev]
+  (Just d) <- chooseOneOf [Up, Down, Next, Prev]
   success <- go d
   unless success randomStep
 

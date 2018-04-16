@@ -2,6 +2,7 @@
 {-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE MultiWayIf             #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | This is another simple strategy. Whenever this strategy finds a compound
@@ -13,11 +14,14 @@
 module VDiff.Strategy.Smart (smartStrategy) where
 
 import           RIO
-import qualified RIO.Map                    as Map
+import qualified RIO.Map                       as Map
 
-import           Control.Lens               hiding (view)
+import           Control.Lens                  hiding (view)
 import           Control.Monad.State.Strict
-import           Data.List                  (sortBy)
+import           Data.List                     (sortBy)
+import           Language.C
+import           Language.C.Analysis.SemRep    hiding (Stmt)
+import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 
 import           VDiff.Data
@@ -27,10 +31,14 @@ import           VDiff.Timed
 import           VDiff.Types
 
 
+
+
+
 data SmartState = SmartState
-  { _budget   :: !Int                     -- ^ remaining budget
-  , _averages :: Map VerifierName Double  -- ^ average runtime for each verifier
-  , _runN     :: !Int                     -- ^ number of past runs
+  { _budget    :: !Int                    -- ^ remaining budget
+  , _averages  :: Map VerifierName Double -- ^ average runtime for each verifier
+  , _runN      :: !Int                    -- ^ number of past runs
+  , _constants :: ConstantPool            -- ^ constants in the program
   }
 makeFieldsNoPrefix ''SmartState
 
@@ -44,12 +52,15 @@ smartStrategy = do
   tu <- view translationUnit
   let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
   bdgt <- view (diffParameters . budget)
-  let initState = SmartState bdgt Map.empty 0
+  let cs = findAllConstants tu
+      blurred = blurConstants cs
+  logDebug $ "constants found : " <> display cs
+  logDebug $ "constants blurred: " <> display blurred
+  let initState = SmartState bdgt Map.empty 0 blurred
   void $ runSmart initState stmt
 
 runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
 runSmart initState = runBrowserT (runStateT (unSmart smartStrategy') initState)
-
 
 
 smartStrategy' :: (IsStrategyEnv env) => Smart env ()
@@ -128,12 +139,19 @@ exploreLevel = tryout $ do
 -- | produces a score of the current statement. If the statement has no reads
 -- the score is 0, in all other cases the score depends on the "level of
 -- disagreement" of the verifiers
+-- TODO: This uses only one pool constants per variable, currently.
 exploreStatement :: (IsStrategyEnv env) => Smart env Double
 exploreStatement = do
+  -- read variables
   vs <- findReads
   scores <- forM vs $ \(i,ty) ->
     tryout $ do
-      asrt <- mkAssertion i ty
+      -- try a 'pool assertion' first, but if there's nothing in the pool use random
+      asrt <- mkAssertionFromPool i ty >>= \case
+                Just x' -> return x'
+                Nothing -> mkAssertion i ty
+
+      -- insert assertion
       insertBefore asrt
       tu <- buildTranslationUnit
       bdg <- use budget
@@ -160,8 +178,6 @@ updateAverages rs = do
   where updateAverage n newTime old = (n * old + newTime ) /  (n + 1)
 
 
-
-
 -- subject to change
 toScore :: Conclusion -> Double
 toScore (StrongAgreement _) = 0.0
@@ -169,6 +185,19 @@ toScore (WeakAgreement _)   = 1
 toScore (Unsoundness _)     = 100
 toScore (Incompleteness _)  = 10
 toScore  Disagreement       = 3
+
+-- | Chooses a constant: First tries to choose randomly from the pool for the type.
+mkAssertionFromPool :: Ident -> Type -> Smart env (Maybe Stmt)
+mkAssertionFromPool varName ty = do
+  cs <- lookupPool ty <$> use constants
+  chooseOneOf cs >>= \case
+    Nothing -> return Nothing
+    Just c' -> do
+      let var = CVar varName (undefNode, ty)
+          cnst = CConst c'
+          expr = CBinary CNeqOp var cnst (undefNode, voidType)
+      return $ Just $ assertStmt expr
+
 
 --------------------------------------------------------------------------------
 -- | NOTE: Only makes sense for positive numbers
@@ -178,3 +207,5 @@ maximum = foldl' max 0
 
 sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]
 sortBest = sortBy (flip $ comparing fst)
+
+
