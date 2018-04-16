@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE MultiWayIf             #-}
+{-# LANGUAGE ParallelListComp       #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | This is another simple strategy. Whenever this strategy finds a compound
@@ -14,19 +15,19 @@
 module VDiff.Strategy.Smart (smartStrategy) where
 
 import           RIO
-import qualified RIO.Map                       as Map
 
-import           Control.Lens                  hiding (view)
+import           Control.Lens                   hiding (view)
 import           Control.Monad.State.Strict
-import           Data.List                     (sortBy)
+import           Data.List                      (sortBy)
 import           Language.C
-import           Language.C.Analysis.SemRep    hiding (Stmt)
+import           Language.C.Analysis.SemRep     hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 
 import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
+import           VDiff.Strategy.Common.Averages
 import           VDiff.Timed
 import           VDiff.Types
 
@@ -35,28 +36,33 @@ import           VDiff.Types
 
 
 data SmartState = SmartState
-  { _budget    :: !Int                    -- ^ remaining budget
-  , _averages  :: Map VerifierName Double -- ^ average runtime for each verifier
-  , _runN      :: !Int                    -- ^ number of past runs
-  , _constants :: ConstantPool            -- ^ constants in the program
+  { _budget    :: !Int         -- ^ remaining budget
+  , _averages  :: [Double]     -- ^ average runtime for each verifier
+  , _averagesN :: !Double         -- ^ number of past runs
+  , _constants :: ConstantPool -- ^ constants in the program
   }
 makeFieldsNoPrefix ''SmartState
+
 
 newtype Smart env a = Smart
   { unSmart :: StateT SmartState (BrowserT (RIO env)) a
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
+
+-- this monad is also a average monad
+instance AverageMonad SmartState (Smart env)
 
 smartStrategy :: (IsStrategyEnv env) => RIO env ()
 smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
   let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
+  n <- length <$> view (diffParameters . verifiers)
   bdgt <- view (diffParameters . budget)
   let cs = findAllConstants tu
       blurred = blurConstants cs
   logDebug $ "constants found : " <> display cs
   logDebug $ "constants blurred: " <> display blurred
-  let initState = SmartState bdgt Map.empty 0 blurred
+  let initState = SmartState bdgt (replicate n 0) 0 blurred
   void $ runSmart initState stmt
 
 runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
@@ -160,31 +166,60 @@ exploreStatement = do
            -- run verifiers
           (res, conclusion) <- verify tu
           -- update moving average
-          updateAverages res
-          -- calculate score from conclusion (TODO: Also use timing differences)
-          return $ toScore conclusion
+          tl <- fromIntegral <$> view (diffParameters  . timelimit)
+          let times = map (maybe (tl / 1000000) elapsedWall . timing . verifierResult) res
+          updateAverages times
+          avgs <- use averages
+          logDebug $ "averages: " <> display (tshow avgs)
+          -- calculate score from conclusion
+          let d = disagreement conclusion
+          t <- timeIrregularity res
+          let score = d + t
+          return score
         else return 0
   return $ maximum scores
 
--- "cumulative moving average"
-updateAverages :: (IsStrategyEnv env) => [VerifierRun] -> Smart env ()
-updateAverages rs = do
-  n <- fromIntegral <$> use runN
-  tl <- fromIntegral <$> view (diffParameters . timelimit)
-  forM_ rs $ \r -> do
-    let newTime = maybe tl elapsedWall (timing (verifierResult r))
-    averages . ix (runVerifierName r) %= updateAverage n newTime
 
-  where updateAverage n newTime old = (n * old + newTime ) /  (n + 1)
 
 
 -- subject to change
-toScore :: Conclusion -> Double
-toScore (StrongAgreement _) = 0.0
-toScore (WeakAgreement _)   = 1
-toScore (Unsoundness _)     = 100
-toScore (Incompleteness _)  = 10
-toScore  Disagreement       = 3
+disagreement :: Conclusion -> Double
+disagreement (StrongAgreement _) = 0.0
+disagreement (WeakAgreement _)   = 1
+disagreement (Unsoundness _)     = 100
+disagreement (Incompleteness _)  = 10
+disagreement  Disagreement       = 3
+
+timeIrregularity :: [VerifierRun] -> Smart env Double
+timeIrregularity result = do
+  avgs <- use averages
+  let times = map (maybe 0 elapsedWall . timing . verifierResult) result
+  return $ timeIrregularity' avgs times
+
+timeIrregularity' :: [Double] -> [Double] -> Double
+timeIrregularity' avgs times =
+  let
+      props = [ t / a | t <- times | a <- avgs ]
+      s = sum [ relativeError t1 t2 | t1 <- props , t2 <- props ]
+      n = fromIntegral (length times) :: Double
+  in s / (n * n)
+
+-- |
+-- Calculate relative error of two numbers:
+--
+-- \[ \frac{|a - b|}{\max(|a|,|b|)} \]
+--
+-- It lies in [0,1) interval for numbers with same sign and (1,2] for
+-- numbers with different sign. If both arguments are zero or negative
+-- zero function returns 0. If at least one argument is transfinite it
+-- returns NaN
+-- Source: math-functions
+relativeError :: Double -> Double -> Double
+relativeError a b
+  | a == 0 && b == 0 = 0
+  | otherwise        = abs (a - b) / max (abs a) (abs b)
+
+
 
 -- | Chooses a constant: First tries to choose randomly from the pool for the type.
 mkAssertionFromPool :: Ident -> Type -> Smart env (Maybe Stmt)

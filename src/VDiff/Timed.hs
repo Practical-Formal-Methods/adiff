@@ -32,6 +32,7 @@ data Timing = Timing
   , maxResidentMemory :: !Int    -- ^ maximum residential memory (in kilobytes)
   } deriving (Show)
 
+
 instance Display Timing where
   display (Timing u s e m) = mconcat [ displayShow u <> "s user "
                                      , displayShow s <> "s system "

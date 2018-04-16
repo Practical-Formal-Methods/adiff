@@ -8,6 +8,8 @@ import           InstrumentationTest
 import           Lens
 import           TimedTest
 
+import           Strategy.Common
+
 
 main :: IO ()
 main = do
@@ -21,6 +23,7 @@ constructTree = do
     , testInstrumentation
     , pure testInstrumentationProperties
     , pure testLenses
+    , pure testCommon
     ]
   return $ testGroup "vdiff" tree
 
