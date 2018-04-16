@@ -4,3 +4,4 @@ export PATH="$HOME/.local/bin:$PATH"
 
 # bash-completion for vdiff
 source <(vdiff --bash-completion-script `which vdiff`)
+source <(vdiff-viewer --bash-completion-script `which vdiff-viewer`)
