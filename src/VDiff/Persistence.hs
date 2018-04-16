@@ -1,4 +1,4 @@
-module Persistence where
+module VDiff.Persistence where
 
 import           RIO
 
@@ -9,9 +9,9 @@ import qualified Data.ByteString.Char8          as C8
 import qualified Database.SQLite.Simple         as SQL
 import           Database.SQLite.Simple.ToField
 
-import           Data
-import           Timed
-import           Types
+import           VDiff.Data
+import           VDiff.Timed
+import           VDiff.Types
 --------------------------------------------------------------------------------
 -- * Persistence
 --------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ import           Test.Tasty
 import           Test.Tasty.Golden
 import           Test.Tasty.HUnit
 
-import           Instrumentation
+import           VDiff.Instrumentation
 
 data NoLogging = NoLogging
 instance HasLogFunc NoLogging where

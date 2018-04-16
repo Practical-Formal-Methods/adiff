@@ -6,8 +6,8 @@ import           Util
 import           Control.Lens.Operators
 import qualified Data.ByteString.Lazy.Char8 as LC8
 
-import           Instrumentation
 import           Language.C.Data.Lens
+import           VDiff.Instrumentation
 
 testLenses :: TestTree
 testLenses = testGroup "lenses" [testIndex]

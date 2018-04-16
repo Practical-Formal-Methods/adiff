@@ -1,13 +1,14 @@
-module Verifier.CpaChecker (cpaChecker) where
+module VDiff.Verifier.CpaChecker (cpaChecker) where
 
 import           RIO
 
-import           Verifier.Util
 
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as C8
 import           Data.List             (isPrefixOf)
 import           Data.Maybe            (listToMaybe)
+
+import           VDiff.Verifier.Util
 
 cpaChecker :: Verifier
 cpaChecker = def { verifierName = "cpachecker", execute = cpaExecute, version = cpaVersion}

@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | the experimental data
-module Data where
+module VDiff.Data where
 
 import           Control.Lens
 import           Data.ByteString
@@ -15,7 +15,7 @@ import           Database.SQLite.Simple.FromField
 
 import           RIO
 
-import           Timed
+import           VDiff.Timed
 
 newtype Hashed = Hashed { getHash :: ByteString }
   deriving (Eq)

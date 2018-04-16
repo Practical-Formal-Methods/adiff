@@ -7,7 +7,7 @@
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | support queries to the database
-module Query where
+module VDiff.Query where
 
 import           RIO
 
@@ -20,9 +20,9 @@ import qualified Database.SQLite.Simple    as SQL
 import           Safe
 import qualified Text.PrettyPrint.Tabulate as T
 
-import           Data
-import           Persistence
-import           Types
+import           VDiff.Data
+import           VDiff.Persistence
+import           VDiff.Types
 
 data Query = Incomplete | Unsound
   deriving (Show, Eq)
@@ -71,12 +71,10 @@ allUnsound = query_ $ SQL.Query (decodeUtf8 $(embedFile "assets/sql/unsoundness.
 -- this folds over the complete database because sqlite does not have string matching
 programByHash :: (HasDatabase env) => String -> RIO env (Maybe CProgram)
 programByHash hsh = do
-  let regex = "'" ++ hsh ++ "*'"
-  -- (prgs :: [CProgram]) <- query "SELECT * FROM programs WHERE code_hash MATCH ?" [regex]
   prgs <- fold_ "SELECT * FROM programs" [] f
   return $ headMay prgs
   where
-    f ls prg = if (hsh `isInfixOf` (show $ prg ^. hash))
+    f ls prg = if hsh `isInfixOf` (show $ prg ^. hash)
                then return (prg:ls)
                else return ls
 

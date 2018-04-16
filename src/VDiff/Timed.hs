@@ -2,7 +2,7 @@
 
 -- | Provides a simple way to execute any @CreateProcess@ wrapped in a call to /usr/bin/time
 -- | It's a very simple implementation. Also: Please do not use it for lazy IO as the string printed to stderr will be fully evaluated.
-module Timed
+module VDiff.Timed
   ( Timing
   , exec
   , userTime

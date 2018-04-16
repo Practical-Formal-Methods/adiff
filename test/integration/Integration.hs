@@ -8,9 +8,9 @@ import qualified RIO.ByteString as BS
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-import           Data
-import           Types
-import           Verifier (allVerifiers)
+import           VDiff.Data
+import           VDiff.Types
+import           VDiff.Verifier (allVerifiers)
 
 main :: IO ()
 main = defaultMain  $ testGroup "vdiff-integration" [testVerifiers]

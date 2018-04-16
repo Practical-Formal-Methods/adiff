@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies        #-}
 
 -- | Main entry point. Implements all the commands that are called from Main
-module Diff where
+module VDiff.Diff where
 
 import           RIO
 
@@ -16,13 +16,12 @@ import           Text.PrettyPrint (render)
 import           System.Exit
 import           System.IO
 
-import           Instrumentation
-import           Persistence
-import           Types
-import           Verifier
-
-import           Strategy.Random
-import           Strategy.Smart
+import           VDiff.Instrumentation
+import           VDiff.Persistence
+import           VDiff.Types
+import           VDiff.Verifier
+import           VDiff.Strategy.Random
+import           VDiff.Strategy.Smart
 
 
 

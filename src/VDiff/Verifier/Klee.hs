@@ -1,11 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Verifier.Klee (klee) where
+module VDiff.Verifier.Klee (klee) where
 
 import           RIO
-import qualified RIO.ByteString as BS
+import qualified RIO.ByteString      as BS
 import           Safe
-import           Verifier.Util
+
+import           VDiff.Verifier.Util
 
 
 klee :: Verifier

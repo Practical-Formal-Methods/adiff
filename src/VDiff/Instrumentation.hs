@@ -7,7 +7,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 
 -- | Implements the core instrumentation functions.
-module Instrumentation
+module VDiff.Instrumentation
  (
    -- * Handling C files
   openCFile
@@ -58,7 +58,7 @@ import           Language.C.Data.Lens
 import           Language.C.System.GCC
 import           Text.PrettyPrint                 (render)
 
-import           Types
+import           VDiff.Types
 
 
 instance Display (CStatement a) where

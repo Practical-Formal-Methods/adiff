@@ -5,7 +5,7 @@ import           System.Process
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-import           Timed
+import           VDiff.Timed
 
 testTimed :: TestTree
 testTimed = localOption (Timeout 6000000 "6s") $ testGroup "timed"

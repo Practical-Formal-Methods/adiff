@@ -1,5 +1,5 @@
 -- | defines some 'verifiers' that can be used for debugging
-module Verifier.Debug
+module VDiff.Verifier.Debug
   ( vim
   , alwaysSat
   , alwaysUnsat
@@ -9,7 +9,7 @@ module Verifier.Debug
 import           RIO
 import           Safe
 import           System.Process
-import           Verifier.Util
+import           VDiff.Verifier.Util
 
 debuggingVerifiers :: [Verifier]
 debuggingVerifiers = [vim, alwaysSat, alwaysUnsat]

@@ -11,10 +11,10 @@ import           System.Exit
 import           System.IO
 import qualified Text.PrettyPrint.Tabulate as T
 
-import           Arguments                 hiding (command)
-import           Data
-import qualified Query                     as Q
-import           Types
+import           VDiff.Arguments                 hiding (command)
+import           VDiff.Data
+import qualified VDiff.Query                     as Q
+import           VDiff.Types
 
 
 data ViewCommand = Stats
