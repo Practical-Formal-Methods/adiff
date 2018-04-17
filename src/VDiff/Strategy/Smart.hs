@@ -85,15 +85,17 @@ smartStrategy' = do
         totalBudget <- fromIntegral <$> use budget
         logDebug $ "ratings are: " <> display (tshow rts)
         forM_ rts $ \(rating, idx) -> do
+          -- go to the statement
           goto idx
           c <- currentStmt
           logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
-          -- try to find a place go down
+          -- allocate budget proportional to the rating
+          let newBudget = ceiling $ totalBudget / totalRating * rating
+          -- and spent half of it on this exact location
+          withBudget (newBudget `div` 2) exploreStatement
+          -- ... and the other half "under" it
           whenM goDownAtNextChance $ do
-            -- allocate budget proportional to the rating
-            let newBudget = ceiling $ totalBudget / totalRating * rating
-            withBudget newBudget smartStrategy'
-            go_ Up
+            withBudget (newBudget `div` 2) smartStrategy'
 
 
 
