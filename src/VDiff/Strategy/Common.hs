@@ -1,5 +1,8 @@
-{-# LANGUAGE MultiWayIf          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiWayIf            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+
 -- | common things that are necessary to implement strategies.
 module VDiff.Strategy.Common
   ( module VDiff.Strategy.Common
@@ -8,24 +11,24 @@ module VDiff.Strategy.Common
   , Type
   ) where
 
-import           Control.Lens hiding ((^.))
+import           Control.Lens                       hiding ((^.))
+import           Control.Monad.State
 import           Language.C
-import           Language.C.Analysis.SemRep    hiding (Stmt)
+import           Language.C.Analysis.SemRep         hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
-import           RIO                           hiding (view)
-import           System.IO                     (hPutStr)
+import           RIO                                hiding (view)
+import           Safe
+import           System.IO                          (hPutStr)
 import           System.Random
-import Control.Monad.State
-import Safe
-import           Text.PrettyPrint.HughesPJ     (render)
+import           Text.PrettyPrint.HughesPJ          (render)
 
 
 
 import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Persistence
+import           VDiff.Strategy.Common.ConstantPool
 import           VDiff.Types
-import VDiff.Strategy.Common.ConstantPool
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
@@ -106,8 +109,15 @@ assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (
   where
     identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
 
+
+-- | a simple 'assert(false)' statement
+assertFalse :: CStatement SemPhase
+assertFalse = assertStmt false
+  where
+    false = CConst $ CIntConst (cInteger 0) voidNode
+    voidNode = (undefNode, voidType)
+
 chooseOneOf :: (MonadIO m) => [a] ->  m (Maybe a)
 chooseOneOf options = do
   i <- liftIO $ getStdRandom $ randomR (0, length options - 1)
   return (options `atMay` i)
-  

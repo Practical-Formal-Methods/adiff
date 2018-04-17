@@ -72,7 +72,7 @@ runSmart initState = runBrowserT (runStateT (unSmart smartStrategy') initState)
 smartStrategy' :: (IsStrategyEnv env) => Smart env ()
 smartStrategy' = do
   -- when budget is not depleted
-  whenM ((>0) <$> use budget) $ do
+  whenBudget_ (>0) $ do
     -- if in compound statement, go down
     in_compound <- isCompound <$> currentStmt
     if in_compound
@@ -92,24 +92,37 @@ smartStrategy' = do
           -- allocate budget proportional to the rating
           let newBudget = ceiling $ totalBudget / totalRating * rating
           -- and spent half of it on this exact location
-          withBudget (newBudget `div` 2) exploreStatement
+          withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
           -- ... and the other half "under" it
           whenM goDownAtNextChance $ do
-            withBudget (newBudget `div` 2) smartStrategy'
+            withBudgetLimit (newBudget `div` 2) smartStrategy'
+  return ()
 
 
 
 -- | sets the budget to a smaller limit, but still subtracts from the original value
-withBudget :: (IsStrategyEnv env) => Int -> Smart env a -> Smart env a
-withBudget n act = do
+withBudgetLimit :: (IsStrategyEnv env) => Int -> Smart env a -> Smart env a
+withBudgetLimit n act = do
   x <- use budget
   budget .= n
   logDebug $ "withBudget: " <> display n
   result <- act
   x' <- use budget
   let usedBudget = x - x'
-  budget -= usedBudget
+  budget .= x - usedBudget
   return result
+
+-- | Only execute act when predicate holds on budget
+whenBudget f act = do
+  bdg <- use budget
+  logDebug $ "current budget is " <> display bdg
+  if (f bdg)
+    then do
+      x <- act
+      return $ Just x
+    else return Nothing
+
+whenBudget_ f act = void $ whenBudget f act
 
 -- | moves the cursor down into the next statement if possible. If successful
 -- returns True, otherwise False.
@@ -135,6 +148,7 @@ untilJust a = a >>= \case Nothing -> untilJust a
 exploreLevel :: (IsStrategyEnv env) => Smart env [(Double, AstPosition)]
 exploreLevel = tryout $ do
   pos <- currentPosition
+  -- cursory exploration of the statement
   rating <- exploreStatement
   let el = (rating, pos)
   nxt <- go Next
@@ -142,45 +156,46 @@ exploreLevel = tryout $ do
     then (el:) <$> exploreLevel
     else return [el]
 
+-- tries with as many assertions as possible before the budget runs out
+-- TODO
+exploreStatementHeavy :: (IsStrategyEnv env) => Smart env ()
+exploreStatementHeavy = do
+  -- read variables
+  vs <- findReads
+  forM_ vs $ \(i,ty) -> do
+      whenBudget_ (>0) $ tryout $ do
+        -- try a 'pool assertion' first, but if there's nothing in the pool use random
+        asrt <- mkAssertionFromPool i ty >>= \case
+                  Just x' -> return x'
+                  Nothing -> mkAssertion i ty
+        insertBefore asrt
+        buildTranslationUnit >>= verify
+  -- and loop if the budget is still not depleted
+  whenBudget_ (>0) exploreStatementHeavy
+
 
 
 -- | produces a score of the current statement. If the statement has no reads
 -- the score is 0, in all other cases the score depends on the "level of
--- disagreement" of the verifiers
--- TODO: This uses only one pool constants per variable, currently.
+-- disagreement" of the verifiers. Uses an assert(false) statement.
 exploreStatement :: (IsStrategyEnv env) => Smart env Double
-exploreStatement = do
-  -- read variables
-  vs <- findReads
-  scores <- forM vs $ \(i,ty) ->
-    tryout $ do
-      -- try a 'pool assertion' first, but if there's nothing in the pool use random
-      asrt <- mkAssertionFromPool i ty >>= \case
-                Just x' -> return x'
-                Nothing -> mkAssertion i ty
+exploreStatement = tryout $ do
+  insertBefore assertFalse
+  (res,conclusion) <- buildTranslationUnit >>= verify
+  -- update moving average
+  updateAverages' res
+  -- calculate score from conclusion
+  let d = disagreement conclusion
+  t <- timeIrregularity res
+  let score = d + t
+  return score
 
-      -- insert assertion
-      insertBefore asrt
-      tu <- buildTranslationUnit
-      bdg <- use budget
-      if bdg > 0
-        then do
-           -- run verifiers
-          (res, conclusion) <- verify tu
-          -- update moving average
-          tl <- fromIntegral <$> view (diffParameters  . timelimit)
-          let times = map (maybe (tl / 1000000) elapsedWall . timing . verifierResult) res
-          updateAverages times
-          avgs <- use averages
-          logDebug $ "averages: " <> display (tshow avgs)
-          -- calculate score from conclusion
-          let d = disagreement conclusion
-          t <- timeIrregularity res
-          let score = d + t
-          return score
-        else return 0
-  return $ maximum scores
-
+updateAverages' res = do
+  tl <- fromIntegral <$> view (diffParameters  . timelimit)
+  let times = map (maybe (tl / 1000000) elapsedWall . timing . verifierResult) res
+  updateAverages times
+  avgs <- use averages
+  logDebug $ "averages: " <> display (tshow avgs)
 
 
 
