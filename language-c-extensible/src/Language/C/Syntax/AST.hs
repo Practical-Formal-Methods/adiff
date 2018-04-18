@@ -654,8 +654,8 @@ data CEnumeration a
     (Maybe [(Ident,                   -- variant name
              Maybe (CExpression a))]) -- explicit variant value
     [CAttribute a]                    -- __attribute__s
-    a
-    deriving (Typeable, Generic, Generic1 {-! ,CNode ,Functor ,Annotated !-})
+    (AnnMisc a)
+    deriving (Typeable, Generic {-! ,CNode ,Functor ,Annotated !-})
 
 
 -- | C initialization (K&R A8.7, C99 6.7.8)
@@ -996,9 +996,10 @@ instance Pos (CStructureUnion NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
-instance CNode t1 => CNode (CEnumeration t1) where
+instance CNode (CEnumeration NodeInfo) where
         nodeInfo (CEnum _ _ _ n) = nodeInfo n
-instance CNode t1 => Pos (CEnumeration t1) where
+
+instance Pos (CEnumeration NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 

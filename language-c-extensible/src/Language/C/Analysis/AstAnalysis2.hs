@@ -165,7 +165,17 @@ analyseStructureUnion (CStruct tag mi mDecls attrs ni) = do
   return $ CStruct tag mi mDecls' attrs' ni
 
 analyseEnumeration :: (MonadTrav m ) => CEnumeration NodeInfo -> m (CEnumeration SemPhase)
-analyseEnumeration = undefined
+analyseEnumeration (CEnum mi mitems attrs ni) = do
+  items' <- case mitems of
+              Nothing    -> return Nothing
+              Just items -> Just <$> mapM analyseItem items
+  attrs' <- analyseAttrs attrs
+  return $ CEnum mi items' attrs' ni
+  where
+    analyseItem (i, Nothing) = return (i, Nothing)
+    analyseItem (i, Just e) = do
+      e' <- tExpr [] RValue e
+      return (i, Just e')
 
 analyseTypeQual :: (MonadTrav m) => CTypeQualifier NodeInfo -> m (CTypeQualifier SemPhase)
 analyseTypeQual (CConstQual ni)    = return $ CConstQual ni
