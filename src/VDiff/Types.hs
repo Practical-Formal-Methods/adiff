@@ -129,7 +129,7 @@ instance Ord Verifier where
 
 instance Default Verifier where
   def = Verifier { verifierName = error "verifierName has no default value"
-                 , execute  =  const $ return (VerifierTerminated Unknown def)
+                 , execute  =  error "verifierExecute has no default value"
                  , version = return Nothing
                  }
 

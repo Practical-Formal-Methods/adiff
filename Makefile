@@ -2,6 +2,7 @@
 VERSION= $(shell stack query "locals" | grep version | cut -d" " -f 4 | tr -d "'")
 SDIST= $(shell stack path --dist-dir)
 BINARY= $(shell stack path --dist-dir)/build/vdiff/vdiff
+BINARY-VIEWER= $(shell stack path --dist-dir)/build/vdiff-viewer/vdiff-viewer
 INTEGRATION= $(shell stack path --dist-dir)/build/integration/integration
 
 default: compile vdiff-docker
@@ -23,6 +24,7 @@ Dockerfile : compile docker
 	echo "RUN apt-get install -y time vim" >> docker/vdiff.tmp
 	echo "ENV vdiff_version=\"$(VERSION)\"" >> docker/vdiff.tmp
 	echo "COPY $(BINARY) /root/.local/bin" >> docker/vdiff.tmp
+	echo "COPY $(BINARY-VIEWER) /root/.local/bin" >> docker/vdiff.tmp
 	echo "COPY $(INTEGRATION) /root/.local/bin" >> docker/vdiff.tmp
 
 # concatenate the different elements of the dockerfile

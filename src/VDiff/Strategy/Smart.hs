@@ -14,11 +14,11 @@
 -- statements and recurses on each statement.
 module VDiff.Strategy.Smart (smartStrategy) where
 
-import           RIO
+import           RIO                            hiding ((^.))
 
 import           Control.Lens                   hiding (view)
 import           Control.Monad.State.Strict
-import           Data.List                      (sortBy)
+import           Data.List                      (sortBy, intersperse)
 import           Language.C
 import           Language.C.Analysis.SemRep     hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
@@ -63,10 +63,16 @@ smartStrategy = do
   logDebug $ "constants found : " <> display cs
   logDebug $ "constants blurred: " <> display blurred
   let initState = SmartState bdgt (replicate n 0) 0 blurred
-  void $ runSmart initState stmt
+  (st,_) <- runSmart initState stmt
+  logDebug "smart strategy terminated"
+  logDebug $ "budget: " <> display (st ^. budget)
+  logDebug $ "averages: " <> displayList (st ^. averages)
+  return ()
 
-runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (((), SmartState), Stmt)
-runSmart initState = runBrowserT (runStateT (unSmart smartStrategy') initState)
+runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (SmartState, Stmt)
+runSmart st stmt= do
+  ((_,st'), stmt') <- runBrowserT (runStateT (unSmart smartStrategy') st) stmt
+  return (st',stmt')
 
 
 smartStrategy' :: (IsStrategyEnv env) => Smart env ()
@@ -113,15 +119,17 @@ withBudgetLimit n act = do
   return result
 
 -- | Only execute act when predicate holds on budget
+whenBudget :: (IsStrategyEnv env) => (Int -> Bool) -> Smart env a -> Smart env (Maybe a)
 whenBudget f act = do
   bdg <- use budget
   logDebug $ "current budget is " <> display bdg
-  if (f bdg)
+  if f bdg
     then do
       x <- act
       return $ Just x
     else return Nothing
 
+whenBudget_ :: (IsStrategyEnv env) => (Int -> Bool) -> Smart env a -> Smart env ()
 whenBudget_ f act = void $ whenBudget f act
 
 -- | moves the cursor down into the next statement if possible. If successful
@@ -261,3 +269,5 @@ sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]
 sortBest = sortBy (flip $ comparing fst)
 
 
+displayList :: Display a => [a] -> Utf8Builder
+displayList xs = mconcat $ intersperse ", " (map display xs)

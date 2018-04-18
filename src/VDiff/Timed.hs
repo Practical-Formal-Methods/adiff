@@ -3,7 +3,7 @@
 -- | Provides a simple way to execute any @CreateProcess@ wrapped in a call to /usr/bin/time
 -- | It's a very simple implementation. Also: Please do not use it for lazy IO as the string printed to stderr will be fully evaluated.
 module VDiff.Timed
-  ( Timing
+  ( Timing(..)
   , exec
   , userTime
   , systemTime
@@ -20,7 +20,6 @@ import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Char8   as C8
 import qualified Data.ByteString.Lazy    as LBS
-import           Data.Default
 import           Text.Read               (readMaybe)
 
 import           System.Process
@@ -39,9 +38,6 @@ instance Display Timing where
                                      , displayShow e <> "s wall "
                                      , display m <> "KiB mem"
                                      ]
-
-instance Default Timing where
-  def = Timing 0 0 0 0
 
 
 readNonBlockingUntilTerminated :: ProcessHandle -> Handle -> IORef BS.Builder -> MVar () -> IO ()

@@ -25,7 +25,7 @@ instance ToField Hashed where
   toField x = toField (C8.unpack $ getHash x)
 
 instance Display Hashed where
-  display x =  display $ decodeUtf8 $  Hex.encode (getHash x)
+  display x =  display $ decodeUtf8 $ fst $ Hex.decode (getHash x)
 
 instance Show Hashed where
   show x = C8.unpack $ Hex.encode $ getHash x

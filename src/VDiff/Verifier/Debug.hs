@@ -9,10 +9,11 @@ module VDiff.Verifier.Debug
 import           RIO
 import           Safe
 import           System.Process
+import           VDiff.Timed
 import           VDiff.Verifier.Util
 
 debuggingVerifiers :: [Verifier]
-debuggingVerifiers = [vim, alwaysSat, alwaysUnsat]
+debuggingVerifiers = [vim, vim2, alwaysSat, alwaysUnsat]
 
 -- | This is not a real verifier. It uses vim to show the file to the user.
 -- The user can then say successful by closing vim regularly (:q) or failed by closing vim with non-zero exit code (:cq)
@@ -21,6 +22,9 @@ vim = def { verifierName = "vim"
           , execute = runVim
           , version = vimVersion
           }
+
+vim2 :: Verifier
+vim2 = vim { verifierName = "vim2" }
 
 runVim :: FilePath -> RIO VerifierEnv VerifierResult
 runVim fn = do
@@ -32,8 +36,8 @@ runVim fn = do
   (_,_,_,ph) <- liftIO $ createProcess process
   exitCode <- liftIO $ waitForProcess ph
   case exitCode of
-              ExitSuccess   -> return $ VerifierTerminated Unsat def
-              ExitFailure _ -> return $ VerifierTerminated Sat def
+              ExitSuccess   -> return $ VerifierTerminated Unsat timing
+              ExitFailure _ -> return $ VerifierTerminated Sat timing
 
 vimVersion :: IO (Maybe String)
 vimVersion = do
@@ -46,6 +50,10 @@ alwaysUnsat = always Unsat
 
 always :: Verdict -> Verifier
 always verdict = def { verifierName = "always-" <> show verdict
-                , execute = const $ return (VerifierTerminated verdict def)
+                , execute = const $ return (VerifierTerminated verdict timing)
                 , version = return (Just "1")
                 }
+
+
+timing :: Timing
+timing = Timing 1 1 2 100
