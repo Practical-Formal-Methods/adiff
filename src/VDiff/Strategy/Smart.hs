@@ -18,7 +18,7 @@ import           RIO                            hiding ((^.))
 
 import           Control.Lens                   hiding (view)
 import           Control.Monad.State.Strict
-import           Data.List                      (sortBy, intersperse)
+import           Data.List                      (intersperse, sortBy)
 import           Language.C
 import           Language.C.Analysis.SemRep     hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
@@ -154,22 +154,31 @@ untilJust a = a >>= \case Nothing -> untilJust a
 -- statement, the higher the score. This computation is wrapped in tryout, so it
 -- won't change the callees' location
 exploreLevel :: (IsStrategyEnv env) => Smart env [(Double, AstPosition)]
-exploreLevel = tryout $ do
-  pos <- currentPosition
-  -- cursory exploration of the statement
-  rating <- exploreStatement
-  let el = (rating, pos)
-  nxt <- go Next
-  if nxt
-    then (el:) <$> exploreLevel
-    else return [el]
+exploreLevel = do
+  x <- use budget
+  scores <- tryout exploreLevel'
+  x' <- use budget
+  logDebug $ "exploreLevel required a budget of " <> display (x - x') <> ", budget is now " <> display x'
+  return scores
+  where
+    exploreLevel' = do
+      pos <- currentPosition
+      -- cursory exploration of the statement
+      rating <- exploreStatement
+      let el = (rating, pos)
+      nxt <- go Next
+      if nxt
+        then (el:) <$> exploreLevel'
+        else return [el]
 
 -- tries with as many assertions as possible before the budget runs out
 -- TODO
 exploreStatementHeavy :: (IsStrategyEnv env) => Smart env ()
 exploreStatementHeavy = do
+  logDebug "exploreHeavy"
   -- read variables
   vs <- findReads
+  logDebug $ "reads are " <> display (tshow vs)
   forM_ vs $ \(i,ty) -> do
       whenBudget_ (>0) $ tryout $ do
         -- try a 'pool assertion' first, but if there's nothing in the pool use random
@@ -188,15 +197,19 @@ exploreStatementHeavy = do
 -- disagreement" of the verifiers. Uses an assert(false) statement.
 exploreStatement :: (IsStrategyEnv env) => Smart env Double
 exploreStatement = tryout $ do
-  insertBefore assertFalse
-  (res,conclusion) <- buildTranslationUnit >>= verify
-  -- update moving average
-  updateAverages' res
-  -- calculate score from conclusion
-  let d = disagreement conclusion
-  t <- timeIrregularity res
-  let score = d + t
-  return score
+  rs <- findReads
+  if null rs
+    then return 0
+    else do
+    insertBefore assertFalse
+    (res,conclusion) <- buildTranslationUnit >>= verify
+    -- update moving average
+    updateAverages' res
+    -- calculate score from conclusion
+    let d = disagreement conclusion
+    t <- timeIrregularity res
+    let score = d + t
+    return score
 
 updateAverages' res = do
   tl <- fromIntegral <$> view (diffParameters  . timelimit)
@@ -208,8 +221,9 @@ updateAverages' res = do
 
 
 -- subject to change
+-- always more than zero
 disagreement :: Conclusion -> Double
-disagreement (StrongAgreement _) = 0.0
+disagreement (StrongAgreement _) = 0.1
 disagreement (WeakAgreement _)   = 1
 disagreement (Unsoundness _)     = 100
 disagreement (Incompleteness _)  = 10
