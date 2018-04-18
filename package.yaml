@@ -99,3 +99,4 @@ dependencies:
   - uniplate
   - pptable >= 0.3.0
   - containers
+  - unliftio

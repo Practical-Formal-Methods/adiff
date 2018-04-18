@@ -37,6 +37,7 @@ module VDiff.Instrumentation
 
 import qualified Prelude                          as P
 import           RIO                              hiding ((^.))
+import           RIO.FilePath
 
 import           Control.Lens.Cons
 import           Control.Lens.Getter              (use)
@@ -57,6 +58,7 @@ import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Language.C.System.GCC
 import           Text.PrettyPrint                 (render)
+import           UnliftIO.Directory
 
 import           VDiff.Types
 
@@ -70,18 +72,23 @@ prettyp = render . Language.C.pretty
 -- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
 openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe (CTranslationUnit SemPhase))
 openCFile fn = do
-  x <- liftIO $ parseCFile (newGCC "gcc") Nothing [] fn
-  case x of
-    Left parseError -> do
-      logError $ "parse error: " <> displayShow parseError
-      return Nothing
-    Right tu -> case runTrav_ (analyseAST tu) of
-        Left typeError -> do
-          logError $ "type error: " <> displayShow typeError
-          return Nothing
-        Right (tu', warnings) -> do
-          unless (null warnings) $ logWarn $ "warnings: " <> displayShow warnings
-          return (Just tu')
+  -- we need GCC to remove preprocessor tokens and comments,
+  -- unfortunately, GCC only works on files with .c ending. Hence this hack.
+  let templateName = takeFileName $ replaceExtension fn ".c"
+  withSystemTempFile  templateName $  \fnC _ ->  do
+    copyFile fn fnC
+    x <- liftIO $ parseCFile (newGCC "gcc") Nothing [] fnC
+    case x of
+      Left parseError -> do
+        logError $ "parse error: " <> displayShow parseError
+        return Nothing
+      Right tu -> case runTrav_ (analyseAST tu) of
+          Left typeError -> do
+            logError $ "type error: " <> displayShow typeError
+            return Nothing
+          Right (tu', warnings) -> do
+            unless (null warnings) $ logWarn $ "warnings: " <> displayShow warnings
+            return (Just tu')
 
 --------------------------------------------------------------------------------
 type Stmt = CStatement SemPhase

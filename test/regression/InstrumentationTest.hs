@@ -83,8 +83,11 @@ testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion"
       return ()
 
 testPreprocessor :: TestTree
-testPreprocessor = vsGoldenFile "assets/test/gcc/1.c" "preprocess" $ \ast ->
-  return $ LC8.pack $ prettyp ast
+testPreprocessor = testGroup "gcc" [ vsGoldenFile "assets/test/gcc/1.c" "preprocess 1" pp
+                                   , vsGoldenFile "assets/test/gcc/2.i" "preprocess 2" pp
+                                   ]
+  where
+    pp ast = return $ LC8.pack $ prettyp ast
 
 
 --------------------------------------------------------------------------------
