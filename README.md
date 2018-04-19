@@ -3,5 +3,5 @@
 # VDiff
 
 This repository contains the following projects:
-  * `vdiff` (README)[vdiff/README.md]
+  * `vdiff` [README](vdiff/README.md)
   * `language-c-exensible`  A fork of `language-c` that enables custom annotations on the AST
