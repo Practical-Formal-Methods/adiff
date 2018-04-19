@@ -25,7 +25,9 @@ import           Language.C.Syntax.Constants
 import           Language.C.Syntax.Ops
 import           Language.C.Syntax.Utils
 
+import           Data.Coerce
 import           Data.Generics                    hiding (Generic)
+import           Unsafe.Coerce                    (unsafeCoerce)
 
 
 
@@ -759,7 +761,7 @@ analyseDecl is_local decl@(CDecl declspecs declrs node)
                                return $ CDecl declspecs' [] node
     | (Just declspecs') <- typedef_spec = do
         x <- mapM (uncurry (analyseTyDef declspecs')) declr_list
-        return $ CDecl undefined undefined node
+        return $ unsafeCoerce $ CDecl declspecs declrs node
     | otherwise   = do let (storage_specs, attrs, typequals, typespecs, funspecs, _alignspecs) = partitionDeclSpecs declspecs
                        canonTySpecs <- canonicalTypeSpec typespecs
                        -- TODO: alignspecs not yet processed
@@ -771,6 +773,7 @@ analyseDecl is_local decl@(CDecl declspecs declrs node)
     declr_list = zip (True : repeat False) declrs
     typedef_spec = hasTypeDef declspecs
 
+    analyseTyDef ::  (MonadTrav m) => [CDeclSpec]  -> Bool -> (Maybe CDeclr,Maybe a,Maybe b) -> m ()
     analyseTyDef declspecs' handle_sue_def declr =
         case declr of
             (Just tydeclr, Nothing , Nothing) -> analyseTypeDef handle_sue_def declspecs' tydeclr node

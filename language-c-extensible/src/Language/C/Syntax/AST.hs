@@ -462,8 +462,8 @@ data CAssemblyStatement a
     [CAssemblyOperand a]       -- output operands
     [CAssemblyOperand a]       -- input operands
     [CStringLiteral a]         -- Clobbers
-    a
-    deriving (Typeable, Generic, Generic1 {-! ,CNode ,Functor ,Annotated !-})
+    (AnnMisc a)
+    deriving (Typeable, Generic {-! ,CNode ,Functor ,Annotated !-})
 
 
 -- | Assembler operand
@@ -476,8 +476,8 @@ data CAssemblyOperand a
     (Maybe Ident)       -- argument name
     (CStringLiteral a)  -- constraint expr
     (CExpression a)     -- argument
-    a
-    deriving (Typeable, Generic, Generic1 {-! ,CNode ,Functor ,Annotated !-})
+    (AnnMisc a)
+    deriving (Typeable, Generic {-! ,CNode ,Functor ,Annotated !-})
 
 
 -- | C99 Block items
@@ -708,11 +708,11 @@ type CInitializerList a = [([CPartDesignator a], CInitializer a)]
 type CDesignator = CPartDesignator NodeInfo
 data CPartDesignator a
   -- | array position designator
-  = CArrDesig     (CExpression a) a
+  = CArrDesig     (CExpression a) (AnnMisc a)
   -- | member designator
-  | CMemberDesig  Ident a
+  | CMemberDesig  Ident (AnnMisc a)
   -- | array range designator @CRangeDesig from to _@ (GNU C)
-  | CRangeDesig (CExpression a) (CExpression a) a
+  | CRangeDesig (CExpression a) (CExpression a) (AnnMisc a)
     deriving (Typeable, Generic {-! ,CNode ,Functor ,Annotated !-})
 
 
@@ -794,10 +794,10 @@ data CExpression a
 -- | GNU Builtins, which cannot be typed in C99
 type CBuiltin = CBuiltinThing NodeInfo
 data CBuiltinThing a
-  = CBuiltinVaArg (CExpression a) (CDeclaration a) a            -- ^ @(expr, type)@
-  | CBuiltinOffsetOf (CDeclaration a) [CPartDesignator a] a -- ^ @(type, designator-list)@
-  | CBuiltinTypesCompatible (CDeclaration a) (CDeclaration a) a  -- ^ @(type,type)@
-  | CBuiltinConvertVector (CExpression a) (CDeclaration a) a -- ^ @(expr, type)@
+  = CBuiltinVaArg (CExpression a) (CDeclaration a) (AnnMisc a)            -- ^ @(expr, type)@
+  | CBuiltinOffsetOf (CDeclaration a) [CPartDesignator a] (AnnMisc a) -- ^ @(type, designator-list)@
+  | CBuiltinTypesCompatible (CDeclaration a) (CDeclaration a) (AnnMisc a)  -- ^ @(type,type)@
+  | CBuiltinConvertVector (CExpression a) (CDeclaration a) (AnnMisc a) -- ^ @(expr, type)@
     deriving (Typeable, Generic {-! ,CNode ,Functor ,Annotated !-})
 
 
@@ -896,15 +896,15 @@ instance Pos (CStatement NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
-instance CNode t1 => CNode (CAssemblyStatement t1) where
+instance CNode (CAssemblyStatement NodeInfo) where
         nodeInfo (CAsmStmt _ _ _ _ _ n) = nodeInfo n
-instance CNode t1 => Pos (CAssemblyStatement t1) where
+instance Pos (CAssemblyStatement NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
-instance CNode t1 => CNode (CAssemblyOperand t1) where
+instance CNode (CAssemblyOperand NodeInfo) where
         nodeInfo (CAsmOperand _ _ _ n) = nodeInfo n
-instance CNode t1 => Pos (CAssemblyOperand t1) where
+instance Pos (CAssemblyOperand NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
@@ -1011,11 +1011,11 @@ instance Pos (CInitializer NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
-instance CNode t1 => CNode (CPartDesignator t1) where
+instance CNode (CPartDesignator NodeInfo) where
         nodeInfo (CArrDesig _ n)     = nodeInfo n
         nodeInfo (CMemberDesig _ n)  = nodeInfo n
         nodeInfo (CRangeDesig _ _ n) = nodeInfo n
-instance CNode t1 => Pos (CPartDesignator t1) where
+instance Pos (CPartDesignator NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
@@ -1054,12 +1054,12 @@ instance Pos (CExpression NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
-instance CNode t1 => CNode (CBuiltinThing t1) where
+instance CNode (CBuiltinThing NodeInfo) where
         nodeInfo (CBuiltinVaArg _ _ n)           = nodeInfo n
         nodeInfo (CBuiltinOffsetOf _ _ n)        = nodeInfo n
         nodeInfo (CBuiltinTypesCompatible _ _ n) = nodeInfo n
         nodeInfo (CBuiltinConvertVector _ _ n)   = nodeInfo n
-instance CNode t1 => Pos (CBuiltinThing t1) where
+instance Pos (CBuiltinThing NodeInfo) where
         posOf x = posOf (nodeInfo x)
 
 
