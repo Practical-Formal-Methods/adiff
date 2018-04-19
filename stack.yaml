@@ -1,6 +1,6 @@
 flags: {}
 packages:
-- .
+- ./vdiff
 - ./language-c-extensible
 extra-deps:
 - pptable-0.3.0.0
