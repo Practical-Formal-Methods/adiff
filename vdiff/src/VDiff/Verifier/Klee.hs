@@ -39,7 +39,8 @@ kleeRun fn = withSystemTempDirectory "kleedir" $ \dir -> do
   callCommand ["clang-3.8", "-emit-llvm -c -g",  pathProgram, "-o",  pathBC]
 
   -- run klee with timing
-  withTiming (shell $ "klee " ++pathBC) "" $ \ec _ err -> do
+  let cmd = shell $ "klee -silent-klee-assume --search=dfs -max-forks=64" ++ pathBC
+  withTiming cmd "" $ \ec _ err -> do
     let hasError = "ASSERTION FAIL" `BS.isInfixOf` err
     case (ec, hasError) of
       (ExitSuccess, True)  -> return Sat
