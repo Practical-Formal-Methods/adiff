@@ -18,7 +18,7 @@ import           Data.Text.Encoding
 import           Database.SQLite.Simple    (field)
 import qualified Database.SQLite.Simple    as SQL
 import           Safe
-import qualified Text.PrettyPrint.Tabulate as T
+import           Text.PrettyPrint.Tabulate ()
 
 import           VDiff.Data
 import           VDiff.Persistence
@@ -62,10 +62,10 @@ instance SQL.FromRow CProgram where
 
 
 allIncomplete :: (HasDatabase env) => RIO env [RunFinding]
-allIncomplete = query_ $ SQL.Query (decodeUtf8 $(embedFile "assets/sql/incompleteness.sql"))
+allIncomplete = query_ $ SQL.Query (decodeUtf8 $(embedOneFileOf ["vdiff/assets/sql/incompleteness.sql", "assets/sql/incompleteness.sql"]))
 
 allUnsound :: (HasDatabase env) => RIO env [RunFinding]
-allUnsound = query_ $ SQL.Query (decodeUtf8 $(embedFile "assets/sql/unsoundness.sql"))
+allUnsound = query_ $ SQL.Query (decodeUtf8 $(embedOneFileOf  ["vdiff/assets/sql/unsoundness.sql", "assets/sql/unsoundness.sql"]))
 
 allRuns :: (HasDatabase env) => RIO env [(String, Maybe Double, Maybe Int)]
 allRuns = query_ "SELECT verifier_name,time,memory FROM runs;"

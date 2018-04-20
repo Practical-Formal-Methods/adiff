@@ -2,11 +2,13 @@
 
 module VDiff.Verifier.Klee (klee) where
 
+import           Data.FileEmbed
 import           RIO
 import qualified RIO.ByteString      as BS
 import           Safe
 
 import           VDiff.Verifier.Util
+
 
 
 klee :: Verifier
@@ -48,4 +50,4 @@ kleeRun fn = withSystemTempDirectory "kleedir" $ \dir -> do
 
 
 kleeH :: ByteString
-kleeH = $(embedFile "assets/klee.h")
+kleeH = $(embedOneFileOf ["assets/klee.h", "vdiff/assets/klee.h"])
