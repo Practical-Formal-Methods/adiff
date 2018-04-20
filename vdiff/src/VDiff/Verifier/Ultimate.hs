@@ -38,11 +38,13 @@ runUltimate :: String -> RIO VerifierEnv VerifierResult
 runUltimate cmd =
   withSystemTempDirectory "ultimate-tmp" $ \dir -> do
     let cmd' = (shell cmd) { cwd = Just dir}
-    withTiming cmd' "" $ \ec out _ ->
+    withTiming cmd' "" $ \ec out err ->
             case (ec, lastMay (C8.lines out))  of
               (ExitSuccess, Just "TRUE")  -> return Unsat
               (ExitSuccess, Just "FALSE") -> return Sat
               (_, l)                      -> do
-                logWarn $ "unexpected exit code: " <> display (tshow ec) <> ", last line was " <> display (tshow l)
+                logWarn $ "unexpected exit code: " <> display (tshow ec)
+                  <> ", output was " <> display (tshow out)
+                  <> ", error was " <> display (tshow err)
                 return Unknown
 

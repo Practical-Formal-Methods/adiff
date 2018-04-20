@@ -103,3 +103,4 @@ dependencies:
   - pptable >= 0.3.0
   - containers
   - unliftio
+  - directory

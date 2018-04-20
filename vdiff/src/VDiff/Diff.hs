@@ -8,21 +8,20 @@ module VDiff.Diff where
 
 import           RIO
 
-import           Data.List        (sortBy)
-import           Data.Ord         (comparing)
+import           Data.List             (sortBy)
+import           Data.Ord              (comparing)
 import           Language.C
-import           Text.PrettyPrint (render)
+import           Text.PrettyPrint      (render)
 
+import           System.Directory
 import           System.Exit
 import           System.IO
 
 import           VDiff.Instrumentation
-import           VDiff.Persistence
-import           VDiff.Types
-import           VDiff.Verifier
 import           VDiff.Strategy.Random
 import           VDiff.Strategy.Smart
-
+import           VDiff.Types
+import           VDiff.Verifier
 
 
 
@@ -42,7 +41,6 @@ cmdDiff params = do
         SmartStrategy -> do
           logInfo "using 'smart' strategy"
           runRIO stratEnv smartStrategy
-        _ -> error "strategy not implemented"
 
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
@@ -69,10 +67,11 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \v
 
 cmdRunVerifiers :: (HasLogFunc env) => [Verifier] -> FilePath -> RIO env ()
 cmdRunVerifiers vs fn = do
+  fn' <- liftIO $ makeAbsolute fn
   lg <- view logFuncL
   let tl = 15 * 1000 * 1000
       verifierEnv = VerifierEnv lg tl
   forM_ vs $ \v -> do
-    res <- runRIO verifierEnv $ execute v fn
-    logInfo $ display $ tshow res
-
+    liftIO $ print (verifierName v)
+    res <- runRIO verifierEnv $ execute v fn'
+    liftIO $ print res
