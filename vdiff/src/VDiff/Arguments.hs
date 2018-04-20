@@ -28,6 +28,12 @@ cFile =  argument str options
                           , action "file"
                           ]
 
+someFile :: Parser FilePath
+someFile =  argument str options
+  where options = mconcat [ metavar "FILE"
+                          , help "file"
+                          , action "file"
+                          ]
 
 verifiers :: Parser [Verifier]
 verifiers = option verifierParser options

@@ -67,6 +67,9 @@ allIncomplete = query_ $ SQL.Query (decodeUtf8 $(embedFile "assets/sql/incomplet
 allUnsound :: (HasDatabase env) => RIO env [RunFinding]
 allUnsound = query_ $ SQL.Query (decodeUtf8 $(embedFile "assets/sql/unsoundness.sql"))
 
+allRuns :: (HasDatabase env) => RIO env [(String, Maybe Double, Maybe Int)]
+allRuns = query_ "SELECT verifier_name,time,memory FROM runs;"
+
 
 -- this folds over the complete database because sqlite does not have string matching
 programByHash :: (HasDatabase env) => String -> RIO env (Maybe CProgram)

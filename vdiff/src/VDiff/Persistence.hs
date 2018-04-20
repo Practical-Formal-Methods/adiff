@@ -21,7 +21,7 @@ withDiffDB :: FilePath -> (SQL.Connection -> IO a) -> IO a
 withDiffDB fn act = do
   conn <- liftIO $ SQL.open fn
   liftIO $ SQL.execute_ conn "CREATE TABLE IF NOT EXISTS programs (code_hash TEXT PRIMARY KEY, origin TEXT, content TEXT)"
-  liftIO $ SQL.execute_ conn "CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY, verifier_name TEXT, result TEXT, time INT, memory INT, code_hash TEXT REFERENCES programs )"
+  liftIO $ SQL.execute_ conn "CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY, verifier_name TEXT, result TEXT, time FLOAT, memory INT, code_hash TEXT REFERENCES programs )"
   x <- act conn
   SQL.close conn
   return x
