@@ -7,7 +7,6 @@ module Main where
 import           Control.Lens.TH
 import           Data.Tuple.Extra
 import qualified Database.SQLite.Simple                 as SQL
-import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import           Graphics.Rendering.Chart.Easy          hiding (List)
 import qualified Prelude                                as P
@@ -89,7 +88,7 @@ viewParameters = ViewParameters <$> databasePath  <*> viewCommand
 viewCommand :: Parser ViewCommand
 viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd
 
-statCmd,listCmd,countCmd,programCmd :: Parser ViewCommand
+statCmd,listCmd,countCmd,programCmd,correlationCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
