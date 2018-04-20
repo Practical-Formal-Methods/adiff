@@ -59,10 +59,14 @@ blur ty orig
   | ty `sameType` integral TyInt = concat [ orig
                                           , map (modIntConstant (+1)) orig
                                           , map (modIntConstant (\n -> n - 1)) orig
+                                          , map (modIntConstant (const minInt)) orig
+                                          , map (modIntConstant (const maxInt)) orig
                                           ]
   | otherwise = orig
 
-
+minInt, maxInt :: Integer
+minInt = fromIntegral (minBound :: Int32)
+maxInt = fromIntegral (maxBound :: Int32)
 
 modIntConstant :: (Integer -> Integer) -> CConstant a -> CConstant a
 modIntConstant f (CIntConst (CInteger v rep flags) ann) = CIntConst (CInteger (f v) rep flags) ann
