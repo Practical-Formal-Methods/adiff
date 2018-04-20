@@ -1,9 +1,9 @@
 
 VERSION= $(shell stack query "locals" | grep version | cut -d" " -f 4 | tr -d "'")
 SDIST= $(shell stack path --dist-dir)
-BINARY= $(shell stack path --dist-dir)/build/vdiff/vdiff
-BINARY-VIEWER= $(shell stack path --dist-dir)/build/vdiff-viewer/vdiff-viewer
-INTEGRATION= $(shell stack path --dist-dir)/build/integration/integration
+BINARY= vdiff/$(shell stack path --dist-dir)/build/vdiff/vdiff
+BINARY-VIEWER= vdiff/$(shell stack path --dist-dir)/build/vdiff-viewer/vdiff-viewer
+INTEGRATION= vdiff/$(shell stack path --dist-dir)/build/integration/integration
 
 default: compile vdiff-docker
 
