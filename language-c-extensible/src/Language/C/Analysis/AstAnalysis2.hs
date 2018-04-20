@@ -7,11 +7,9 @@ module Language.C.Analysis.AstAnalysis2 where
 
 import           Text.PrettyPrint.HughesPJ
 
-import           Language.C.Analysis.ConstEval
 import           Language.C.Analysis.DeclAnalysis
 import           Language.C.Analysis.DefTable     (defineLabel, globalDefs,
-                                                   inFileScope, insertType,
-                                                   lookupLabel, lookupType)
+                                                   inFileScope, lookupLabel)
 import           Language.C.Analysis.SemError
 import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
@@ -25,7 +23,6 @@ import           Language.C.Syntax.Constants
 import           Language.C.Syntax.Ops
 import           Language.C.Syntax.Utils
 
-import           Data.Coerce
 import           Data.Generics                    hiding (Generic)
 import           Unsafe.Coerce                    (unsafeCoerce)
 
@@ -37,7 +34,7 @@ import           Data.Foldable                    (mapM_)
 import qualified Data.Map                         as Map
 import           Data.Maybe
 import           Data.Traversable                 (mapM)
-import           Prelude                          hiding (mapM, mapM_, reverse)
+import           Prelude                          hiding (mapM, mapM_)
 
 -- After the analysis (semantic phase) we want to store additional information:
 data SemPhase
@@ -160,7 +157,7 @@ analyseTypeSpec (CTypeOfExpr expr ni) = CTypeOfExpr <$> undefined expr <*> pure 
 analyseTypeSpec (CTypeOfType decl ni) = CTypeOfType <$> analyseDecl False decl <*> pure ni -- TODO: True or False?
 analyseTypeSpec (CAtomicType decl ni) = CAtomicType <$> analyseDecl False decl <*> pure ni
 
-analyseStructureUnion :: (MonadTrav m) => (CStructureUnion NodeInfo)-> m (CStructureUnion SemPhase)
+analyseStructureUnion :: (MonadTrav m) => CStructureUnion NodeInfo -> m (CStructureUnion SemPhase)
 analyseStructureUnion (CStruct tag mi mDecls attrs ni) = do
   mDecls' <- mapMaybeM mDecls (mapM (analyseDecl True))
   attrs' <- analyseAttrs attrs
@@ -213,7 +210,7 @@ analyseDerivedDeclarator (CFunDeclr (Right (decl, b)) attrs ni) = do
   attrs' <- analyseAttrs attrs
   return $ CFunDeclr (Right (decl', b)) attrs' ni
 
-analyseArraySize :: (MonadTrav m) => (CArraySize NodeInfo) -> m (CArraySize SemPhase)
+analyseArraySize :: (MonadTrav m) => CArraySize NodeInfo -> m (CArraySize SemPhase)
 analyseArraySize (CNoArrSize b)    = return $ CNoArrSize b
 analyseArraySize (CArrSize b expr) = CArrSize b <$> tExpr [] RValue expr
 
@@ -354,7 +351,7 @@ tStmt c (CLabel l stmt attrs ni)         = do
 
 tStmt c (CExpr me ni)              = do
   me' <- mapMaybeM me (tExpr c RValue)
-  return  $ CExpr me' (ni, (maybe voidType getType me'))
+  return  $ CExpr me' (ni, maybe voidType getType me')
 
 tStmt c (CCompound ls body ni)    =
   do enterBlockScope
@@ -375,7 +372,7 @@ tStmt c (CIf e sthen selse ni)    = do
 
 tStmt c (CSwitch e stmt ni) = do
   e' <- tExpr c RValue e
-  x <- checkIntegral' ni (getType e')
+  _ <- checkIntegral' ni (getType e')
   stmt' <- tStmt (SwitchCtx : c) stmt
   return $ CSwitch e' stmt' (ni, getType stmt')
 
@@ -859,6 +856,15 @@ analyseCConstant :: MonadTrav m => CConstant NodeInfo -> m (CConstant SemPhase)
 analyseCConstant c@(CIntConst n ni) = do
   ty <- constType c
   return $ CIntConst n (ni,ty)
+analyseCConstant c@(CCharConst cchar ni) = do
+  ty <- constType c
+  return $ CCharConst cchar (ni,ty)
+analyseCConstant c@(CFloatConst f ni) = do
+  ty <- constType c
+  return $ CFloatConst f (ni,ty)
+analyseCConstant c@(CStrConst s ni) = do
+  ty <- constType c
+  return $ CStrConst s (ni,ty)
 
 analyseInitializerList :: MonadTrav m => CInitializerList NodeInfo -> m (CInitializerList SemPhase)
 analyseInitializerList = undefined
@@ -970,10 +976,11 @@ tInit t i@(CInitList initList ni) = do
 
 
 tInitList :: MonadTrav m => NodeInfo -> Type -> CInitializerList NodeInfo-> m (CInitializerList SemPhase)
-tInitList = error "tInitList is not implemented yet"
--- tInitList _ (ArrayType (DirectType (TyIntegral TyChar) _ _) _ _ _)
---               [([], CInitExpr e@(CConst (CStrConst _ _)) _)] =
---   tExpr [] RValue e >> return ()
+tInitList _ (ArrayType t@(DirectType (TyIntegral TyChar) _ _) _ _ _)
+              [([], CInitExpr e@(CConst (CStrConst _ _)) x)] = do
+  e' <- tExpr [] RValue e
+  return [([], CInitExpr e' x)]
+tInitList _ _ initList  = return $ unsafeCoerce initList -- Meh
 -- tInitList ni t@(ArrayType _ _ _ _) initList =
 --   do let default_ds =
 --            repeat (CArrDesig (CConst (CIntConst (cInteger 0) ni)) ni)
