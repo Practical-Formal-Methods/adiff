@@ -55,7 +55,6 @@ smartStrategy :: (IsStrategyEnv env) => RIO env ()
 smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
-  let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
   n <- length <$> view (diffParameters . verifiers)
   bdgt <- view (diffParameters . budget)
   let cs = findAllConstants tu
@@ -63,13 +62,13 @@ smartStrategy = do
   logDebug $ "constants found : " <> display cs
   logDebug $ "constants blurred: " <> display blurred
   let initState = SmartState bdgt (replicate n 0) 0 blurred
-  (st,_) <- runSmart initState stmt
+  (st,_) <- runSmart initState tu
   logDebug "smart strategy terminated"
   logDebug $ "budget: " <> display (st ^. budget)
   logDebug $ "averages: " <> displayList (st ^. averages)
   return ()
 
-runSmart :: IsStrategyEnv env => SmartState -> Stmt -> RIO env (SmartState, Stmt)
+runSmart :: IsStrategyEnv env => SmartState -> CTranslationUnit SemPhase -> RIO env (SmartState, CTranslationUnit SemPhase)
 runSmart st stmt= do
   ((_,st'), stmt') <- runBrowserT (runStateT (unSmart smartStrategy') st) stmt
   return (st',stmt')
