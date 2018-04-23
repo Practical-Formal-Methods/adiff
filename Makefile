@@ -47,4 +47,4 @@ test-integration: vdiff-docker
 	docker run vdiff:latest /bin/bash -lc "integration --color=always"
 
 
-.PHONY : test test-integration
+.PHONY: test test-integration

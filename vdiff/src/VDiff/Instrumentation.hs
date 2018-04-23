@@ -26,6 +26,7 @@ module VDiff.Instrumentation
  , tryout
  , go
  , goto
+ , gotoFunction
  , currentStmt
  , currentPosition
  , go_
@@ -36,9 +37,11 @@ module VDiff.Instrumentation
  ) where
 
 import qualified Prelude                          as P
-import           RIO                              hiding ((^.))
+import           RIO                              hiding (view, (^.))
 import           RIO.FilePath
+import qualified RIO.Map                          as Map
 
+import           Control.Lens
 import           Control.Lens.Cons
 import           Control.Lens.Getter              (use)
 import           Control.Lens.Operators
@@ -141,23 +144,31 @@ data Direction = Up | Down | Next | Prev
   deriving (Eq, Enum, Bounded, Show)
 
 -- this is what every strategy needs to move around in the AST
+-- TODO: Move the "originalTranslationUnit" to a reader instance
 data BrowserState = BrowserState
-  { _stmtZipper   :: !StmtZipper
-  , _stmtPosition :: ![Int]
+  { _stmtZipper      :: !StmtZipper
+  , _stmtPosition    :: ![Int]
+  , _currentFunction :: String -- ^ name of the current function
+  , _currentTU       :: CTranslationUnit SemPhase
   }
-
 makeFieldsNoPrefix ''BrowserState
 
 
 newtype BrowserT m a = BrowserT
-  { unBrowserT :: StateT BrowserState m a
+  { unBrowserT :: (StateT BrowserState m) a
   } deriving (Functor, Applicative, Monad, MonadState BrowserState, MonadTrans)
 
 
-runBrowserT :: (Monad m) => BrowserT m a -> Stmt -> m (a, Stmt)
-runBrowserT a s = do
-  (x, bs) <- runStateT (unBrowserT a) (BrowserState (Z.zipper s) [0])
-  return (x, fromZipper $ bs ^. stmtZipper)
+runBrowserT :: (Monad m) => BrowserT m a -> CTranslationUnit SemPhase -> m (a, CTranslationUnit SemPhase)
+runBrowserT a tu = do
+  let (Just mainFunBody) = tu ^? (ix "main" . functionDefinition . body)
+      zp = Z.zipper mainFunBody
+      initialState = BrowserState zp [0] "main" tu
+  (x, bs :: BrowserState) <- runStateT (unBrowserT a) initialState
+  let
+      stmt' = fromZipper ((bs ^. stmtZipper) :: StmtZipper ) :: Stmt
+      tu' = ((ix "main" . functionDefinition . body) .~ stmt') tu
+  return (x, tu')
 
 class (Monad m) => MonadBrowser m where
   putBrowserState :: BrowserState -> m ()
@@ -207,12 +218,16 @@ go d = do
       putBrowserState $ (stmtZipper .~ z) st'
       return True
 
-newtype AstPosition = AstPosition
-  { indices :: [Int]
+data AstPosition = AstPosition
+  { functionName :: String
+  , indices      :: [Int]
   } deriving (Eq, Ord, Show)
 
+mkPosition :: String -> AstPosition
+mkPosition fn = AstPosition fn [0]
+
 instance Display AstPosition where
- display (AstPosition xs) = foldl' f "" xs
+ display (AstPosition fn xs) = display (tshow fn) <> "/" <> foldl' f "" xs
   where f b x = display b <> "/" <> display x
 
 -- Important note: a position contains the indices ordered from top to bottom
@@ -221,20 +236,37 @@ instance Display AstPosition where
 currentPosition :: MonadBrowser m => m (AstPosition)
 currentPosition = do
   st <- getBrowserState
-  return $ AstPosition (reverse $ st ^. stmtPosition)
+  let fn = st ^. currentFunction
+      pos = st ^. stmtPosition
+  return $ AstPosition fn (reverse pos)
 
 -- TODO: Improve implementation
 goto :: (MonadBrowser m) => AstPosition -> m ()
-goto (AstPosition xs) = do
-  --- move to the top
-  toTop
+goto (AstPosition fn xs) = do
+  -- goto function
+  gotoFunction fn
+  -- move down with the given indices
   goto' xs
   where
-    toTop = go Up >>= \u -> if u then toTop else return ()
     goto' []     = error "a position should never be empty"
     goto' [y]    = gotoSibling y
     goto' (y:ys) = gotoSibling y >> go Down >> goto' ys
 
+
+gotoFunction :: (MonadBrowser m) => String -> m ()
+gotoFunction fn = do
+  st <- getBrowserState
+  let cTU                 = st ^. currentTU
+      currentZip          = st ^. stmtZipper
+      currentFunctionName = st ^. currentFunction :: String
+      tu'                 = cTU & (ix currentFunctionName . functionDefinition . body) .~ fromZipper currentZip
+      (Just fbody)        = tu' ^? (ix fn . functionDefinition . body)
+      newZipper           = Z.zipper fbody
+  let st' =  st & (currentTU .~ tu')
+                & (currentFunction .~ fn)
+                & (stmtZipper .~ newZipper)
+                & (stmtPosition .~ [0])
+  putBrowserState st'
 
 
 -- | Move to the nth sibling. Be careful!
@@ -305,12 +337,16 @@ go_ d = do
 
 
 
-
 markAllReads :: CTranslationUnit SemPhase-> CTranslationUnit SemPhase
-markAllReads = externalDeclarations . mapped . functionDefinition . body  %~ markAllReadsStmt
+markAllReads tu =
+  let fnames = map identToString (definedFunctions tu)
+      act = forM_ fnames $ \fname -> do
+        gotoFunction fname
+        explore [0]
+  in snd <$> runIdentity $ runBrowserT act tu
 
-markAllReadsStmt :: Stmt -> Stmt
-markAllReadsStmt s = snd <$> runIdentity $ runBrowserT (explore [0]) s
+
+
 
 -- first parameter is the number of explored siblings per level (deepest first)
 explore :: [Int] -> BrowserT Identity ()

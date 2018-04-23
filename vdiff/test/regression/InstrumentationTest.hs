@@ -41,13 +41,13 @@ testZipping = do
 testWalk :: TestTree
 testWalk = testCase "walks"  $ do
   ast <- parseAndAnalyseFile simpleReads
-  let (Just stmt) = ast ^? (ix "main" . functionDefinition . body)
-  _ <- runBrowserT walk1 stmt
+  _ <- runBrowserT walk1 ast
   return ()
 
 
   where
     walk1 = do
+      gotoFunction "main"
       go_ Down
       findReads >>= \v -> assertBool' "find x " (varNames v == ["x"])
       go_ Down
@@ -67,11 +67,11 @@ testWalk = testCase "walks"  $ do
 
 testInsertions :: TestTree
 testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion" $ \ast -> do
-  let (Just stmt ) = ast ^? (ix "main" . functionDefinition . body)
-  (_,st) <- runBrowserT inserter stmt
+  (_,st) <- runBrowserT inserter ast
   return $ LC8.pack $ prettyp st
   where
     inserter = do
+      gotoFunction "main"
       go_ Down
       go_ Down
       go_ Down -- now

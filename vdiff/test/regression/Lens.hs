@@ -19,3 +19,8 @@ testIndex = goldenVsString "index main" "assets/test/lenses/functions.c.golden" 
           let dummyBody = CCompound [] [CBlockStmt (dummyStmt "dummy")] (undefNode, voidType)
               ast' = (ix "main" . functionDefinition . body ) .~ dummyBody $ ast
           return $ LC8.pack $ prettyp ast'
+
+testDefinedFunctions :: TestTree
+testDefinedFunctions = testGroup "test definedFunctions" $ do
+  error "niy"
+  
