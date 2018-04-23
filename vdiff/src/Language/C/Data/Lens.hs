@@ -8,14 +8,16 @@ module Language.C.Data.Lens
   , functionDefinition
   , declarator
   , body
+  , definedFunctions
+  , HasIdent(ident)
   , module Control.Lens.At
   , module Control.Lens.Traversal
   ) where
 
-import           RIO
+import           RIO                    hiding (Lens', lens, (^.))
 
+import           Control.Lens
 import           Control.Lens.At
-import           Control.Lens.Prism
 import           Control.Lens.Traversal
 
 import           Language.C
@@ -25,6 +27,7 @@ body :: Lens' (CFunctionDef a) (CStatement a)
 body = lens getter setter
   where getter (CFunDef _ _ _ s _) = s
         setter (CFunDef specs declr decls _ ann) b' = CFunDef specs declr decls b' ann
+
 
 externalDeclarations :: Lens' (CTranslationUnit a) [CExternalDeclaration a]
 externalDeclarations = lens getter setter
@@ -47,21 +50,44 @@ instance HasDeclarator (CFunctionDef a) a where
       getter (CFunDef _ d _ _ _ ) = d
       setter (CFunDef specs _ decls b ann) d = CFunDef specs d decls b ann
 
-
 functionDefinition :: Prism' (CExternalDeclaration a) (CFunctionDef a)
 functionDefinition = prism' CFDefExt project
   where project (CFDefExt f) = Just f
         project _            = Nothing
+
+
+class HasIdent e where
+  ident :: Traversal' e Ident
+
+
+instance HasIdent (CDeclarator a) where
+  ident f (CDeclr (Just i) declr ms attrs ann) = CDeclr <$> (Just <$> f i) <*> pure declr <*> pure ms <*> pure attrs <*> pure ann
+  ident _ d@(CDeclr Nothing _ _ _ _)           = pure d
 
 instance Ixed (CTranslationUnit a) where
   ix :: String -> Traversal' (CTranslationUnit a) (CExternalDeclaration a)
   ix str = externalDeclarations . traverse'
     where
       traverse' :: (Applicative f) => (CExternalDeclaration a -> f (CExternalDeclaration a)) -> [CExternalDeclaration a] -> f [CExternalDeclaration a]
-      traverse' act []                   = pure []
+      traverse' _ []                   = pure []
       traverse' act (x@(CDeclExt _ ):xs) = (x:) <$> traverse' act xs -- TODO: not checking those here yet
-      traverse' act (x@(CFDefExt f@(CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _) ):xs)
+      traverse' act (x@(CFDefExt (CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _) ):xs)
         | identToString i == str         = (:) <$> act x  <*> traverse' act xs
         | otherwise                      = (x:) <$> traverse' act xs
       traverse' act (x:xs) = (x:) <$> traverse' act xs
 
+
+-- this should be a lens one-liner, but I don't know how, so just a function for now
+definedFunctions :: CTranslationUnit SemPhase -> [Ident]
+definedFunctions tu =
+  let exts =  tu ^. externalDeclarations
+      fdefs = foldl' f [] exts
+        where f l ext =  case ext ^? functionDefinition of
+                           Nothing -> l
+                           Just fd -> fd : l
+      idents = foldl' g [] fdefs
+        where
+          g l (CFunDef _ declr _ _ _) = case declr ^? ident of
+                                          Nothing -> l
+                                          Just i  -> i:l
+  in idents

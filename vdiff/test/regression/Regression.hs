@@ -22,7 +22,7 @@ constructTree = do
     [ pure testTimed
     , testInstrumentation
     , pure testInstrumentationProperties
-    , pure testLenses
+    , testLenses
     , pure testCommon
     ]
   return $ testGroup "vdiff" tree

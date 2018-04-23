@@ -37,6 +37,8 @@ isCompound ::Stmt -> Bool
 isCompound (CCompound _ _ _ ) = True
 isCompound _                  = False
 
+
+
 verify :: (IsStrategyEnv env, Monad m, MonadReader env m, MonadIO m, MonadState st m, HasBudget st Int) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
 verify tu = do
   (prog, res) <- verify' tu

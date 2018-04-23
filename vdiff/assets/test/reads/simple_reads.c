@@ -1,5 +1,7 @@
 
-void foo();
+void foo(int x) {
+}
+
 void bar();
 
 int main() {
@@ -8,7 +10,7 @@ int main() {
 
   if (x > 0) {
     int a;
-    foo();
+    foo(3);
     y = y + 1;
     bar();
     x = x + 1;

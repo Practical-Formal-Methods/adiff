@@ -39,7 +39,7 @@ dummyStmt s = CExpr (Just var) (undefNode, voidType)
 
 -- | Run golden tests
 vsGoldenFile :: FilePath -> String -> (CTranslationUnit SemPhase-> IO LBS.ByteString) -> TestTree
-vsGoldenFile fn name act = goldenVsString name (replaceExtension fn ".golden") (openAndParse >>= act )
+vsGoldenFile fn name act = goldenVsString fn (replaceExtension fn ( "."  ++ name ++ "-golden" )) (openAndParse >>= act )
   where openAndParse = do
           c <- runRIO NoLogging $ openCFile fn
           case c of
@@ -55,7 +55,9 @@ varNames :: [(Ident,b)] -> [String]
 varNames = map (identToString.fst)
 
 simpleReads :: ByteString
-simpleReads = $(embedFile "assets/test/reads/simple_reads.c")
+simpleReads = $(embedOneFileOf  ["assets/test/reads/simple_reads.c"
+                                , "vdiff/assets/test/reads/simple_reads.c"
+                                ])
 
 parseAndAnalyseFile :: ByteString -> IO (CTranslationUnit SemPhase)
 parseAndAnalyseFile bs =
