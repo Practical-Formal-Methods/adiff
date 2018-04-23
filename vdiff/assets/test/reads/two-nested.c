@@ -1,4 +1,4 @@
-int f(int);
+int f(int x){ return x; }
 
 int main() {
 	int x,y;

@@ -9,8 +9,12 @@ import qualified Data.ByteString.Lazy.Char8 as LC8
 import           Language.C.Data.Lens
 import           VDiff.Instrumentation
 
-testLenses :: TestTree
-testLenses = testGroup "lenses" [testIndex]
+testLenses :: IO TestTree
+testLenses = do
+  children <- sequence [ pure testIndex
+                 , testDefinedFunctions
+                 ]
+  return $ testGroup "lenses" children
 
 testIndex :: TestTree
 testIndex = goldenVsString "index main" "assets/test/lenses/functions.c.golden" act
@@ -20,7 +24,11 @@ testIndex = goldenVsString "index main" "assets/test/lenses/functions.c.golden" 
               ast' = (ix "main" . functionDefinition . body ) .~ dummyBody $ ast
           return $ LC8.pack $ prettyp ast'
 
-testDefinedFunctions :: TestTree
-testDefinedFunctions = testGroup "test definedFunctions" $ do
-  error "niy"
-  
+testDefinedFunctions :: IO TestTree
+testDefinedFunctions = do
+  cFiles <- findByExtension [".c"] "assets/test/reads"
+  return $ testGroup "defined functions" $ map runTest cFiles
+  where runTest cf = vsGoldenFile cf "defined-functions" $ \ast -> do
+              let names =  map identToString $ definedFunctions ast
+              return $ LC8.pack $ show names
+
