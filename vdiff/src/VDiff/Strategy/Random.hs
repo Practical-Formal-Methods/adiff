@@ -12,6 +12,7 @@ import           RIO
 import           Control.Lens               hiding (view)
 import           Control.Monad.State.Strict
 import           Language.C.Data.Lens
+import           Language.C
 
 import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
@@ -28,17 +29,17 @@ newtype RandomS env a = RandomS
   { unRandom :: StateT RandomState (BrowserT (RIO env)) a
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState RandomState)
 
-runRandomS :: IsStrategyEnv env => RandomState -> Stmt -> RIO env (((), RandomState), Stmt)
+runRandomS :: IsStrategyEnv env => RandomState -> CTranslationUnit SemPhase -> RIO env (((), RandomState), CTranslationUnit SemPhase)
 runRandomS initState = runBrowserT (runStateT (unRandom randomStrategy') initState)
 
 
 randomStrategy :: (IsStrategyEnv env) => RIO env ()
 randomStrategy = do
   tu <- view translationUnit
-  let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
+  -- let (Just bdy) = tu ^? (ix "main" . functionDefinition . body)
   b <- view (diffParameters . budget)
   let initState = RandomState b 0
-  void $ runRandomS initState bdy
+  void $ runRandomS initState tu
 
 
 randomStrategy' :: (IsStrategyEnv env) => RandomS env ()

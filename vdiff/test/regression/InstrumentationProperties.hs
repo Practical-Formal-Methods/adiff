@@ -36,27 +36,32 @@ genDirectionList =
 
 -- TODO: Extend from "main" to all functions
 genTestStmts :: FilePath -> PropertyT IO Stmt
-genTestStmts fp = do
-  cFiles <- lift $ findByExtension [".c"] fp
-  cFile <- forAll $ Gen.element cFiles
-  (Just tu) <- runRIO NoLogging $ openCFile cFile
+genTestStmts dir = do
+  tu <- genTranslationUnit dir
   let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
   return stmt
+
+genTranslationUnit :: FilePath -> PropertyT IO (CTranslationUnit SemPhase)
+genTranslationUnit dir = do
+  cFiles <- lift $ findByExtension [".c"] dir
+  cFile <- forAll $ Gen.element cFiles
+  (Just tu) <- runRIO NoLogging $ openCFile cFile
+  return tu
 
 -- | test property: Any walk does not change the file
 testRandomWalk ::  TestTree
 testRandomWalk = testProperty "walk does not modify" $ property $ do
   ds <- forAll genDirectionList
-  stmt <- genTestStmts "assets/test/reads"
+  tu <- genTranslationUnit "assets/test/reads"
   let walk = mapM go ds
-  (_,stmt') <- runBrowserT walk stmt
-  prettyp stmt === prettyp stmt'
+  (_,tu') <- runBrowserT walk tu
+  prettyp tu === prettyp tu'
 
 
 -- TODO: test property: After an arbitrary walk and inserting one element, "currentStatement" is the same.
 testInsert :: TestTree
 testInsert = testProperty "insertBefore, does not modify location" $ property $ do
-  stmt <- genTestStmts "assets/test/reads"
+  tu <- genTranslationUnit "assets/test/reads"
   ds <- forAll genDirectionList
   let actn = do
         mapM_ go ds
@@ -65,7 +70,7 @@ testInsert = testProperty "insertBefore, does not modify location" $ property $ 
         unless (null vs) $ insertBefore (dummyStmt "dummy")
         y <- currentStmt
         return (x,y)
-  ((x,y),_) <- runBrowserT actn stmt
+  ((x,y),_) <- runBrowserT actn tu
   prettyp x === prettyp y
 
 
@@ -78,7 +83,7 @@ testGoto = testGroup "goto" [testGoto1, testGoto2]
 
 testGoto1 :: TestTree
 testGoto1 = testProperty "(goto . currentPosition) does not modify location" $ property $ do
-  stmt <- genTestStmts "assets/test/reads"
+  tu <- genTranslationUnit "assets/test/reads"
   ds <- forAll genDirectionList
   let actn = do
         mapM_ go ds
@@ -87,35 +92,37 @@ testGoto1 = testProperty "(goto . currentPosition) does not modify location" $ p
         goto p
         y <- currentStmt
         return (x,y)
-  ((x,y), _) <- runBrowserT actn stmt
+  ((x,y), _) <- runBrowserT actn tu
   prettyp x === prettyp y
 
 testGoto2 :: TestTree
 testGoto2 = testProperty "with random positions" $ property $ do
-  stmt <- genTestStmts "assets/test/reads"
-  (p,s) <- forAll $ genPosition stmt
+  tu <- genTranslationUnit "assets/test/reads"
+  (p,s) <- forAll $ genPosition tu
   let actn = do
         goto p
         currentStmt
-  (s', _) <- runBrowserT actn stmt
+  (s', _) <- runBrowserT actn tu
   prettyp s === prettyp s'
 
 
 
 -- | traverses the tree randomly
-genPosition :: Stmt ->  Gen (AstPosition, Stmt)
-genPosition stmt = do
+genPosition :: CTranslationUnit SemPhase->  Gen (AstPosition, Stmt)
+genPosition tu = do
   ds <- genDirectionList
   let actn = do
         mapM_ go ds
         p <- currentPosition
         s <- currentStmt
         return (p,s)
-  (x, _) <- runBrowserT actn stmt
+  (x, _) <- runBrowserT actn tu
   return x
 
 
 
 
 controlReads :: ByteString
-controlReads= $(embedFile "assets/test/reads/control.c")
+controlReads= $(embedOneFileOf [ "assets/test/reads/control.c"
+                               , "vdiff/assets/test/reads/control.c"
+                               ])

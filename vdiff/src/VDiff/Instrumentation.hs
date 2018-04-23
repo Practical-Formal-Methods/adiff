@@ -92,7 +92,7 @@ openCFile fn = do
 
 --------------------------------------------------------------------------------
 type Stmt = CStatement SemPhase
-type StmtZipper= Z.Zipper Stmt Stmt
+type StmtZipper= Z.Zipper (CTranslationUnit SemPhase) Stmt
 
 
 -- | find reads in a statement
@@ -154,9 +154,10 @@ newtype BrowserT m a = BrowserT
   } deriving (Functor, Applicative, Monad, MonadState BrowserState, MonadTrans)
 
 
-runBrowserT :: (Monad m) => BrowserT m a -> Stmt -> m (a, Stmt)
-runBrowserT a s = do
-  (x, bs) <- runStateT (unBrowserT a) (BrowserState (Z.zipper s) [0])
+runBrowserT :: (Monad m) => BrowserT m a -> CTranslationUnit SemPhase -> m (a, CTranslationUnit SemPhase)
+runBrowserT a tu = do
+  let (Just zp) = Z.zipperBi tu
+  (x, bs) <- runStateT (unBrowserT a) (BrowserState zp [0])
   return (x, fromZipper $ bs ^. stmtZipper)
 
 class (Monad m) => MonadBrowser m where
@@ -287,11 +288,12 @@ tryout act = do
 
 buildTranslationUnit :: (MonadBrowser m, MonadReader env m, HasTranslationUnit env) => m (CTranslationUnit SemPhase)
 buildTranslationUnit = do
-  tu <- view translationUnit
+  -- tu <- view translationUnit
   st <- getBrowserState
-  let stmt = fromZipper (st ^. stmtZipper)
-  let modif = (ix "main" . functionDefinition . body) .~ stmt
-  return $ modif tu
+  let tu = fromZipper (st ^. stmtZipper)
+  return tu
+  -- let modif = (ix "main" . functionDefinition . body) .~ stmt
+  -- return $ modif tu
 
 
 
@@ -306,11 +308,8 @@ go_ d = do
 
 
 
-markAllReads :: CTranslationUnit SemPhase-> CTranslationUnit SemPhase
-markAllReads = externalDeclarations . mapped . functionDefinition . body  %~ markAllReadsStmt
-
-markAllReadsStmt :: Stmt -> Stmt
-markAllReadsStmt s = snd <$> runIdentity $ runBrowserT (explore [0]) s
+markAllReads :: CTranslationUnit SemPhase -> CTranslationUnit SemPhase
+markAllReads s = snd <$> runIdentity $ runBrowserT (explore [0]) s
 
 -- first parameter is the number of explored siblings per level (deepest first)
 explore :: [Int] -> BrowserT Identity ()
