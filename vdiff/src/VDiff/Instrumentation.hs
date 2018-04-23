@@ -29,6 +29,7 @@ module VDiff.Instrumentation
  , gotoFunction
  , currentStmt
  , currentPosition
+ , findCalledFunction
  , go_
  , AstPosition(..)
  -- * Internals
@@ -36,32 +37,28 @@ module VDiff.Instrumentation
  , markAllReads
  ) where
 
-import qualified Prelude                          as P
-import           RIO                              hiding (view, (^.))
+import qualified Prelude                           as P
+import           RIO                               hiding (view, (^.))
 import           RIO.FilePath
-import qualified RIO.Map                          as Map
+import           Safe
 
 import           Control.Lens
-import           Control.Lens.Cons
-import           Control.Lens.Getter              (use)
-import           Control.Lens.Operators
-import           Control.Lens.Setter              (mapped)
-import           Control.Lens.TH
 import           Control.Monad.State.Strict
-import           Data.Functor.Identity
-import           Data.Generics.Uniplate.Data      ()
-import           Data.Generics.Uniplate.Zipper    (fromZipper)
-import qualified Data.Generics.Uniplate.Zipper    as Z
-import           Data.Text                        (pack)
+import           Data.Generics.Uniplate.Data       ()
+import           Data.Generics.Uniplate.Operations
+import qualified Data.Generics.Uniplate.Zipper     as Z
+import           Data.Text                         (pack)
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
-import           Language.C.Analysis.SemRep       hiding (Stmt)
+import           Language.C.Analysis.SemRep        hiding (Stmt)
 import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Language.C.System.GCC
-import           Text.PrettyPrint                 (render)
+import           Text.PrettyPrint                  (render)
 import           UnliftIO.Directory
+
+
 
 import           VDiff.Types
 
@@ -166,7 +163,7 @@ runBrowserT a tu = do
       initialState = BrowserState zp [0] "main" tu
   (x, bs :: BrowserState) <- runStateT (unBrowserT a) initialState
   let
-      stmt' = fromZipper ((bs ^. stmtZipper) :: StmtZipper ) :: Stmt
+      stmt' = Z.fromZipper ((bs ^. stmtZipper) :: StmtZipper ) :: Stmt
       tu' = ((ix "main" . functionDefinition . body) .~ stmt') tu
   return (x, tu')
 
@@ -259,7 +256,7 @@ gotoFunction fn = do
   let cTU                 = st ^. currentTU
       currentZip          = st ^. stmtZipper
       currentFunctionName = st ^. currentFunction :: String
-      tu'                 = cTU & (ix currentFunctionName . functionDefinition . body) .~ fromZipper currentZip
+      tu'                 = cTU & (ix currentFunctionName . functionDefinition . body) .~ Z.fromZipper currentZip
       (Just fbody)        = tu' ^? (ix fn . functionDefinition . body)
       newZipper           = Z.zipper fbody
   let st' =  st & (currentTU .~ tu')
@@ -321,7 +318,7 @@ buildTranslationUnit :: (MonadBrowser m, MonadReader env m, HasTranslationUnit e
 buildTranslationUnit = do
   tu <- view translationUnit
   st <- getBrowserState
-  let stmt = fromZipper (st ^. stmtZipper)
+  let stmt = Z.fromZipper (st ^. stmtZipper)
   let modif = (ix "main" . functionDefinition . body) .~ stmt
   return $ modif tu
 
@@ -373,6 +370,13 @@ explore st = do
           then explore ns
           else ascend ns
 
+
+findCalledFunction :: (MonadBrowser m) => m (Maybe String)
+findCalledFunction = do
+  stmt <- currentStmt
+  let subExprs = universeBi stmt :: [CExpression SemPhase]
+  let fns = [identToString i | CCall (CVar i _) _ _ <- subExprs]
+  return $ headMay fns
 
 --------------------------------------------------------------------------------
 -- | * Masking

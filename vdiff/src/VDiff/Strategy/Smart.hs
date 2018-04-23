@@ -22,7 +22,6 @@ import           Data.List                      (intersperse, sortBy)
 import           Language.C
 import           Language.C.Analysis.SemRep     hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
-import           Language.C.Data.Lens
 
 import           VDiff.Data
 import           VDiff.Instrumentation
@@ -55,7 +54,6 @@ smartStrategy :: (IsStrategyEnv env) => RIO env ()
 smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
-  -- let (Just stmt) = tu ^? (ix "main" . functionDefinition . body)
   n <- length <$> view (diffParameters . verifiers)
   bdgt <- view (diffParameters . budget)
   let cs = findAllConstants tu
@@ -97,13 +95,16 @@ smartStrategy' = do
           logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
           -- allocate budget proportional to the rating
           let newBudget = ceiling $ totalBudget / totalRating * rating
-          -- and spent half of it on this exact location
-          withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
+          -- and spent a half of it on this location
+          findCalledFunction >>= \case
+            Nothing -> withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
+            Just fn -> do
+              withBudgetLimit (newBudget `div` 4) exploreStatementHeavy
+              withBudgetLimit (newBudget `div` 4) $ tryout $ gotoFunction fn >> smartStrategy'
           -- ... and the other half "under" it
-          whenM goDownAtNextChance $ do
+          whenM goDownAtNextChance $
             withBudgetLimit (newBudget `div` 2) smartStrategy'
   return ()
-
 
 
 -- | sets the budget to a smaller limit, but still subtracts from the original value
@@ -179,7 +180,7 @@ exploreStatementHeavy = do
   -- read variables
   vs <- findReads
   logDebug $ "reads are " <> display (tshow vs)
-  forM_ vs $ \(i,ty) -> do
+  forM_ vs $ \(i,ty) ->
       whenBudget_ (>0) $ tryout $ do
         -- try a 'pool assertion' first, but if there's nothing in the pool use random
         asrt <- mkAssertionFromPool i ty >>= \case
@@ -272,11 +273,6 @@ mkAssertionFromPool varName ty = do
           expr = CBinary CNeqOp var cnst (undefNode, voidType)
       return $ Just $ assertStmt expr
 
-
---------------------------------------------------------------------------------
--- | NOTE: Only makes sense for positive numbers
-maximum :: [Double] -> Double
-maximum = foldl' max 0
 
 
 sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]

@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
+-- | Implements a very simple strategy. Currently only instruments the main function
 module VDiff.Strategy.Random (randomStrategy) where
 
 import           RIO
