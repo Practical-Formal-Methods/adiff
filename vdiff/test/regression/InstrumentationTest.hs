@@ -109,17 +109,9 @@ testInsertBefore = testGroup "insertBefore" [one]
 testMarkAllReads :: IO TestTree
 testMarkAllReads = do
   cFiles <- findByExtension [".c"] "assets/test/reads"
-  return $ testGroup "markAllReads golden tests"
-      [ goldenVsString bn gold (mar cFile)
-      | cFile <- cFiles
-      , let gold = replaceExtension cFile ".golden"
-      , let bn = takeBaseName cFile
-      ]
-
+  return $ testGroup "markAllReads golden tests" $ map runTest cFiles
   where
-    mar :: String -> IO LBS.ByteString
-    mar fn = do
-      (Just tu) <- runRIO NoLogging $ openCFile fn
-      let bs = render . pretty . markAllReads $ tu
-      return $ LC8.pack bs
+    runTest cf = vsGoldenFile cf "all-reads"  $ \tu -> do
+        let bs = render . pretty . markAllReads $ tu
+        return $ LC8.pack bs
 
