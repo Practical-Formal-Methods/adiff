@@ -41,13 +41,13 @@ testZipping = do
 testWalk :: TestTree
 testWalk = testCase "walks"  $ do
   ast <- parseAndAnalyseFile simpleReads
-  let (Just stmt) = ast ^? (ix "main" . functionDefinition . body)
-  _ <- runBrowserT walk1 stmt
+  _ <- runBrowserT walk1 ast
   return ()
 
 
   where
     walk1 = do
+      gotoFunction "main"
       go_ Down
       findReads >>= \v -> assertBool' "find x " (varNames v == ["x"])
       go_ Down
@@ -67,11 +67,11 @@ testWalk = testCase "walks"  $ do
 
 testInsertions :: TestTree
 testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion" $ \ast -> do
-  let (Just stmt ) = ast ^? (ix "main" . functionDefinition . body)
-  (_,st) <- runBrowserT inserter stmt
+  (_,st) <- runBrowserT inserter ast
   return $ LC8.pack $ prettyp st
   where
     inserter = do
+      gotoFunction "main"
       go_ Down
       go_ Down
       go_ Down -- now
@@ -83,8 +83,8 @@ testInsertions = vsGoldenFile "assets/test/instrumentation/simple.c" "insertion"
       return ()
 
 testPreprocessor :: TestTree
-testPreprocessor = testGroup "gcc" [ vsGoldenFile "assets/test/gcc/1.c" "preprocess 1" pp
-                                   , vsGoldenFile "assets/test/gcc/2.i" "preprocess 2" pp
+testPreprocessor = testGroup "gcc" [ vsGoldenFile "assets/test/gcc/1.c" "preprocess1" pp
+                                   , vsGoldenFile "assets/test/gcc/2.i" "preprocess2" pp
                                    ]
   where
     pp ast = return $ LC8.pack $ prettyp ast
@@ -109,17 +109,9 @@ testInsertBefore = testGroup "insertBefore" [one]
 testMarkAllReads :: IO TestTree
 testMarkAllReads = do
   cFiles <- findByExtension [".c"] "assets/test/reads"
-  return $ testGroup "markAllReads golden tests"
-      [ goldenVsString bn gold (mar cFile)
-      | cFile <- cFiles
-      , let gold = replaceExtension cFile ".golden"
-      , let bn = takeBaseName cFile
-      ]
-
+  return $ testGroup "markAllReads golden tests" $ map runTest cFiles
   where
-    mar :: String -> IO LBS.ByteString
-    mar fn = do
-      (Just tu) <- runRIO NoLogging $ openCFile fn
-      let bs = render . pretty . markAllReads $ tu
-      return $ LC8.pack bs
+    runTest cf = vsGoldenFile cf "all-reads"  $ \tu -> do
+        let bs = render . pretty . markAllReads $ tu
+        return $ LC8.pack bs
 
