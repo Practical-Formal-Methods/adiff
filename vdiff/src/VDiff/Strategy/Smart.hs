@@ -115,7 +115,7 @@ withBudgetLimit n act = do
   logDebug $ "withBudget: " <> display n
   result <- act
   x' <- use budget
-  let usedBudget = x - x'
+  let usedBudget = n - x'
   budget .= x - usedBudget
   return result
 
