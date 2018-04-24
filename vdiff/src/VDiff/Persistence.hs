@@ -65,6 +65,11 @@ query q params = do
   conn <- view databaseL
   liftIO $ SQL.query conn q params
 
+execute_ :: ( MonadReader env m, HasDatabase env, MonadIO m) => SQL.Query -> m ()
+execute_ q = do
+  conn <- view databaseL
+  liftIO $ SQL.execute_ conn q
+
 fold_ :: (HasDatabase env, SQL.FromRow row) => SQL.Query -> a -> (a -> row -> IO a) -> RIO env a
 fold_ q z f = do
   conn <- view databaseL

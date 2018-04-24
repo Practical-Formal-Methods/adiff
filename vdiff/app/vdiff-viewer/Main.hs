@@ -48,7 +48,9 @@ main = do
   SQL.withConnection (vp ^. databaseFn) $ \conn ->
     withLogFunc logOptions' $ \logger -> do
       let viewEnv = MainEnv logger conn
-      runRIO viewEnv $ executeView (vp ^. command)
+      runRIO viewEnv $ do
+        Q.updateIndices
+        executeView (vp ^. command)
 
 instance T.CellValueFormatter Text
 
@@ -119,6 +121,7 @@ query :: Parser Q.Query
 query = incmpl <|> unsound
   where incmpl = switch (long "incomplete") $> Q.Incomplete
         unsound = switch (long "unsound") $> Q.Unsound
+
 
 
 --------------------------------------------------------------------------------

@@ -82,4 +82,10 @@ programByHash hsh = do
                else return ls
 
 
-
+updateIndices :: (HasDatabase env, HasLogFunc env) => RIO env ()
+updateIndices = do
+  logDebug "updating indices"
+  let q = SQL.Query $ decodeUtf8 $ $(embedOneFileOf  [ "vdiff/assets/sql/update-indices.sql"
+                                                   , "assets/sql/update-indices.sql"
+                                                   ])
+  execute_ q
