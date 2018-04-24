@@ -47,6 +47,7 @@ import           Control.Monad.State.Strict
 import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
 import qualified Data.Generics.Uniplate.Zipper     as Z
+import           Data.List                         (isPrefixOf)
 import           Data.Text                         (pack)
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
@@ -370,12 +371,15 @@ explore st = do
           then explore ns
           else ascend ns
 
-
 findCalledFunction :: (MonadBrowser m) => m (Maybe String)
 findCalledFunction = do
   stmt <- currentStmt
   let subExprs = universeBi stmt :: [CExpression SemPhase]
-  let fns = [identToString i | CCall (CVar i _) _ _ <- subExprs]
+  let fns = [ n
+            | CCall (CVar i _) _ _ <- subExprs
+            , let n = identToString i
+            , not ("__" `isPrefixOf` n)
+            ]
   return $ headMay fns
 
 --------------------------------------------------------------------------------
