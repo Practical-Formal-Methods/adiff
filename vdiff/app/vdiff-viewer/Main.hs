@@ -61,13 +61,15 @@ executeView Stats = do
   return ()
 executeView (List q) = do
   rs <- case q  of
-        Q.Incomplete -> Q.allIncomplete
-        Q.Unsound    -> Q.allUnsound
+        Q.Incomplete   -> Q.allIncomplete
+        Q.Unsound      -> Q.allUnsound
+        Q.Disagreement -> Q.allDisagreement
   liftIO $ T.printTable rs
 executeView (Count q) = do
   rs <- case q  of
-        Q.Incomplete -> Q.allIncomplete
-        Q.Unsound    -> Q.allUnsound
+        Q.Incomplete   -> Q.allIncomplete
+        Q.Unsound      -> Q.allUnsound
+        Q.Disagreement -> Q.allDisagreement
   liftIO $ print $ length rs
 executeView (Program hsh) = do
   p <- Q.programByHash hsh
@@ -118,9 +120,10 @@ correlationCmd = switch options $> TimeMemoryGraph <*> someFile
                           , help "generates a scatter plot of memory consumption and runtime" ]
 
 query :: Parser Q.Query
-query = incmpl <|> unsound
+query = incmpl <|> unsound <|> disagreement
   where incmpl = switch (long "incomplete") $> Q.Incomplete
         unsound = switch (long "unsound") $> Q.Unsound
+        disagreement = switch (long "disagreement") $> Q.Disagreement
 
 
 

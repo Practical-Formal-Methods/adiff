@@ -32,7 +32,7 @@ class Persistent a where
   persist :: SQL.Connection -> a -> IO ()
 
 instance Persistent CProgram where
-  persist conn p = SQL.execute conn "INSERT INTO programs(code_hash, origin, content) VALUES(?,?,?) " row
+  persist conn p = SQL.execute conn "INSERT OR IGNORE INTO programs(code_hash, origin, content) VALUES(?,?,?) " row
     where row = [ toField (p ^. hash)
                 , toField (p ^. originalFilename)
                 , toField (p ^. source)

@@ -104,3 +104,4 @@ dependencies:
   - containers
   - unliftio
   - directory
+  - template-haskell

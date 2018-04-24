@@ -12,19 +12,18 @@ module VDiff.Query where
 import           RIO
 
 import           Control.Lens.TH
-import           Data.FileEmbed
-import           Data.List                 (isInfixOf)
-import           Data.Text.Encoding
-import           Database.SQLite.Simple    (field)
-import qualified Database.SQLite.Simple    as SQL
+import           Data.List                  (isInfixOf)
+import           Database.SQLite.Simple     (field)
+import qualified Database.SQLite.Simple     as SQL
 import           Safe
-import           Text.PrettyPrint.Tabulate ()
+import           Text.PrettyPrint.Tabulate  ()
 
 import           VDiff.Data
 import           VDiff.Persistence
+import           VDiff.Persistence.Internal
 import           VDiff.Types
 
-data Query = Incomplete | Unsound
+data Query = Incomplete | Unsound | Disagreement
   deriving (Show, Eq)
 
 type Statistics = [(Text, Text)]
@@ -62,10 +61,13 @@ instance SQL.FromRow CProgram where
 
 
 allIncomplete :: (HasDatabase env) => RIO env [RunFinding]
-allIncomplete = query_ $ SQL.Query (decodeUtf8 $(embedOneFileOf ["vdiff/assets/sql/incompleteness.sql", "assets/sql/incompleteness.sql"]))
+allIncomplete = query_ $(embedQuery "incompleteness.sql")
 
 allUnsound :: (HasDatabase env) => RIO env [RunFinding]
-allUnsound = query_ $ SQL.Query (decodeUtf8 $(embedOneFileOf  ["vdiff/assets/sql/unsoundness.sql", "assets/sql/unsoundness.sql"]))
+allUnsound = query_ $(embedQuery "unsoundness.sql")
+
+allDisagreement :: (HasDatabase env) => RIO env [RunFinding]
+allDisagreement = query_ $(embedQuery "disagreement.sql")
 
 allRuns :: (HasDatabase env) => RIO env [(String, Maybe Double, Maybe Int)]
 allRuns = query_ "SELECT verifier_name,time,memory FROM runs;"
@@ -77,7 +79,7 @@ programByHash hsh = do
   prgs <- fold_ "SELECT * FROM programs" [] f
   return $ headMay prgs
   where
-    f ls prg = if hsh `isInfixOf` (show $ prg ^. hash)
+    f ls prg = if hsh `isInfixOf` show (prg ^. hash)
                then return (prg:ls)
                else return ls
 
@@ -85,7 +87,4 @@ programByHash hsh = do
 updateIndices :: (HasDatabase env, HasLogFunc env) => RIO env ()
 updateIndices = do
   logDebug "updating indices"
-  let q = SQL.Query $ decodeUtf8 $ $(embedOneFileOf  [ "vdiff/assets/sql/update-indices.sql"
-                                                   , "assets/sql/update-indices.sql"
-                                                   ])
-  execute_ q
+  execute_ $(embedQuery "update-indices.sql")
