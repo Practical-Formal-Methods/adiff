@@ -4,13 +4,14 @@
 
 module Main where
 
+import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
 import           Data.Tuple.Extra
 import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
-import           Graphics.Rendering.Chart.Easy          hiding (List)
+import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
-import           RIO                                    hiding ((^.))
+import           RIO
 import           RIO.List
 import           System.Exit
 import           System.IO
@@ -20,6 +21,7 @@ import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
 import qualified VDiff.Query                            as Q
 import           VDiff.Types
+import           VDiff.Persistence (withDiffDB)
 
 
 data ViewCommand = Stats
@@ -27,6 +29,7 @@ data ViewCommand = Stats
                  | Count Q.Query
                  | Program String
                  | TimeMemoryGraph FilePath
+                 | Merge [FilePath]
                  deriving (Show, Eq)
 
 data ViewParameters = ViewParameters
@@ -45,7 +48,8 @@ main = do
   logOptions <- logOptionsHandle stderr True
   let logOptions' = setLogMinLevel LevelDebug logOptions
   -- set up sql
-  SQL.withConnection (vp ^. databaseFn) $ \conn ->
+  -- SQL.withConnection (vp ^. databaseFn) $ \conn ->
+  withDiffDB (vp ^. databaseFn) $ \conn ->
     withLogFunc logOptions' $ \logger -> do
       let viewEnv = MainEnv logger conn
       runRIO viewEnv $ do
@@ -81,6 +85,29 @@ executeView (Program hsh) = do
 executeView (TimeMemoryGraph outp) = do
   d <- Q.allRuns
   liftIO $ renderPoints (cleanData d) outp
+executeView (Merge files) = do
+  mainConn <- view databaseL
+
+  -- loop over the given databases
+  liftIO $
+    forM_ files $ \f -> do
+      putStrLn $ "merging file " ++ f
+      SQL.withConnection f $ \conn -> do
+
+        putStrLn "merging programs"
+        SQL.fold_ conn "SELECT code_hash,origin,content FROM programs" () $ \_ prg -> do
+          let _ = prg :: (Text,Text,Text)
+          SQL.execute mainConn "INSERT OR IGNORE INTO programs(code_hash,origin,content) VALUES(?,?,?)" prg
+          putStr "."
+        putStrLn ""
+
+        putStrLn "merging runs"
+        SQL.fold_ conn "SELECT run_id,verifier_name,result,time,memory,code_hash FROM runs;" () $ \_ run -> do
+          let (_ :: Integer, vn :: Text, result :: Text, time :: Maybe Float, mem :: Maybe Integer, hsh :: Text ) = run
+              runWithoutId = (vn, result, time, mem, hsh)
+          SQL.execute mainConn "INSERT OR IGNORE INTO runs(verifier_name,result,time,memory,code_hash) VALUES(?,?,?,?,?)" runWithoutId
+          putStr "."
+        putStrLn ""
 
 opts :: ParserInfo ViewParameters
 opts = info (viewParameters <**> helper) (progDesc "viewer for vdiff")
@@ -90,9 +117,9 @@ viewParameters :: Parser ViewParameters
 viewParameters = ViewParameters <$> databasePath  <*> viewCommand
 
 viewCommand :: Parser ViewCommand
-viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd
+viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd <|> mergeCmd
 
-statCmd,listCmd,countCmd,programCmd,correlationCmd :: Parser ViewCommand
+statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
@@ -118,6 +145,10 @@ programCmd = Program <$> option str options
 correlationCmd = switch options $> TimeMemoryGraph <*> someFile
   where options = mconcat [ long "correlation"
                           , help "generates a scatter plot of memory consumption and runtime" ]
+
+mergeCmd = switch options $>  Merge <*> many someFile
+  where options = mconcat [ long "merge"
+                          , help "merge database files into one"]
 
 query :: Parser Q.Query
 query = incmpl <|> unsound <|> disagreement
@@ -146,14 +177,21 @@ cleanData runs =
     e23 g = [(y,z) | (_,y,z) <- g]
 
 
-clrs :: [AlphaColour Double]
-clrs = map opaque [red, blue, green, yellow, black, brown, coral]
+clrs :: [Chart.AlphaColour Double]
+clrs = map Chart.opaque [ Chart.red
+                        , Chart.blue
+                        , Chart.green
+                        , Chart.yellow
+                        , Chart.black
+                        , Chart.brown
+                        , Chart.coral
+                        ]
 
 renderPoints :: [DataLine] -> FilePath -> IO ()
 renderPoints lns outp = do
   let fileOptions = (fo_format .~ SVG) def
   toFile fileOptions outp $ do
-    layout_title .= "resident memory (MiB) / Time (s)"
-    forM_ (zip lns clrs) $ \(ln, c) -> do
-      setColors [c]
-      plot (points (verifier ln) (proportions ln))
+    Chart.layout_title .= "resident memory (MiB) / Time (s)"
+    forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
+      Chart.setColors [c]
+      Chart.plot (Chart.points (verifier ln) (proportions ln))
