@@ -65,6 +65,7 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \v
       Right (Just v) -> return v
     putStrLn sv
 
+-- TODO: Also parse diff parameters
 cmdRunVerifiers :: (HasLogFunc env) => [Verifier] -> FilePath -> RIO env ()
 cmdRunVerifiers vs fn = do
   fn' <- liftIO $ makeAbsolute fn

@@ -28,6 +28,7 @@ data ViewCommand = Stats
                  | List Q.Query
                  | Count Q.Query
                  | Program String
+                 | Runs String
                  | TimeMemoryGraph FilePath
                  | Merge [FilePath]
                  deriving (Show, Eq)
@@ -85,6 +86,11 @@ executeView (Program hsh) = do
 executeView (TimeMemoryGraph outp) = do
   d <- Q.allRuns
   liftIO $ renderPoints (cleanData d) outp
+
+executeView (Runs hsh) = do
+  runs <- Q.allRunsByHash hsh
+  liftIO $ T.printTable runs
+
 executeView (Merge files) = do
   mainConn <- view databaseL
 
@@ -117,9 +123,9 @@ viewParameters :: Parser ViewParameters
 viewParameters = ViewParameters <$> databasePath  <*> viewCommand
 
 viewCommand :: Parser ViewCommand
-viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd <|> mergeCmd
+viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd <|> mergeCmd <|> runsCmd
 
-statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd :: Parser ViewCommand
+statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd,runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
@@ -140,6 +146,7 @@ countCmd = switch options $> Count <*> query
 programCmd = Program <$> option str options
   where options = mconcat [ long "hash"
                           , help "returns the source code of a program with the given hash"
+                          , metavar "HASH"
                           ]
 
 correlationCmd = switch options $> TimeMemoryGraph <*> someFile
@@ -149,6 +156,12 @@ correlationCmd = switch options $> TimeMemoryGraph <*> someFile
 mergeCmd = switch options $>  Merge <*> many someFile
   where options = mconcat [ long "merge"
                           , help "merge database files into one"]
+
+runsCmd = Runs <$> option str options
+  where options = mconcat [ long "runs"
+                          , help "shows all runs using the program with the given hash"
+                          , metavar "HASH"
+                          ]
 
 query :: Parser Q.Query
 query = incmpl <|> unsound <|> disagreement
@@ -167,9 +180,9 @@ data DataLine = DataLine
   , proportions :: [(Double, Int)]
   }
 
-cleanData :: [(String, Maybe Double, Maybe Int)] -> [DataLine]
+cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
 cleanData runs =
-  let terminated = [(s,t, m `div` 1024 ) | (s, Just t, Just m) <- runs] -- memory in MiB
+  let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
       grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
       tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
   in tagged

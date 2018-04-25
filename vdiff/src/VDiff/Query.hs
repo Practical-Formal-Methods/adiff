@@ -69,9 +69,11 @@ allUnsound = query_ $(embedQuery "unsoundness.sql")
 allDisagreement :: (HasDatabase env) => RIO env [RunFinding]
 allDisagreement = query_ $(embedQuery "disagreement.sql")
 
-allRuns :: (HasDatabase env) => RIO env [(String, Maybe Double, Maybe Int)]
-allRuns = query_ "SELECT verifier_name,time,memory FROM runs;"
+allRuns :: (HasDatabase env) => RIO env [(String, String, Maybe Double, Maybe Int)]
+allRuns = query_ "SELECT verifier_name,result,time,memory FROM runs;"
 
+allRunsByHash :: (HasDatabase env) => String -> RIO env [(String, String, Maybe Double, Maybe Int)]
+allRunsByHash str = query "SELECT verifier_name,result,time,memory FROM RUNS WHERE code_hash = ? " (SQL.Only str)
 
 -- this folds over the complete database because sqlite does not have string matching
 programByHash :: (HasDatabase env) => String -> RIO env (Maybe CProgram)
