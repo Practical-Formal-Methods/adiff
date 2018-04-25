@@ -1,20 +1,12 @@
 module InstrumentationTest where
 
-import qualified Data.ByteString.Lazy.Char8  as LC8
-import           RIO
-import qualified RIO.ByteString.Lazy         as LBS
-import           System.FilePath             (replaceExtension, takeBaseName)
-
+import qualified Data.ByteString.Lazy.Char8 as LC8
 import           Language.C
-import           Text.PrettyPrint            (render)
-
-import           Control.Lens.Operators      ((^?))
-import           Data.Generics.Uniplate.Data ()
-import           Language.C.Data.Lens
-
-import           VDiff.Instrumentation
+import           RIO
+import           Text.PrettyPrint           (render)
 
 import           Util
+import           VDiff.Instrumentation
 
 
 
@@ -34,6 +26,7 @@ testZipping = do
     , pure testInsertBefore
     , testMarkAllReads
     , pure testPreprocessor
+    , pure testEditingOtherFunction
     ]
   return $ testGroup "zipping" tests
 
@@ -114,4 +107,21 @@ testMarkAllReads = do
     runTest cf = vsGoldenFile cf "all-reads"  $ \tu -> do
         let bs = render . pretty . markAllReads $ tu
         return $ LC8.pack bs
+
+
+testEditingOtherFunction :: TestTree
+testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-functions.c" "editMin" $ \tu -> do
+  (tu1, tu2) <- runBrowserT act tu
+  assertEqual "buildTranslationUnit should return the same tu as runBrowserT" (prettyp tu1) (prettyp tu2)
+  return $ LC8.pack $ prettyp tu1
+  where act = do
+          gotoFunction "min"
+          _ <- go Down
+          _ <- go Down
+          _ <- go Down
+          insertBefore (dummyStmt "dummy")
+          buildTranslationUnit
+
+
+
 

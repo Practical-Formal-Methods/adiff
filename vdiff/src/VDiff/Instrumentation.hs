@@ -60,10 +60,6 @@ import           Text.PrettyPrint                  (render)
 import           UnliftIO.Directory
 
 
-
-import           VDiff.Types
-
-
 instance Display (CStatement a) where
   display = display . pack . prettyp
 
@@ -165,7 +161,7 @@ runBrowserT a tu = do
   (x, bs :: BrowserState) <- runStateT (unBrowserT a) initialState
   let
       stmt' = Z.fromZipper ((bs ^. stmtZipper) :: StmtZipper ) :: Stmt
-      tu' = ((ix "main" . functionDefinition . body) .~ stmt') tu
+      tu' = tu & (ix (bs ^. currentFunction) . functionDefinition . body) .~ stmt'
   return (x, tu')
 
 class (Monad m) => MonadBrowser m where
@@ -315,13 +311,13 @@ tryout act = do
   putBrowserState st
   return x
 
-buildTranslationUnit :: (MonadBrowser m, MonadReader env m, HasTranslationUnit env) => m (CTranslationUnit SemPhase)
+buildTranslationUnit :: (MonadBrowser m) => m (CTranslationUnit SemPhase)
 buildTranslationUnit = do
-  tu <- view translationUnit
   st <- getBrowserState
   let stmt = Z.fromZipper (st ^. stmtZipper)
-  let modif = (ix "main" . functionDefinition . body) .~ stmt
-  return $ modif tu
+      tu = st ^. currentTU
+      fn = st ^. currentFunction
+  return $ tu & (ix fn . functionDefinition . body) .~ stmt
 
 
 
