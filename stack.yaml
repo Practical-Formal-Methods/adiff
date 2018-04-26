@@ -1,7 +1,9 @@
 flags: {}
 packages:
 - ./vdiff
-- ./language-c-extensible
+- location: ./language-c-extensible
+  extra-dep: true
+
 extra-deps:
 - pptable-0.3.0.0
 - process-1.6.3.0
