@@ -1,13 +1,12 @@
-{-# LANGUAGE LambdaCase #-}
 
 module Main where
 
 import           RIO
 
-import           VDiff.Arguments
+import           VDiff.Arguments   as Args
 import           VDiff.Diff
 import           VDiff.Persistence
-import           VDiff.Types       hiding (strategy, verifiers)
+import           VDiff.Types
 
 
 main :: IO ()
@@ -26,11 +25,11 @@ main = do
 
 runCommands :: HasMainEnv env => MainParameters -> RIO env ()
 runCommands param = case cmd param of
-                      (CmdRun dp)           -> cmdDiff dp
-                      (CmdParseTest fn)     -> cmdParseTest fn
-                      (CmdMarkReads fn)     -> cmdMarkReads fn
-                      CmdVersions           -> cmdVersions
-                      CmdRunVerifiers vs fn -> cmdRunVerifiers vs fn
+                      (CmdRun dp)        -> cmdDiff dp
+                      (CmdParseTest fn)  -> cmdParseTest fn
+                      (CmdMarkReads fn)  -> cmdMarkReads fn
+                      CmdVersions        -> cmdVersions
+                      CmdRunVerifiers dp -> cmdRunVerifiers dp
 
 
 
@@ -47,9 +46,9 @@ data MainParameters = MainParameters
 
 
 data Cmd  = CmdRun DiffParameters
+          | CmdRunVerifiers DiffParameters
           | CmdParseTest FilePath
           | CmdMarkReads FilePath
-          | CmdRunVerifiers [Verifier] FilePath
           | CmdVersions
 
 
@@ -79,28 +78,11 @@ parseCmdMarkReads :: Parser Cmd
 parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> cFile
 
 parseCmdRunDiff :: Parser Cmd
-parseCmdRunDiff = CmdRun <$> (DiffParameters
-      <$> strategy       <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
-      <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
-      <*> verifiers
-      <*> cFile
-      )
+parseCmdRunDiff = CmdRun <$> Args.diffParameters
+
+
 
 parseCmdRunVerifiers :: Parser Cmd
-parseCmdRunVerifiers = switch (long "run") *> (CmdRunVerifiers <$> verifiers <*>  cFile)
+parseCmdRunVerifiers = switch (long "run") *> (CmdRunVerifiers <$> Args.diffParameters)
 
-
-strategy :: Parser Strategy
-strategy = option stratParser options
-  where options = mconcat [ long "strategy"
-                          , help "guidance algorithm (available: 'random' and 'smart')"
-                          , value RandomStrategy
-                          , showDefaultWith strategyName
-                          , metavar "STRATEGY"
-                          , completeWith ["random", "smart"]
-                          ]
-        stratParser = (str :: ReadM Text) >>= \case
-          "random"        -> return RandomStrategy
-          "smart"          -> return SmartStrategy
-          _ -> readerError "Accepted strategies are 'naive' and 'smart'."
 

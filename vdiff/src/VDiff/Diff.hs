@@ -66,13 +66,12 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \v
     putStrLn sv
 
 -- TODO: Also parse diff parameters
-cmdRunVerifiers :: (HasLogFunc env) => [Verifier] -> FilePath -> RIO env ()
-cmdRunVerifiers vs fn = do
-  fn' <- liftIO $ makeAbsolute fn
+cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
+cmdRunVerifiers dp = do
+  fn' <- liftIO $ makeAbsolute (dp ^. program)
   lg <- view logFuncL
-  let tl = 15 * 1000 * 1000
-      verifierEnv = VerifierEnv lg tl
-  forM_ vs $ \v -> do
+  let verifierEnv = VerifierEnv lg (dp ^. timelimit)
+  forM_ (dp ^. verifiers) $ \v -> do
     liftIO $ print (verifierName v)
     res <- runRIO verifierEnv $ execute v fn'
     liftIO $ print res

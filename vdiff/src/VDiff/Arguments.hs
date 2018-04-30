@@ -67,3 +67,24 @@ level = option levelP options
       "warning" -> return LevelWarn
       "error"   -> return LevelError
       s -> readerError $ "unknown log-level " ++ show s
+
+diffParameters :: Parser DiffParameters
+diffParameters = DiffParameters
+      <$> VDiff.Arguments.strategy       <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
+      <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
+      <*> VDiff.Arguments.verifiers
+      <*> cFile
+
+strategy :: Parser Strategy
+strategy = option stratParser options
+  where options = mconcat [ long "strategy"
+                          , help "guidance algorithm (available: 'random' and 'smart')"
+                          , value RandomStrategy
+                          , showDefaultWith strategyName
+                          , metavar "STRATEGY"
+                          , completeWith ["random", "smart"]
+                          ]
+        stratParser = (str :: ReadM Text) >>= \case
+          "random"        -> return RandomStrategy
+          "smart"          -> return SmartStrategy
+          _ -> readerError "Accepted strategies are 'naive' and 'smart'."
