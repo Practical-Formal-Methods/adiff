@@ -9,3 +9,8 @@ extra-deps:
 - process-1.6.3.0
 - rio-0.1.0.0
 resolver: lts-11.3
+
+docker:
+  enable: true
+  image: vdiff-build
+  set-user: false

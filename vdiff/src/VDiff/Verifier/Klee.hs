@@ -36,7 +36,7 @@ kleeRun fn = withSystemTempDirectory "kleedir" $ \dir -> do
   -- replace call to __VERIFIER_assert
   callCommand ["sed -i -e", "'s/__VERIFIER_error();/klee_assert(0);/'", pathProgram]
   -- compile with clang
-  callCommand ["clang-3.8", "-emit-llvm -c -g",  pathProgram, "-o",  pathBC]
+  callCommand ["clang-3.8", "-emit-llvm -O0 -c -g",  pathProgram, "-o",  pathBC]
 
   -- run klee with timing
   let cmd = shell $ "klee -silent-klee-assume --search=dfs -max-forks=64 " ++ pathBC
