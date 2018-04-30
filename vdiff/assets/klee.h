@@ -16,7 +16,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
+
+
+
+
   /* Add an accesible memory object at a user specified location. It
    * is the users responsibility to make sure that these memory
    * objects do not overlap. These memory objects will also
@@ -157,6 +160,13 @@ extern "C" {
 
   /* Merge all paths of the state that went through klee_open_merge */
   void klee_close_merge();
+
+  /* handle SV-COMP conventions */
+  int __VERIFIER_nondet_int() { int v; klee_make_symbolic(&v, 4, "unnamed"); return v; }
+  int __VERIFIER_nondet_uint() { int v; klee_make_symbolic(&v, 4, "unnamed"); return v; }
+  int __VERIFIER_nondet_pointer() { int v; klee_make_symbolic(&v, 4, "unnamed"); return v; }
+  void __VERIFIER_assume(int x) { klee_assume(x == 0); }
+
 #ifdef __cplusplus
 }
 #endif
