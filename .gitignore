@@ -1,5 +1,3 @@
 .stack-work
 vdiff.cabal
-docker/*.tmp
-Dockerfile
 **/.#*

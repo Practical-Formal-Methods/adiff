@@ -1,6 +1,0 @@
-
-# copy some sample files into the docker image
-COPY samples /root/samples
-
-# and 
-COPY docker/bashrc /root/.bashrc
