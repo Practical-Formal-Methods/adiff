@@ -1,10 +1,8 @@
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE MultiWayIf             #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TemplateHaskell        #-}
-{-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiWayIf            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 -- | Implements the core instrumentation functions.
 module VDiff.Instrumentation
@@ -18,35 +16,32 @@ module VDiff.Instrumentation
  , Stmt
  , Direction(..)
  , MonadBrowser
- , BrowserT(..)
+ , BrowserT
  , runBrowserT
  , findReads
  , insertBefore
  , buildTranslationUnit
  , tryout
  , go
- , goto
+ , gotoPosition
  , gotoFunction
  , currentStmt
  , currentPosition
  , findCalledFunction
  , go_
- , AstPosition(..)
+ , AstPosition
  -- * Internals
  , insertBeforeNthStatement
  , markAllReads
  ) where
 
-import qualified Prelude                           as P
-import           RIO                               hiding (view, (^.))
+import           RIO
 import           RIO.FilePath
 import           Safe
 
 import           Control.Lens
-import           Control.Monad.State.Strict
 import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
-import qualified Data.Generics.Uniplate.Zipper     as Z
 import           Data.List                         (isPrefixOf)
 import           Data.Text                         (pack)
 import           Language.C
@@ -58,6 +53,8 @@ import           Language.C.Data.Lens
 import           Language.C.System.GCC
 import           Text.PrettyPrint                  (render)
 import           UnliftIO.Directory
+
+import           VDiff.Instrumentation.Browser
 
 
 instance Display (CStatement a) where
@@ -88,8 +85,6 @@ openCFile fn = do
             return (Just tu')
 
 --------------------------------------------------------------------------------
-type Stmt = CStatement SemPhase
-type StmtZipper= Z.Zipper Stmt Stmt
 
 
 -- | find reads in a statement
@@ -116,217 +111,30 @@ readsStatement s = case s of
     readsExpression _                  = []
 
     readsInitializer :: CInitializer SemPhase -> [(Ident,Type)]
-    readsInitializer (CInitExpr e _) = readsExpression e
-    readsInitializer (CInitList lst _) = concat $ map (readsInitializer.snd) lst
+    readsInitializer (CInitExpr e _)   = readsExpression e
+    readsInitializer (CInitList lst _) = concatMap (readsInitializer.snd) lst
 
     readsDeclaration :: CDeclaration SemPhase -> ([(Ident, Type)], [Ident])
     readsDeclaration (CDecl _ declrs _) = (reads, declared)
       where
         reads        = concatMap readsInitializer initializers :: [(Ident,Type)]
-        initializers = catMaybes $ map (\(_,x,_) -> x) declrs
-        declarators  = catMaybes $ map (\(x,_,_) -> x) declrs :: [CDeclarator SemPhase]
-        declared     = catMaybes $ map identifier declarators
+        initializers = mapMaybe (\(_,x,_) -> x) declrs
+        declarators  = mapMaybe (\(x,_,_) -> x) declrs :: [CDeclarator SemPhase]
+        declared     = mapMaybe identifier declarators
           where identifier (CDeclr mi _ _ _ _) = mi
     readsDeclaration _ = ([],[])
 
---------------------------------------------------------------------------------
--- $zipping
--- When you want to modify an AST, you probably want to use a zipper. You can use it with any state monad, just make sure it is an instance of 'ZipperState', meaning that it has to store a 'StmtZipper' and a 'siblingIndex', where the latter is counting the skipped statements in the current compound statement.
--- Inside your state monad you can then use functions like 'go','go_'...
---------------------------------------------------------------------------------
-data Direction = Up | Down | Next | Prev
-  deriving (Eq, Enum, Bounded, Show)
-
--- this is what every strategy needs to move around in the AST
--- TODO: Move the "originalTranslationUnit" to a reader instance
-data BrowserState = BrowserState
-  { _stmtZipper      :: !StmtZipper
-  , _stmtPosition    :: ![Int]
-  , _currentFunction :: String -- ^ name of the current function
-  , _currentTU       :: CTranslationUnit SemPhase
-  }
-makeFieldsNoPrefix ''BrowserState
-
-
-newtype BrowserT m a = BrowserT
-  { unBrowserT :: (StateT BrowserState m) a
-  } deriving (Functor, Applicative, Monad, MonadState BrowserState, MonadTrans)
-
-
-runBrowserT :: (Monad m) => BrowserT m a -> CTranslationUnit SemPhase -> m (a, CTranslationUnit SemPhase)
-runBrowserT a tu = do
-  let (Just mainFunBody) = tu ^? (ix "main" . functionDefinition . body)
-      zp = Z.zipper mainFunBody
-      initialState = BrowserState zp [0] "main" tu
-  (x, bs :: BrowserState) <- runStateT (unBrowserT a) initialState
-  let
-      stmt' = Z.fromZipper ((bs ^. stmtZipper) :: StmtZipper ) :: Stmt
-      tu' = tu & (ix (bs ^. currentFunction) . functionDefinition . body) .~ stmt'
-  return (x, tu')
-
-class (Monad m) => MonadBrowser m where
-  putBrowserState :: BrowserState -> m ()
-  getBrowserState :: m BrowserState
-  modifyBrowserState :: (BrowserState -> BrowserState) -> m ()
-  modifyBrowserState f = getBrowserState >>= putBrowserState . f
-
-instance (Monad m) => MonadBrowser (BrowserT m) where
-  putBrowserState = put
-  getBrowserState = get
-
---------------------------------------------------------------------------------
-deriving instance MonadIO (BrowserT IO)
-deriving instance MonadReader env (BrowserT (RIO env))
-deriving instance MonadIO (BrowserT (RIO env))
 
 
 
-instance (MonadBrowser m) => MonadBrowser (StateT s m) where
-  putBrowserState st = lift $ putBrowserState st
-  getBrowserState    = lift getBrowserState
 
 
-data ZipperException = ZipperException
-  deriving Show
 
-instance Exception ZipperException
-
-
--- | tries to move the zipper into the given direction. returns true if successful.
-go :: (MonadBrowser m) => Direction -> m Bool
-go d = do
-  st <- getBrowserState
-  let f = case d of
-        Prev -> Z.left
-        Next -> Z.right
-        Up   -> Z.up
-        Down -> Z.down
-  case f (st ^. stmtZipper) of
-    Nothing -> return False
-    Just z -> do
-      let st' = case d of
-            Up   -> (stmtPosition %~ P.tail) st -- pop
-            Down -> (stmtPosition %~ (0:)) st  -- push 0
-            Prev -> (stmtPosition . _head -~ 1) st
-            Next -> (stmtPosition . _head +~ 1) st
-      putBrowserState $ (stmtZipper .~ z) st'
-      return True
-
-data AstPosition = AstPosition
-  { functionName :: String
-  , indices      :: [Int]
-  } deriving (Eq, Ord, Show)
-
-mkPosition :: String -> AstPosition
-mkPosition fn = AstPosition fn [0]
-
-instance Display AstPosition where
- display (AstPosition fn xs) = display (tshow fn) <> "/" <> foldl' f "" xs
-  where f b x = display b <> "/" <> display x
-
--- Important note: a position contains the indices ordered from top to bottom
--- whereas the stmtPosition in the BrowserState is from bottom to top.
-
-currentPosition :: MonadBrowser m => m (AstPosition)
-currentPosition = do
-  st <- getBrowserState
-  let fn = st ^. currentFunction
-      pos = st ^. stmtPosition
-  return $ AstPosition fn (reverse pos)
-
--- TODO: Improve implementation
-goto :: (MonadBrowser m) => AstPosition -> m ()
-goto (AstPosition fn xs) = do
-  -- goto function
-  gotoFunction fn
-  -- move down with the given indices
-  goto' xs
-  where
-    goto' []     = error "a position should never be empty"
-    goto' [y]    = gotoSibling y
-    goto' (y:ys) = gotoSibling y >> go Down >> goto' ys
-
-
-gotoFunction :: (MonadBrowser m) => String -> m ()
-gotoFunction fn = do
-  st <- getBrowserState
-  let cTU                 = st ^. currentTU
-      currentZip          = st ^. stmtZipper
-      currentFunctionName = st ^. currentFunction :: String
-      tu'                 = cTU & (ix currentFunctionName . functionDefinition . body) .~ Z.fromZipper currentZip
-      (Just fbody)        = tu' ^? (ix fn . functionDefinition . body)
-      newZipper           = Z.zipper fbody
-  let st' =  st & (currentTU .~ tu')
-                & (currentFunction .~ fn)
-                & (stmtZipper .~ newZipper)
-                & (stmtPosition .~ [0])
-  putBrowserState st'
-
-
--- | Move to the nth sibling. Be careful!
-gotoSibling :: (MonadBrowser m) => Int -> m ()
-gotoSibling n = do
-  (p:_) <- _stmtPosition <$> getBrowserState
-  let diff = n - p
-  if
-    | diff > 0 -> replicateM_ diff (go_ Next)
-    | diff < 0 -> replicateM_ (- diff) (go_ Prev)
-    | otherwise -> return ()
-
-
-insertBefore :: (MonadBrowser m) => Stmt -> m ()
-insertBefore ins = do
-  st <- getBrowserState
-  let (n:_) = st ^. stmtPosition
-  -- move up
-  go_ Up
-  xx <- currentStmt
-  -- check that we are in a compound statement and replace the compound statement
-  case xx of
-    (CCompound l items ann) -> do
-          let items' = insertBeforeNthStatement ins n items
-              s' =  CCompound l items' ann
-          modifyBrowserState $ stmtZipper %~ Z.replaceHole s'
-    _               -> error "insertBefore was called at a location outside of a compound statement"
-  -- move back to the original position
-  go_ Down
-  replicateM_ (n+1) (go Next)
 
 findReads :: (MonadBrowser m) => m [(Ident, Type)]
 findReads = do
   s <- currentStmt
   return $ readsStatement s
-
-currentStmt :: (MonadBrowser m) => m Stmt
-currentStmt = do
-  st <- getBrowserState
-  return $ Z.hole (st ^. stmtZipper)
-
-
--- | This executes a monadic actions but resets the zipper to the value it previously had. This is convenient in combination of zipper modifying functions like 'insertBefore'.
-tryout :: MonadBrowser m => m a -> m a
-tryout act = do
-  st <- getBrowserState
-  x <- act
-  putBrowserState st
-  return x
-
-buildTranslationUnit :: (MonadBrowser m) => m (CTranslationUnit SemPhase)
-buildTranslationUnit = do
-  st <- getBrowserState
-  let stmt = Z.fromZipper (st ^. stmtZipper)
-      tu = st ^. currentTU
-      fn = st ^. currentFunction
-  return $ tu & (ix fn . functionDefinition . body) .~ stmt
-
-
-
-
--- | NOTE: Like go, but throws an error when doing it can't go into the given direction
-go_ :: (MonadBrowser m) => Direction -> m ()
-go_ d = do
-  m <- go d
-  unless m $ error ("cannot go " ++ show d)
 
 
 
@@ -338,8 +146,6 @@ markAllReads tu =
         gotoFunction fname
         explore [0]
   in snd <$> runIdentity $ runBrowserT act tu
-
-
 
 
 -- first parameter is the number of explored siblings per level (deepest first)
@@ -462,12 +268,3 @@ dummyAssert = CFunDef specs decl [] body' undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
         body' = CCompound [] [] (undefNode, voidType)
 
---------------------------------------------------------------------------------
--- simple utilities
---------------------------------------------------------------------------------
--- | partial!
-insertBeforeNthStatement :: CStatement a -> Int -> [CCompoundBlockItem a] -> [CCompoundBlockItem a]
-insertBeforeNthStatement s 0 items@(CBlockStmt _ : _) = CBlockStmt s : items
-insertBeforeNthStatement s n (x@(CBlockStmt _):xs)    = x : insertBeforeNthStatement s (n-1) xs
-insertBeforeNthStatement s n (x:xs)                   = x : insertBeforeNthStatement s n xs
-insertBeforeNthStatement _  _ _                       = error "illegal insertAt"
