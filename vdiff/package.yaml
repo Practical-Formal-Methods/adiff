@@ -39,8 +39,8 @@ executables:
     main: Main.hs
     dependencies:
       - vdiff
-      - Chart
-      - Chart-cairo
+      # - Chart
+      # - Chart-cairo
       - extra
     ghc-options: -threaded -O2 -rtsopts
 

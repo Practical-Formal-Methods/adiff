@@ -23,7 +23,11 @@ import           VDiff.Persistence
 import           VDiff.Persistence.Internal
 import           VDiff.Types
 
-data Query = Incomplete | Unsound | Disagreement
+data Query
+  = Incomplete
+  | Unsound
+  | Disagreement
+  | UnsoundAccordingToKleeOrCbmc
   deriving (Show, Eq)
 
 type Statistics = [(Text, Text)]
@@ -32,7 +36,7 @@ stats :: (HasDatabase env) => RIO env Statistics
 stats = do
   [runsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM runs;"
   [programsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM programs;"
-  [distinctOrigin :: SQL.Only Int] <- query_ "SELECT COUNT(DISTINCT origin) frOM programs;"
+  [distinctOrigin :: SQL.Only Int] <- query_ "SELECT COUNT(DISTINCT origin) FROM programs;"
   return [ ("runs", tshow $ SQL.fromOnly runsN)
          , ("programs", tshow $ SQL.fromOnly programsN)
          , ("used source files", tshow $ SQL.fromOnly distinctOrigin)
@@ -68,6 +72,11 @@ allUnsound = query_ $(embedQuery "unsoundness.sql")
 
 allDisagreement :: (HasDatabase env) => RIO env [RunFinding]
 allDisagreement = query_ $(embedQuery "disagreement.sql")
+
+-- | When Klee or CBMC says "sat" they are most likely right. In those cases
+-- it's very likely that a disagreeing verifier is unsound, hence especially interesting to us.
+allUnsoundAccordingToKleeOrCbmc :: (HasDatabase env) => RIO env [RunFinding]
+allUnsoundAccordingToKleeOrCbmc = query_ $(embedQuery "unsound-klee-cbmc.sql")
 
 allRuns :: (HasDatabase env) => RIO env [(String, String, Maybe Double, Maybe Int)]
 allRuns = query_ "SELECT verifier_name,result,time,memory FROM runs;"

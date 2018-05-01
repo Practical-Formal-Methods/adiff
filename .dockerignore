@@ -1,11 +1,5 @@
+# ignore everything...
 *
-!samples
+# ... except:
+!.stack-work/docker
 !docker
-
-
-# Unfortunately, docker does not support * in exceptions 
-#!.stack-work/dist/*/*/build/vdiff/vdiff
-
-# this includes too much *shrug*
-!.stack-work/dist
-!vdiff/.stack-work/dist
