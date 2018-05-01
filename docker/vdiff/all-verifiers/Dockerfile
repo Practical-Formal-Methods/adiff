@@ -105,11 +105,11 @@ RUN git config --global user.email "x@y.com"  &&\
 
 RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 	cd /tmp/klee && \
+#	git checkout 4010156bf946341f42aa82fc0a2669c936d5e106 && \
 	git fetch origin pull/605/head:pull605 ;\
 	git fetch origin pull/729/head:pull729 ;\
 	git merge pull605 ;\
-	git merge pull729 ;\
-	ex -c "51d|48d|47d|wq" test/Runtime/POSIX/DirSeek.c ;\
+	git merge -X theirs pull729 ;\
 	mkdir build &&\
 	cd build &&\
 	cmake -DENABLE_SOLVER_Z3=ON \
