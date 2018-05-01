@@ -1,5 +1,6 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
 module Main where
@@ -8,8 +9,8 @@ import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
 import           Data.Tuple.Extra
 import qualified Database.SQLite.Simple                 as SQL
-import           Graphics.Rendering.Chart.Backend.Cairo
-import qualified Graphics.Rendering.Chart.Easy          as Chart
+-- import           Graphics.Rendering.Chart.Backend.Cairo
+-- import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
 import           RIO
 import           RIO.List
@@ -19,9 +20,9 @@ import qualified Text.PrettyPrint.Tabulate              as T
 
 import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
+import           VDiff.Persistence                      (withDiffDB)
 import qualified VDiff.Query                            as Q
 import           VDiff.Types
-import           VDiff.Persistence (withDiffDB)
 
 
 data ViewCommand = Stats
@@ -66,15 +67,17 @@ executeView Stats = do
   return ()
 executeView (List q) = do
   rs <- case q  of
-        Q.Incomplete   -> Q.allIncomplete
-        Q.Unsound      -> Q.allUnsound
-        Q.Disagreement -> Q.allDisagreement
+        Q.Incomplete                   -> Q.allIncomplete
+        Q.Unsound                      -> Q.allUnsound
+        Q.Disagreement                 -> Q.allDisagreement
+        Q.UnsoundAccordingToKleeOrCbmc -> Q.allUnsoundAccordingToKleeOrCbmc
   liftIO $ T.printTable rs
 executeView (Count q) = do
   rs <- case q  of
-        Q.Incomplete   -> Q.allIncomplete
-        Q.Unsound      -> Q.allUnsound
-        Q.Disagreement -> Q.allDisagreement
+        Q.Incomplete                   -> Q.allIncomplete
+        Q.Unsound                      -> Q.allUnsound
+        Q.Disagreement                 -> Q.allDisagreement
+        Q.UnsoundAccordingToKleeOrCbmc -> Q.allUnsoundAccordingToKleeOrCbmc
   liftIO $ print $ length rs
 executeView (Program hsh) = do
   p <- Q.programByHash hsh
@@ -85,7 +88,8 @@ executeView (Program hsh) = do
       exitFailure
 executeView (TimeMemoryGraph outp) = do
   d <- Q.allRuns
-  liftIO $ renderPoints (cleanData d) outp
+  error "not available"
+  -- liftIO $ renderPoints (cleanData d) outp
 
 executeView (Runs hsh) = do
   runs <- Q.allRunsByHash hsh
@@ -164,10 +168,11 @@ runsCmd = Runs <$> option str options
                           ]
 
 query :: Parser Q.Query
-query = incmpl <|> unsound <|> disagreement
+query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc
   where incmpl = switch (long "incomplete") $> Q.Incomplete
         unsound = switch (long "unsound") $> Q.Unsound
         disagreement = switch (long "disagreement") $> Q.Disagreement
+        unsoundKleeCbmc = switch (long "unsound-klee-cbmc") $> Q.UnsoundAccordingToKleeOrCbmc
 
 
 
@@ -175,36 +180,36 @@ query = incmpl <|> unsound <|> disagreement
 -- for the time / memory chart
 --------------------------------------------------------------------------------
 
-data DataLine = DataLine
-  { verifier    :: String
-  , proportions :: [(Double, Int)]
-  }
+-- data DataLine = DataLine
+--   { verifier    :: String
+--   , proportions :: [(Double, Int)]
+--   }
 
-cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
-cleanData runs =
-  let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
-      grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
-      tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
-  in tagged
-  where
-    e23 g = [(y,z) | (_,y,z) <- g]
+-- cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
+-- cleanData runs =
+--   let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
+--       grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
+--       tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
+--   in tagged
+--   where
+--     e23 g = [(y,z) | (_,y,z) <- g]
 
 
-clrs :: [Chart.AlphaColour Double]
-clrs = map Chart.opaque [ Chart.red
-                        , Chart.blue
-                        , Chart.green
-                        , Chart.yellow
-                        , Chart.black
-                        , Chart.brown
-                        , Chart.coral
-                        ]
+-- clrs :: [Chart.AlphaColour Double]
+-- clrs = map Chart.opaque [ Chart.red
+--                         , Chart.blue
+--                         , Chart.green
+--                         , Chart.yellow
+--                         , Chart.black
+--                         , Chart.brown
+--                         , Chart.coral
+--                         ]
 
-renderPoints :: [DataLine] -> FilePath -> IO ()
-renderPoints lns outp = do
-  let fileOptions = (fo_format .~ SVG) def
-  toFile fileOptions outp $ do
-    Chart.layout_title .= "resident memory (MiB) / Time (s)"
-    forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
-      Chart.setColors [c]
-      Chart.plot (Chart.points (verifier ln) (proportions ln))
+-- renderPoints :: [DataLine] -> FilePath -> IO ()
+-- renderPoints lns outp = do
+--   let fileOptions = (fo_format .~ SVG) def
+--   toFile fileOptions outp $ do
+--     Chart.layout_title .= "resident memory (MiB) / Time (s)"
+--     forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
+--       Chart.setColors [c]
+--       Chart.plot (Chart.points (verifier ln) (proportions ln))
