@@ -14,6 +14,7 @@ import           Test.Tasty.Hedgehog
 import           Language.C.Data.Lens
 import           Util
 import           VDiff.Instrumentation
+import           VDiff.Instrumentation.Browser
 
 --------------------------------------------------------------------------------
 -- properties
@@ -89,7 +90,7 @@ testGoto1 = testProperty "(goto . currentPosition) does not modify location" $ p
         mapM_ go ds
         x <- currentStmt
         p <- currentPosition
-        goto p
+        gotoPosition p
         y <- currentStmt
         return (x,y)
   ((x,y), _) <- runBrowserT actn tu
@@ -100,7 +101,7 @@ testGoto2 = testProperty "with random positions" $ property $ do
   tu <- genTranslationUnit "assets/test/reads"
   (p,s) <- forAll $ genPosition tu
   let actn = do
-        goto p
+        gotoPosition p
         currentStmt
   (s', _) <- runBrowserT actn tu
   prettyp s === prettyp s'

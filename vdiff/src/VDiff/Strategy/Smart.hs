@@ -90,7 +90,7 @@ smartStrategy' = do
         logDebug $ "ratings are: " <> display (tshow rts)
         forM_ rts $ \(rating, idx) -> do
           -- go to the statement
-          goto idx
+          gotoPosition idx
           c <- currentStmt
           logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
           -- allocate budget proportional to the rating
