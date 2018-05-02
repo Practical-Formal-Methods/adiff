@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | Implements a very simple strategy. Currently only instruments the main function
-module VDiff.Strategy.Random (randomStrategy) where
+module VDiff.Strategy.RandomWalk (randomWalkStrategy) where
 
 import           RIO
 
@@ -30,19 +30,19 @@ newtype RandomS env a = RandomS
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState RandomState)
 
 runRandomS :: IsStrategyEnv env => RandomState -> CTranslationUnit SemPhase -> RIO env (((), RandomState), CTranslationUnit SemPhase)
-runRandomS initState = runBrowserT (runStateT (unRandom randomStrategy') initState)
+runRandomS initState = runBrowserT (runStateT (unRandom randomWalkStrategy') initState)
 
 
-randomStrategy :: (IsStrategyEnv env) => RIO env ()
-randomStrategy = do
+randomWalkStrategy :: (IsStrategyEnv env) => RIO env ()
+randomWalkStrategy = do
   tu <- view translationUnit
   b <- view (diffParameters . budget)
   let initState = RandomState b 0
   void $ runRandomS initState tu
 
 
-randomStrategy' :: (IsStrategyEnv env) => RandomS env ()
-randomStrategy' = do
+randomWalkStrategy' :: (IsStrategyEnv env) => RandomS env ()
+randomWalkStrategy' = do
   bdg <- use budget
   stps <- use stepsWithoutInsertion
   when (bdg > 0 && stps < 1000) $ do
@@ -58,7 +58,7 @@ randomStrategy' = do
         (_, conclusion) <- verify tu
         logInfo $ "conclusion : " <> display (tshow conclusion)
     -- iterate
-    randomStrategy'
+    randomWalkStrategy'
 
 
 

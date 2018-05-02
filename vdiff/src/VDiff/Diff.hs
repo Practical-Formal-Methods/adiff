@@ -18,8 +18,7 @@ import           System.Exit
 import           System.IO
 
 import           VDiff.Instrumentation
-import           VDiff.Strategy.Random
-import           VDiff.Strategy.Smart
+import           VDiff.Strategy
 import           VDiff.Types
 import           VDiff.Verifier
 
@@ -34,13 +33,7 @@ cmdDiff params = do
     Just ast -> do
       let astMasked = maskAsserts ast
       stratEnv <- mkStrategyEnv astMasked params
-      case params ^. strategy of
-        RandomStrategy -> do
-          logInfo "using 'random' strategy"
-          runRIO stratEnv randomStrategy
-        SmartStrategy -> do
-          logInfo "using 'smart' strategy"
-          runRIO stratEnv smartStrategy
+      runRIO stratEnv $ executeStrategy $ params ^. strategy
 
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.

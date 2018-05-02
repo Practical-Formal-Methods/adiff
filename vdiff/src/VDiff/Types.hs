@@ -17,13 +17,10 @@ import           System.IO              (FilePath)
 
 import           VDiff.Data
 
-data Strategy = RandomStrategy -- ^ naive random strategy
-              | SmartStrategy  -- ^ not implemented yet
 
-
-strategyName :: Strategy -> String
-strategyName RandomStrategy = "naive"
-strategyName SmartStrategy  = "smart"
+data Strategy = RandomWalkStrategy
+              | RandomUniformStrategy
+              | SmartStrategy
 
 type Microseconds = Int
 --------------------------------------------------------------------------------

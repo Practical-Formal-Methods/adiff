@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- | argument parsers that are used by both vdiff and vdiff-viewer
 
 module VDiff.Arguments
@@ -9,8 +11,9 @@ import           Options.Applicative
 import           RIO
 import qualified RIO.List            as L
 
-import VDiff.Types
-import VDiff.Verifier
+import           VDiff.Strategy
+import           VDiff.Types
+import           VDiff.Verifier
 
 databasePath :: Parser String
 databasePath = option str options
@@ -78,13 +81,15 @@ diffParameters = DiffParameters
 strategy :: Parser Strategy
 strategy = option stratParser options
   where options = mconcat [ long "strategy"
-                          , help "guidance algorithm (available: 'random' and 'smart')"
-                          , value RandomStrategy
+                          , help $ "guidance algorithm (available: " ++ txtStrategies ++ ")"
+                          , value RandomWalkStrategy
                           , showDefaultWith strategyName
                           , metavar "STRATEGY"
                           , completeWith ["random", "smart"]
                           ]
         stratParser = (str :: ReadM Text) >>= \case
-          "random"        -> return RandomStrategy
+          "random-walk"        -> return RandomWalkStrategy
+          "random-uniform"  -> return RandomUniformStrategy
           "smart"          -> return SmartStrategy
-          _ -> readerError "Accepted strategies are 'naive' and 'smart'."
+          _ -> readerError $ "Accepted strategies are " ++ txtStrategies
+        txtStrategies = unwords (map strategyName availableStrategies)
