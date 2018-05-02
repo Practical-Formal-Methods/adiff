@@ -49,6 +49,7 @@ import           Data.Functor.Identity
 import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
 import           Data.List                         (isPrefixOf)
+import qualified Data.List.Index                   as IL
 import           Data.Text                         (pack)
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
@@ -264,18 +265,27 @@ maskAsserts = insertDummy . applyOnExpr rename
     rename (CMember e1 n b a)   = CMember (rename e1) n b a
     rename e = e
 
-    insertDummy = insertExtDecl (CFDefExt dummyAssert)
+    insertDummy = insertExtDeclAt 0 (CFDefExt dummyAssert)
 
 
 -- | Some test cases only use @__VERIFIER_error()@, in those cases we have to define @__VERIFIER_assert()@
+-- It's important to insert the definition /after/ the external declaration of @__VERIFIER_error()@.
 defineAssert :: CTranslationUnit SemPhase -> CTranslationUnit SemPhase
 defineAssert tu = case tu ^? (ix "__VERIFIER_assert") of
                     Just _  -> tu
-                    Nothing -> insertExtDecl (CFDefExt assertDefinition) tu
+                    Nothing ->
+                      let (Just p) = indexOfDeclaration "__VERIFIER_error" tu
+                      in insertExtDeclAt (p+1) (CFDefExt assertDefinition) tu
 
-insertExtDecl :: CExternalDeclaration p -> CTranslationUnit p -> CTranslationUnit p
-insertExtDecl d (CTranslUnit exts ann) = CTranslUnit (d:exts) ann
+insertExtDeclAt  :: Int -> CExternalDeclaration p -> CTranslationUnit p -> CTranslationUnit p
+insertExtDeclAt  n d (CTranslUnit exts ann) = CTranslUnit (IL.insertAt n d exts) ann
 
+-- | returns the index of the declaration that declares the given name.
+indexOfDeclaration :: String -> CTranslationUnit SemPhase -> Maybe Int
+indexOfDeclaration name (CTranslUnit exts _) = IL.ifindIndex flt exts
+  where flt _ d =
+          let idents = map identToString $ universeBi d
+          in  name `elem` idents
 
 --------------------------------------------------------------------------------
 -- | some simple AST constructors

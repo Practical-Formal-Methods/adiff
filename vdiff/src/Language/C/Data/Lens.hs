@@ -6,6 +6,7 @@
 module Language.C.Data.Lens
   ( externalDeclarations
   , functionDefinition
+  , externalDeclaration
   , declarator
   , body
   , definedFunctions
@@ -50,11 +51,16 @@ instance HasDeclarator (CFunctionDef a) a where
       getter (CFunDef _ d _ _ _ ) = d
       setter (CFunDef specs _ decls b ann) d = CFunDef specs d decls b ann
 
+
 functionDefinition :: Prism' (CExternalDeclaration a) (CFunctionDef a)
 functionDefinition = prism' CFDefExt project
   where project (CFDefExt f) = Just f
         project _            = Nothing
 
+externalDeclaration :: Prism' (CExternalDeclaration a) (CDeclaration a)
+externalDeclaration = prism' CDeclExt project
+  where project (CDeclExt d) = Just d
+        project _            = Nothing
 
 class HasIdent e where
   ident :: Traversal' e Ident

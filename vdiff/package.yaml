@@ -106,3 +106,4 @@ dependencies:
   - directory
   - template-haskell
   - dlist
+  - ilist
