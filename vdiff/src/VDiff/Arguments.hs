@@ -85,11 +85,12 @@ strategy = option stratParser options
                           , value RandomWalkStrategy
                           , showDefaultWith strategyName
                           , metavar "STRATEGY"
-                          , completeWith ["random", "smart"]
+                          , completeWith strategyNames
                           ]
         stratParser = (str :: ReadM Text) >>= \case
           "random-walk"        -> return RandomWalkStrategy
           "random-uniform"  -> return RandomUniformStrategy
           "smart"          -> return SmartStrategy
           _ -> readerError $ "Accepted strategies are " ++ txtStrategies
-        txtStrategies = unwords (map strategyName availableStrategies)
+        txtStrategies = unwords strategyNames
+        strategyNames = map strategyName availableStrategies
