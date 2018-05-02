@@ -31,8 +31,8 @@ cmdDiff params = do
   case mAst of
     Nothing -> liftIO exitFailure
     Just ast -> do
-      let astMasked = maskAsserts ast
-      stratEnv <- mkStrategyEnv astMasked params
+      let ast' = (defineAssert . maskAsserts) ast
+      stratEnv <- mkStrategyEnv ast' params
       runRIO stratEnv $ executeStrategy $ params ^. strategy
 
 

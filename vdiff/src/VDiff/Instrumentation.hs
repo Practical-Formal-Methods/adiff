@@ -10,7 +10,8 @@ module VDiff.Instrumentation
    -- * Handling C files
   openCFile
  , prettyp
- ,  maskAsserts
+ , maskAsserts
+ , defineAssert
    -- * Zipping
    -- $zipping
  , Stmt
@@ -41,6 +42,7 @@ import           RIO.FilePath
 import           Safe
 
 -- import           Control.Lens
+import           Control.Lens.Operators            hiding ((^.))
 import           Control.Monad.Writer              hiding ((<>))
 import qualified Data.DList                        as DL
 import           Data.Functor.Identity
@@ -54,6 +56,7 @@ import           Language.C.Analysis.SemRep        hiding (Stmt)
 import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
+import qualified Language.C.Data.Position          as C
 import           Language.C.System.GCC
 import           Text.PrettyPrint                  (render)
 import           UnliftIO.Directory
@@ -242,6 +245,7 @@ applyOnExpr f (CTranslUnit eds as) = CTranslUnit (map externalDeclaration eds) a
 
 
 
+-- TODO: Also mask original calls to __VERIFIER_error()
 maskAsserts :: CTranslationUnit SemPhase -> CTranslationUnit SemPhase
 maskAsserts = insertDummy . applyOnExpr rename
   where
@@ -260,8 +264,18 @@ maskAsserts = insertDummy . applyOnExpr rename
     rename (CMember e1 n b a)   = CMember (rename e1) n b a
     rename e = e
 
-    insertDummy (CTranslUnit exts a)  = CTranslUnit exts' a
-      where exts' = CFDefExt dummyAssert : exts
+    insertDummy = insertExtDecl (CFDefExt dummyAssert)
+
+
+-- | Some test cases only use @__VERIFIER_error()@, in those cases we have to define @__VERIFIER_assert()@
+defineAssert :: CTranslationUnit SemPhase -> CTranslationUnit SemPhase
+defineAssert tu = case tu ^? (ix "__VERIFIER_assert") of
+                    Just _  -> tu
+                    Nothing -> insertExtDecl (CFDefExt assertDefinition) tu
+
+insertExtDecl :: CExternalDeclaration p -> CTranslationUnit p -> CTranslationUnit p
+insertExtDecl d (CTranslUnit exts ann) = CTranslUnit (d:exts) ann
+
 
 --------------------------------------------------------------------------------
 -- | some simple AST constructors
@@ -286,3 +300,17 @@ dummyAssert = CFunDef specs decl [] body' undefNode
         body' = CCompound [] [] (undefNode, voidType)
 
 
+
+assertDefinition :: CFunctionDef SemPhase
+assertDefinition = CFunDef specs decl [] body' undefNode
+  where specs     = [CTypeSpec (CVoidType undefNode)]
+        decl      = CDeclr  (Just $ internalIdent "__VERIFIER_assert" ) derived Nothing [] undefNode
+        derived   = [CFunDeclr (Right ([param], False)) [] undefNode]
+        param     = CDecl [CTypeSpec $ CIntType undefNode] [(Just paramDecl, Nothing, Nothing)]  undefNode
+        paramDecl = CDeclr (Just $ internalIdent "cond") [] Nothing [] undefNode :: CDeclarator SemPhase
+        body'     = CCompound [] [CBlockStmt ifStmt] (undefNode, voidType)
+        ifStmt    = CIf notCond errorStmt Nothing (undefNode, voidType)
+        notCond   = CUnary CNegOp (CVar (internalIdent "cond") (undefNode, intType)) (undefNode, intType)
+        errorStmt = CLabel (builtinIdent "ERROR")  callError [] (undefNode, voidType)
+        callError = CExpr (Just (CCall (CVar (builtinIdent "__VERIFIER_ERROR") (undefNode,voidType)) [] (undefNode, voidType))) (undefNode,voidType)
+        intType   = voidType -- not correct, but doesn't matter
