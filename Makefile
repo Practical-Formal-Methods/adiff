@@ -5,10 +5,10 @@ BINARY= vdiff/$(shell stack path --dist-dir)/build/vdiff/vdiff
 BINARY-VIEWER= vdiff/$(shell stack path --dist-dir)/build/vdiff-viewer/vdiff-viewer
 INTEGRATION= vdiff/$(shell stack path --dist-dir)/build/integration/integration
 
-default: compile docker-images
+default: img-run 
 
 
-compile:
+compile: img-build
 	stack build
 
 vdiff-docker: Dockerfile
@@ -29,10 +29,15 @@ test-integration: vdiff-docker
 
 
 # docker images
-docker-images:
+
+img-all-verifiers:
 	docker build -t vdiff/all-verifiers docker/vdiff/all-verifiers
+
+img-build: img-all-verifiers
 	docker build -t vdiff/build docker/vdiff/build
+
+img-run: compile
 	docker build -t vdiff/vdiff -f docker/vdiff/vdiff/Dockerfile .
 
 
-.PHONY: test test-integration docker-images
+.PHONY: test test-integration img-all-verifiers img-build img-run compile
