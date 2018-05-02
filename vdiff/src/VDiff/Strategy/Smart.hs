@@ -178,7 +178,7 @@ exploreStatementHeavy :: (IsStrategyEnv env) => Smart env ()
 exploreStatementHeavy = do
   logDebug "exploreHeavy"
   -- read variables
-  vs <- findReads
+  vs <- currentReads
   logDebug $ "reads are " <> display (tshow vs)
   forM_ vs $ \(i,ty) ->
       whenBudget_ (>0) $ tryout $ do
@@ -198,7 +198,7 @@ exploreStatementHeavy = do
 -- disagreement" of the verifiers. Uses an assert(false) statement.
 exploreStatement :: (IsStrategyEnv env) => Smart env Double
 exploreStatement = tryout $ do
-  rs <- findReads
+  rs <- currentReads
   if null rs
     then return 0
     else do

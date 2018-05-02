@@ -67,7 +67,7 @@ testInsert = testProperty "insertBefore, does not modify location" $ property $ 
   let actn = do
         mapM_ go ds
         x <- currentStmt
-        vs <- findReads
+        vs <- currentReads
         unless (null vs) $ insertBefore (dummyStmt "dummy")
         y <- currentStmt
         return (x,y)

@@ -18,7 +18,7 @@ module VDiff.Instrumentation
  , MonadBrowser
  , BrowserT
  , runBrowserT
- , findReads
+ , currentReads
  , insertBefore
  , buildTranslationUnit
  , tryout
@@ -28,6 +28,7 @@ module VDiff.Instrumentation
  , currentStmt
  , currentPosition
  , findCalledFunction
+ , findReads
  , go_
  , AstPosition
  -- * Internals
@@ -39,7 +40,10 @@ import           RIO
 import           RIO.FilePath
 import           Safe
 
-import           Control.Lens
+-- import           Control.Lens
+import           Control.Monad.Writer              hiding ((<>))
+import qualified Data.DList                        as DL
+import           Data.Functor.Identity
 import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
 import           Data.List                         (isPrefixOf)
@@ -131,10 +135,21 @@ readsStatement s = case s of
 
 
 
-findReads :: (MonadBrowser m) => m [(Ident, Type)]
-findReads = do
+currentReads :: (MonadBrowser m) => m [(Ident, Type)]
+currentReads = do
   s <- currentStmt
   return $ readsStatement s
+
+findReads :: CTranslationUnit SemPhase -> [(AstPosition, Ident, Type)]
+findReads tu = let (x,y) = runBrowserT findReads' tu
+               in x
+
+findReads' :: (MonadBrowser m) => m [(AstPosition, Ident, Type)]
+findReads' = (DL.toList . snd) <$> runWriterT action
+  where
+    action = traverseReads $ \vars -> do
+            p <- currentPosition
+            forM_ vars $ \(i,t) -> tell $ DL.singleton (p,i,t)
 
 
 
@@ -144,33 +159,35 @@ markAllReads tu =
   let fnames = map identToString (definedFunctions tu)
       act = forM_ fnames $ \fname -> do
         gotoFunction fname
-        explore [0]
+        traverseReads (insertBefore . mkReadMarker)
   in snd <$> runIdentity $ runBrowserT act tu
 
 
 -- first parameter is the number of explored siblings per level (deepest first)
-explore :: [Int] -> BrowserT Identity ()
-explore st = do
-  v <- findReads
-  unless (null v) $ insertBefore $ mkReadMarker v
-  d <- go Down
-  if d
-    then do
-      (n:_) <- use stmtPosition
-      explore (n : st)
-    else do
-       x <- go Next
-       if x
-         then explore st
-         else ascend st
+traverseReads :: (MonadBrowser m) => ([(Ident,Type)] -> m ()) -> m ()
+traverseReads f = traverseAST' [0]
   where
+    traverseAST' st = do
+      v <- currentReads
+      unless (null v) $ f v
+      d <- go Down
+      if d
+        then do
+          (n:_) <- (^. stmtPosition ) <$> getBrowserState
+          traverseAST' (n : st)
+        else do
+          x <- go Next
+          if x
+            then traverseAST' st
+            else ascend st
+
     ascend [] = return ()
     ascend (n:ns) =
       whenM (go Up) $ do
         replicateM_ n (go_ Next)
         new <- go Next
         if new
-          then explore ns
+          then traverseAST' ns
           else ascend ns
 
 findCalledFunction :: (MonadBrowser m) => m (Maybe String)
@@ -267,4 +284,5 @@ dummyAssert = CFunDef specs decl [] body' undefNode
         param = CDecl [CTypeSpec $ CIntType undefNode] [(Just paramDecl, Nothing, Nothing)]  undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
         body' = CCompound [] [] (undefNode, voidType)
+
 

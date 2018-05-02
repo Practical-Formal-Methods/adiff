@@ -42,18 +42,18 @@ testWalk = testCase "walks"  $ do
     walk1 = do
       gotoFunction "main"
       go_ Down
-      findReads >>= \v -> assertBool' "find x " (varNames v == ["x"])
+      currentReads >>= \v -> assertBool' "find x " (varNames v == ["x"])
       go_ Down
       go_ Down --into the compound statement
-      findReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
+      currentReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
       go_ Next
-      findReads >>= \v -> assertBool' "find y" (varNames v  == ["y"])
+      currentReads >>= \v -> assertBool' "find y" (varNames v  == ["y"])
       go_ Next
-      findReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
+      currentReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
       go_ Next
-      findReads >>= \v -> assertBool' "find x" (varNames v  == ["x"])
+      currentReads >>= \v -> assertBool' "find x" (varNames v  == ["x"])
       go_ Next
-      findReads >>= \v -> assertBool' "find z" (varNames v  == ["z"])
+      currentReads >>= \v -> assertBool' "find z" (varNames v  == ["z"])
       return ()
 
 

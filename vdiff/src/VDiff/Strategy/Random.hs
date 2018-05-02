@@ -48,7 +48,7 @@ randomStrategy' = do
   when (bdg > 0 && stps < 1000) $ do
     randomStep
     stepsWithoutInsertion += 1
-    vars <- findReads
+    vars <- currentReads
     unless (null vars) $ tryout $ do
         (Just (v,ty)) <- chooseOneOf vars
         asrt <- mkAssertion v ty

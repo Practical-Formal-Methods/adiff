@@ -19,7 +19,7 @@ can use @tryout@ to apply modifications locally.
 module VDiff.Instrumentation.Browser
   ( Stmt
   -- * Basics
-  , MonadBrowser
+  , MonadBrowser(..)
   , BrowserT(..)
   , runBrowserT
   , AstPosition(..)
@@ -37,7 +37,7 @@ module VDiff.Instrumentation.Browser
   , gotoPosition
   , go
   , go_
-  , stmtPosition -- TODO: maybe not express this
+  , stmtPosition -- TODO: maybe not export this
   ) where
 
 
@@ -46,6 +46,7 @@ import           RIO                           hiding ((^.))
 
 import           Control.Lens
 import           Control.Monad.State.Strict
+import           Control.Monad.Writer hiding ((<>))
 import           Data.Generics.Uniplate.Data   ()
 import qualified Data.Generics.Uniplate.Zipper as Z
 import           Language.C
@@ -100,12 +101,14 @@ deriving instance MonadIO (BrowserT IO)
 deriving instance MonadReader env (BrowserT (RIO env))
 deriving instance MonadIO (BrowserT (RIO env))
 
-
-
 instance (MonadBrowser m) => MonadBrowser (StateT s m) where
   putBrowserState st = lift $ putBrowserState st
   getBrowserState    = lift getBrowserState
 
+
+instance (MonadBrowser m, Monoid w) => MonadBrowser (WriterT w m) where
+  putBrowserState st = lift $ putBrowserState st
+  getBrowserState = lift getBrowserState
 
 -- | tries to move the zipper into the given direction. returns true if successful.
 go :: (MonadBrowser m) => Direction -> m Bool
@@ -237,6 +240,7 @@ buildTranslationUnit = do
       tu = st ^. currentTU
       fn = st ^. currentFunction
   return $ tu & (ix fn . functionDefinition . body) .~ stmt
+
 
 
 
