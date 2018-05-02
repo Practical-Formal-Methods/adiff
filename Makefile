@@ -37,6 +37,7 @@ img-build: img-all-verifiers
 	docker build -t vdiff/build docker/vdiff/build
 
 img-run: compile
+	stack install
 	docker build -t vdiff/vdiff -f docker/vdiff/vdiff/Dockerfile .
 
 
