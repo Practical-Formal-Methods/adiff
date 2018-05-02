@@ -17,6 +17,9 @@ vdiff-docker: Dockerfile
 clean:
 	stack clean
 
+install:
+	stack build --copy-bins --no-docker
+
 # regression tests
 test:
 	stack test vdiff:regression
@@ -41,4 +44,4 @@ img-run: compile
 	docker build -t vdiff/vdiff -f docker/vdiff/vdiff/Dockerfile .
 
 
-.PHONY: test test-integration img-all-verifiers img-build img-run compile
+.PHONY: test test-integration img-all-verifiers img-build img-run compile install
