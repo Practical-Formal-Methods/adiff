@@ -6,6 +6,7 @@ import           Test.Tasty
 import           InstrumentationProperties
 import           InstrumentationTest
 import           Lens
+import           System.Random.Shuffle.Extended
 import           TimedTest
 
 import           Strategy.Common
@@ -24,6 +25,7 @@ constructTree = do
     , pure testInstrumentationProperties
     , testLenses
     , pure testCommon
+    , pure testShuffle
     ]
   return $ testGroup "vdiff" tree
 

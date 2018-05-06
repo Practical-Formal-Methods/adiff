@@ -185,9 +185,9 @@ exploreStatementHeavy = do
         -- try a 'pool assertion' first, but if there's nothing in the pool use random
         asrt <- mkAssertionFromPool i ty >>= \case
                   Just x' -> return x'
-                  Nothing -> mkAssertion i ty
+                  Nothing -> mkRandomAssertion i ty
         insertBefore asrt
-        buildTranslationUnit >>= verify
+        buildTranslationUnit >>= verify'
   -- and loop if the budget is still not depleted
   whenBudget_ (>0) exploreStatementHeavy
 
@@ -203,7 +203,7 @@ exploreStatement = tryout $ do
     then return 0
     else do
     insertBefore assertFalse
-    (res,conclusion) <- buildTranslationUnit >>= verify
+    (res,conclusion) <- (buildTranslationUnit >>= verify)
     -- update moving average
     updateAverages' res
     -- calculate score from conclusion
@@ -220,6 +220,9 @@ updateAverages' res = do
   logDebug $ "averages: " <> display (tshow avgs)
 
 
+-- | like 'verify\'' but also subtracts from the budget
+smartVerify' tu = budget -= 1 >> verify' tu
+smartVerify tu = budget -= 1 >> verify tu
 
 -- subject to change
 -- always more than zero

@@ -37,9 +37,10 @@ isCompound ::Stmt -> Bool
 isCompound (CCompound _ _ _ ) = True
 isCompound _                  = False
 
+-- TODO:  strategies have to manage budgets themselves now!!! budget -= 1
 
 
-verify :: (IsStrategyEnv env, Monad m, MonadReader env m, MonadIO m, MonadState st m, HasBudget st Int) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
+verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
 verify tu = do
   (prog, res) <- verify' tu
   let conclusion = conclude res
@@ -50,9 +51,8 @@ verify tu = do
   return (res, conclusion)
 
 -- | runs the given translation unit against the configured verifiers.
-verify' :: (IsStrategyEnv env, Monad m, MonadReader env m, MonadIO m, MonadState st m, HasBudget st Int) => CTranslationUnit SemPhase -> m (CProgram, [VerifierRun])
+verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m (CProgram, [VerifierRun])
 verify' tu = do
-  budget -= 1
   vs <- view (diffParameters . verifiers)
   time <- view (diffParameters . timelimit)
   env <- ask
@@ -86,30 +86,45 @@ conclude  rs = if
     unsats = [ runVerifierName r | r <- rs, verdict (verifierResult r) == Unsat ]
     sats =   [ runVerifierName r | r <- rs, verdict (verifierResult r) == Sat ]
 
-mkAssertion :: (MonadIO m ) => Ident -> Type -> m Stmt
-mkAssertion varName ty = do
-      constv <- if | ty `sameType` integral TyChar -> do
-                      (c :: Char) <- liftIO randomIO
-                      return $ CCharConst (CChar c False) (undefNode, ty)
-                   | ty `sameType` integral TyBool -> do
-                      (b :: Bool) <- liftIO randomIO
-                      let v = if b then 1 else 0
-                      return $ CIntConst (cInteger v) (undefNode, ty)
-                   | ty `sameType` integral TyUInt -> do
-                       (v :: Int32) <- liftIO randomIO
-                       return $ CIntConst (cInteger $ fromIntegral (abs v))  (undefNode, ty)
-                   | otherwise -> do
-                       (v :: Int32) <- liftIO randomIO
-                       return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
-      let  constant'   = CConst constv
-           var        = CVar varName (undefNode, ty)
-           expression = CBinary CNeqOp var constant' (undefNode, boolType)
+mkRandomAssertion :: (MonadIO m ) => Ident -> Type -> m Stmt
+mkRandomAssertion varName ty = do
+      constv <-mkRandomConstant ty
+      let constant'  = CConst constv
+          var        = CVar varName (undefNode, ty)
+          expression = CBinary CNeqOp var constant' (undefNode, boolType)
       return (assertStmt expression)
+
+mkRandomConstant :: (MonadIO m) => Type -> m (CConstant SemPhase)
+mkRandomConstant ty
+  | ty `sameType` integral TyChar = do
+      (c :: Char) <- liftIO randomIO
+      return $ CCharConst (CChar c False) (undefNode, ty)
+
+  | ty `sameType` integral TyBool = do
+    (b :: Bool) <- liftIO randomIO
+    let v = if b then 1 else 0
+    return $ CIntConst (cInteger v) (undefNode, ty)
+
+  | ty `sameType` integral TyUInt = do
+      (v :: Int32) <- liftIO randomIO
+      return $ CIntConst (cInteger $ fromIntegral (abs v))  (undefNode, ty)
+
+  | otherwise = do
+      (v :: Int32) <- liftIO randomIO
+      return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
+
 
 assertStmt :: CExpression SemPhase -> CStatement SemPhase
 assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (undefNode, voidType)
   where
     identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
+
+
+assertUnequal :: Ident -> CConstant SemPhase -> CStatement SemPhase
+assertUnequal varName constant = assertStmt expression
+  where
+    expression = CBinary CNeqOp var (CConst constant) (undefNode, boolType)
+    var        = CVar varName (undefNode, voidType)
 
 
 -- | a simple 'assert(false)' statement

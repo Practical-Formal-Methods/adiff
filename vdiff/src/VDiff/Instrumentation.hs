@@ -12,8 +12,6 @@ module VDiff.Instrumentation
  , prettyp
  , maskAsserts
  , defineAssert
-   -- * Zipping
-   -- $zipping
  , Stmt
  , Direction(..)
  , MonadBrowser
@@ -144,16 +142,16 @@ currentReads = do
   s <- currentStmt
   return $ readsStatement s
 
+-- TODO: Only explores the main function
 findReads :: CTranslationUnit SemPhase -> [(AstPosition, Ident, Type)]
-findReads tu = let (x,y) = runBrowserT findReads' tu
-               in x
-
-findReads' :: (MonadBrowser m) => m [(AstPosition, Ident, Type)]
-findReads' = (DL.toList . snd) <$> runWriterT action
+findReads tu = let (_,log) = runWriter (runBrowserT action tu)
+               in (DL.toList log)
   where
+    action :: BrowserT  (Writer (DL.DList (AstPosition, Ident, Type))) ()
     action = traverseReads $ \vars -> do
             p <- currentPosition
-            forM_ vars $ \(i,t) -> tell $ DL.singleton (p,i,t)
+            forM_ vars $ \(i,t) -> do
+              lift $ tell $ DL.singleton (p,i,t)
 
 
 
@@ -204,6 +202,8 @@ findCalledFunction = do
             , not ("__" `isPrefixOf` n)
             ]
   return $ headMay fns
+
+
 
 --------------------------------------------------------------------------------
 -- | * Masking

@@ -51,7 +51,7 @@ randomWalkStrategy' = do
     vars <- currentReads
     unless (null vars) $ tryout $ do
         (Just (v,ty)) <- chooseOneOf vars
-        asrt <- mkAssertion v ty
+        asrt <- mkRandomAssertion v ty
         stepsWithoutInsertion .= 0
         insertBefore asrt
         tu <- buildTranslationUnit

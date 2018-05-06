@@ -107,3 +107,5 @@ dependencies:
   - template-haskell
   - dlist
   - ilist
+  - random-shuffle
+  - MonadRandom

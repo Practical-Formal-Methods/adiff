@@ -25,6 +25,7 @@ testZipping = do
     , pure testInsertions
     , pure testInsertBefore
     , testMarkAllReads
+    , testAllFinds
     , pure testPreprocessor
     , pure testEditingOtherFunction
     ]
@@ -109,6 +110,14 @@ testMarkAllReads = do
         return $ LC8.pack bs
 
 
+testAllFinds :: IO TestTree
+testAllFinds = do
+  cFiles <- findByExtension [".c"] "assets/test/reads"
+  return $ testGroup "findReads golden tests" $ map runTest cFiles
+  where
+    runTest cf = vsGoldenFile cf "list-reads"  $ \tu -> do
+        let bs = show $ findReads tu
+        return $ LC8.pack bs
 testEditingOtherFunction :: TestTree
 testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-functions.c" "editMin" $ \tu -> do
   (tu1, tu2) <- runBrowserT act tu
