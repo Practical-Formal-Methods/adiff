@@ -1,40 +1,37 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE ParallelListComp #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ParallelListComp       #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
 -- | handles all things regarding the computation of moving averages
 
-module VDiff.Strategy.Common.Averages where
+module VDiff.Strategy.Common.Averages
+  ( Averages
+  , updateAverages
+  , getAverages
+  , emptyAverages
+  ) where
 
-import RIO
-import Control.Lens
-import Control.Monad.State
+import           RIO
+import           VDiff.Types
 
--- Any monad that has a state with averages and a counter can be a AverageMonad
+data Averages = Averages
+  { getAverages :: ![Double]     -- ^ average runtime for each verifier
+  , counter     :: !Int -- ^ number of past runs
+  } deriving (Show)
 
-data SimpleAverageState = SimpleAverageState
-  { _averages  :: [Double]     -- ^ average runtime for each verifier
-  , _averagesN :: !Double         -- ^ number of past runs
-  }
-makeFieldsNoPrefix ''SimpleAverageState
+instance Display Averages where
+  display (Averages av _) = displayList av
 
-class ( Monad m, MonadState st m
-      , HasAveragesN st Double
-      , HasAverages st [Double]
-      ) => AverageMonad st m
 
-instance AverageMonad SimpleAverageState (State SimpleAverageState)
-instance AverageMonad SimpleAverageState (StateT SimpleAverageState IO)
+emptyAverages :: Int -> Averages
+emptyAverages n = Averages (replicate n 0) 0
 
 -- "cumulative moving average"
-updateAverages ::  (AverageMonad st m) => [Double] -> m ()
-updateAverages times = do
-  n <- use averagesN
-  olds <- use averages
-  let averages' = [ updateAverage n new old | new <- times | old <- olds ]
-  averages .= averages'
-  averagesN += 1
+updateAverages ::  [Double] -> Averages -> Averages
+updateAverages vals (Averages prevs n) =
+  let averages' = [ updateAverage n new old | new <- vals | old <- prevs ]
+  in Averages averages' (n + 1)
 
-updateAverage :: Double -> Double -> Double -> Double
-updateAverage n newTime old = (n * old + newTime ) /  (n + 1.0)
+updateAverage ::  Int -> Double -> Double -> Double
+updateAverage n newTime old = ((fromIntegral n) * old + newTime ) /  fromIntegral (n + 1)

@@ -55,6 +55,7 @@ randomWalkStrategy' = do
         stepsWithoutInsertion .= 0
         insertBefore asrt
         tu <- buildTranslationUnit
+        budget -= 1
         (_, conclusion) <- verify tu
         logInfo $ "conclusion : " <> display (tshow conclusion)
     -- iterate

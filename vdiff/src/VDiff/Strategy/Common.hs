@@ -37,9 +37,6 @@ isCompound ::Stmt -> Bool
 isCompound (CCompound _ _ _ ) = True
 isCompound _                  = False
 
--- TODO:  strategies have to manage budgets themselves now!!! budget -= 1
-
-
 verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
 verify tu = do
   (prog, res) <- verify' tu

@@ -3,12 +3,13 @@
 module InstrumentationProperties where
 
 import           RIO
+import           VDiff.Types
 
 import           Control.Lens
 import           Data.FileEmbed
 import           Hedgehog
-import qualified Hedgehog.Gen          as Gen
-import qualified Hedgehog.Range        as Range
+import qualified Hedgehog.Gen                  as Gen
+import qualified Hedgehog.Range                as Range
 import           Test.Tasty.Hedgehog
 
 import           Language.C.Data.Lens

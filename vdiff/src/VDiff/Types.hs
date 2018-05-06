@@ -2,18 +2,31 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
+
+-- TODO: better name: Prelude
+
 module VDiff.Types
   ( module VDiff.Types
   , module Data.Default
+  , module Language.C
+  , module Language.C.Data.Lens
+  , module Language.C.Analysis.AstAnalysis2
+  , Type
+  , makeFieldsNoPrefix
   ) where
 
 import           RIO
 
 import           Control.Lens.TH
 import           Data.Default
-import qualified Database.SQLite.Simple as SQL
-import           Language.C
-import           System.IO              (FilePath)
+import           Data.List                        (intersperse, sortBy)
+import qualified Database.SQLite.Simple           as SQL
+import           Language.C                       hiding (LevelError, LevelWarn,
+                                                   execParser)
+import           Language.C.Analysis.AstAnalysis2
+import           Language.C.Analysis.SemRep
+import           Language.C.Data.Lens
+import           System.IO                        (FilePath)
 
 import           VDiff.Data
 
@@ -101,7 +114,6 @@ mkStrategyEnv tu dp = do
   db <- view databaseL
   return $ StrategyEnv  lg tu dp db
 
--- TODO: Does this partitioning make sense?
 data Conclusion
   = StrongAgreement !Verdict       -- ^ all verifiers agree on an outcome
   | WeakAgreement   !Verdict       -- ^ all verifiers that terminate with sat or unsat agree
@@ -144,5 +156,9 @@ data DiffParameters = DiffParameters
 makeFieldsNoPrefix ''DiffParameters
 
 type Property = String
+type TU       = CTranslationUnit SemPhase
+type Stmt     = CStatement SemPhase
 
 
+displayList :: Display a => [a] -> Utf8Builder
+displayList xs = mconcat $ intersperse ", " (map display xs)

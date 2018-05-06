@@ -76,7 +76,7 @@ instance Ixed (CTranslationUnit a) where
     where
       traverse' :: (Applicative f) => (CExternalDeclaration a -> f (CExternalDeclaration a)) -> [CExternalDeclaration a] -> f [CExternalDeclaration a]
       traverse' _ []                   = pure []
-      traverse' act (x@(CDeclExt _ ):xs) = (x:) <$> traverse' act xs -- TODO: not checking those here yet
+      traverse' act (x@(CDeclExt _ ):xs) = (x:) <$> traverse' act xs
       traverse' act (x@(CFDefExt (CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _) ):xs)
         | identToString i == str         = (:) <$> act x  <*> traverse' act xs
         | otherwise                      = (x:) <$> traverse' act xs

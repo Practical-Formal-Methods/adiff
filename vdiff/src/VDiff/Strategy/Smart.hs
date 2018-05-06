@@ -18,7 +18,7 @@ import           RIO                            hiding ((^.))
 
 import           Control.Lens                   hiding (view)
 import           Control.Monad.State.Strict
-import           Data.List                      (intersperse, sortBy)
+import           Data.List                      (sortBy)
 import           Language.C
 import           Language.C.Analysis.SemRep     hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
@@ -36,8 +36,7 @@ import           VDiff.Types
 
 data SmartState = SmartState
   { _budget    :: !Int         -- ^ remaining budget
-  , _averages  :: [Double]     -- ^ average runtime for each verifier
-  , _averagesN :: !Double         -- ^ number of past runs
+  , _averages  :: Averages     -- ^ average runtime for each verifier
   , _constants :: ConstantPool -- ^ constants in the program
   }
 makeFieldsNoPrefix ''SmartState
@@ -46,9 +45,6 @@ makeFieldsNoPrefix ''SmartState
 newtype Smart env a = Smart
   { unSmart :: StateT SmartState (BrowserT (RIO env)) a
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
-
--- this monad is also a average monad
-instance AverageMonad SmartState (Smart env)
 
 smartStrategy :: (IsStrategyEnv env) => RIO env ()
 smartStrategy = do
@@ -60,11 +56,11 @@ smartStrategy = do
       blurred = blurConstants cs
   logDebug $ "constants found : " <> display cs
   logDebug $ "constants blurred: " <> display blurred
-  let initState = SmartState bdgt (replicate n 0) 0 blurred
+  let initState = SmartState bdgt (emptyAverages n) blurred
   (st,_) <- runSmart initState tu
   logDebug "smart strategy terminated"
   logDebug $ "budget: " <> display (st ^. budget)
-  logDebug $ "averages: " <> displayList (st ^. averages)
+  logDebug $ "averages: " <> display (st ^. averages)
   return ()
 
 runSmart :: IsStrategyEnv env => SmartState -> CTranslationUnit SemPhase-> RIO env (SmartState, CTranslationUnit SemPhase)
@@ -172,8 +168,7 @@ exploreLevel = do
         then (el:) <$> exploreLevel'
         else return [el]
 
--- tries with as many assertions as possible before the budget runs out
--- TODO
+-- | tries with as many assertions as possible before the budget runs out
 exploreStatementHeavy :: (IsStrategyEnv env) => Smart env ()
 exploreStatementHeavy = do
   logDebug "exploreHeavy"
@@ -215,9 +210,8 @@ exploreStatement = tryout $ do
 updateAverages' res = do
   tl <- fromIntegral <$> view (diffParameters  . timelimit)
   let times = map (maybe (tl / 1000000) elapsedWall . timing . verifierResult) res
-  updateAverages times
-  avgs <- use averages
-  logDebug $ "averages: " <> display (tshow avgs)
+  averages %= updateAverages times
+
 
 
 -- | like 'verify\'' but also subtracts from the budget
@@ -235,7 +229,7 @@ disagreement  Disagreement       = 3
 
 timeIrregularity :: [VerifierRun] -> Smart env Double
 timeIrregularity result = do
-  avgs <- use averages
+  avgs <- getAverages <$> use averages
   let times = map (maybe 0 elapsedWall . timing . verifierResult) result
   return $ timeIrregularity' avgs times
 
@@ -282,5 +276,3 @@ sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]
 sortBest = sortBy (flip $ comparing fst)
 
 
-displayList :: Display a => [a] -> Utf8Builder
-displayList xs = mconcat $ intersperse ", " (map display xs)

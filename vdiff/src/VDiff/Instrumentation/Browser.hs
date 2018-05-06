@@ -17,9 +17,9 @@ can use @tryout@ to apply modifications locally.
 
 -}
 module VDiff.Instrumentation.Browser
-  ( Stmt
+  (
   -- * Basics
-  , MonadBrowser(..)
+   MonadBrowser(..)
   , BrowserT(..)
   , runBrowserT
   , AstPosition(..)
@@ -43,6 +43,7 @@ module VDiff.Instrumentation.Browser
 
 import qualified Prelude                       as P
 import           RIO                           hiding ((^.))
+import VDiff.Types
 
 import           Control.Lens
 import           Control.Monad.State.Strict
@@ -52,7 +53,6 @@ import qualified Data.Generics.Uniplate.Zipper as Z
 import           Language.C
 import           Language.C.Data.Lens
 
-type Stmt = CStatement SemPhase
 type StmtZipper= Z.Zipper Stmt Stmt
 
 data Direction = Up | Down | Next | Prev
@@ -130,7 +130,8 @@ go d = do
       putBrowserState $ (stmtZipper .~ z) st'
       return True
 
--- |  Works similarly to 'go', but crashes when it cannot go into the given direction. TODO: Use only when you are sure that the movement will succeed.
+-- |  Works similarly to 'go', but crashes when it cannot go into the given direction.
+-- NOTE: Use only when you are sure that the movement will succeed.
 go_ :: (MonadBrowser m) => Direction -> m ()
 go_ d = do
   m <- go d

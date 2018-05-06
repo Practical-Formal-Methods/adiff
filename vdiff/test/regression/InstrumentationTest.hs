@@ -116,7 +116,7 @@ testAllFinds = do
   return $ testGroup "findReads golden tests" $ map runTest cFiles
   where
     runTest cf = vsGoldenFile cf "list-reads"  $ \tu -> do
-        let bs = show $ findReads tu
+        let bs = show $ findAllReads tu
         return $ LC8.pack bs
 testEditingOtherFunction :: TestTree
 testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-functions.c" "editMin" $ \tu -> do
