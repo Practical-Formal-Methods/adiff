@@ -16,12 +16,16 @@ availableStrategies =
   [ RandomWalkStrategy
   , RandomUniformStrategy
   , SmartStrategy
+  , DepthFirstStrategy
+  , BreadthFirstStrategy
   ]
 
 strategyName :: Strategy -> String
 strategyName RandomWalkStrategy    = "random-walk"
 strategyName RandomUniformStrategy = "random-uniform"
 strategyName SmartStrategy         = "smart"
+strategyName DepthFirstStrategy    = "dfs"
+strategyName BreadthFirstStrategy  = "bfs"
 
 
 executeStrategy :: (IsStrategyEnv env) => Strategy -> RIO env ()

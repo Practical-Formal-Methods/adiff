@@ -3,11 +3,14 @@ module Main where
 
 import           RIO
 
-import           VDiff.Arguments   as Args
+import           VDiff.Arguments      as Args
 import           VDiff.Diff
 import           VDiff.Persistence
 import           VDiff.Types
 
+import           Control.Applicative  (optional)
+import           Control.Monad.Random
+import           System.Random
 
 main :: IO ()
 main = do
@@ -16,11 +19,20 @@ main = do
   logOptions <- logOptionsHandle stderr True
   let logOptions' = setLogMinLevel (logLevel params) logOptions
 
-  -- execute command
-  withDiffDB (databaseFn params) $ \database ->
-    withLogFunc logOptions' $ \logger -> do
+  -- setup db
+  withLogFunc logOptions' $ \logger ->
+    withDiffDB (databaseFn params) $ \database -> do
       let env = MainEnv logger database
-      runRIO env (runCommands params)
+      runRIO env $ do
+        -- initialize random
+        s <- case seed params of
+          Just s  -> return s
+          Nothing -> getRandomR (1,10000)
+        logInfo $ "seed for random generator: " <> display s
+        liftIO $ setStdGen $ mkStdGen s
+
+        -- execute command
+        runCommands params
 
 
 runCommands :: HasMainEnv env => MainParameters -> RIO env ()
@@ -41,6 +53,7 @@ runCommands param = case cmd param of
 data MainParameters = MainParameters
   { logLevel   :: LogLevel
   , databaseFn :: FilePath
+  , seed       :: Maybe Int
   , cmd        :: Cmd
   }
 
@@ -61,11 +74,16 @@ opts = info (parseMainParameters <**> helper)
 
 
 parseMainParameters :: Parser MainParameters
-parseMainParameters = MainParameters <$> level <*> databasePath <*> parseCmd
+parseMainParameters = MainParameters <$> level <*> databasePath <*> parseSeed <*> parseCmd
   where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
 
 
-
+parseSeed :: Parser (Maybe Int)
+parseSeed = optional $ option auto options
+  where options = mconcat [ long "seed"
+                          , help "seed to initialize random generator"
+                          , metavar "SEED"
+                          ]
 
 
 parseCmdVersion :: Parser Cmd
