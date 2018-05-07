@@ -12,6 +12,7 @@ import           VDiff.Strategy.Smart
 import           VDiff.Types
 
 
+availableStrategies :: [Strategy]
 availableStrategies =
   [ RandomWalkStrategy
   , RandomUniformStrategy

@@ -1,6 +1,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 
 -- TODO: better name: Prelude
@@ -18,15 +19,18 @@ module VDiff.Types
 import           RIO
 
 import           Control.Lens.TH
+import           Control.Monad.Random
 import           Data.Default
-import           Data.List                        (intersperse, sortBy)
+import           Data.List                        (intersperse)
+import           Data.Text                        (pack)
 import qualified Database.SQLite.Simple           as SQL
 import           Language.C                       hiding (LevelError, LevelWarn,
                                                    execParser)
 import           Language.C.Analysis.AstAnalysis2
-import           Language.C.Analysis.SemRep
+import           Language.C.Analysis.SemRep       hiding (Stmt)
 import           Language.C.Data.Lens
 import           System.IO                        (FilePath)
+import           Text.PrettyPrint                 (render)
 
 import           VDiff.Data
 
@@ -164,3 +168,12 @@ type Stmt     = CStatement SemPhase
 
 displayList :: Display a => [a] -> Utf8Builder
 displayList xs = mconcat $ intersperse ", " (map display xs)
+
+instance Display Stmt where
+  display = display . pack . prettyp
+
+
+prettyp :: Pretty a => a -> String
+prettyp = render . pretty
+
+deriving instance MonadRandom (RIO env)

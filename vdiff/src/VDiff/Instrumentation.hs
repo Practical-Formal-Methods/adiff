@@ -10,7 +10,6 @@ module VDiff.Instrumentation
  (
    -- * Handling C files
   openCFile
- , prettyp
  , maskAsserts
  , defineAssert
  , Direction(..)
@@ -43,19 +42,13 @@ import           RIO.FilePath
 import           Safe
 
 import           Control.Lens.Operators            hiding ((^.))
-import           Control.Monad.Writer              hiding ((<>))
-import qualified Data.DList                        as DL
-import           Data.Functor.Identity
 import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
 import           Data.List                         (isPrefixOf)
 import qualified Data.List.Index                   as IL
-import           Data.Text                         (pack)
 import           Language.C.Analysis.TravMonad
-import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Lens
 import           Language.C.System.GCC
-import           Text.PrettyPrint                  (render)
 import           UnliftIO.Directory
 
 import           VDiff.Instrumentation.Browser
@@ -64,11 +57,6 @@ import           VDiff.Instrumentation.Reads
 import           VDiff.Types
 
 
-instance Display Stmt where
-  display = display . pack . prettyp
-
-prettyp :: Pretty a => a -> String
-prettyp = render . pretty
 
 -- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
 openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe (TU))

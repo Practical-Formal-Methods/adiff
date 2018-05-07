@@ -29,17 +29,19 @@ data Raffle a = Raffle
   , countElements ::  Int
   }
 
+emptyRaffle :: Raffle a
 emptyRaffle = Raffle [] 0 0
 
 insert :: (a, Double) -> Raffle a -> Raffle a
-insert (elem, tickets) r@(Raffle l t n)
-  | tickets > 0 = Raffle ((elem,tickets) : l) (t+tickets) (n+1)
+insert (e, tickets) r@(Raffle l t n)
+  | tickets > 0 = Raffle ((e, tickets) : l) (t + tickets) (n + 1)
   | otherwise = r
 
 fromList :: [(a, Double)] -> Raffle a
 fromList l = foldr insert emptyRaffle l
 
--- giving every element exactly one ticket
+-- | giving every element exactly one ticket
+fromList1 :: [a] -> Raffle a
 fromList1 l = VDiff.Strategy.Common.Raffle.fromList $ zip l (P.repeat 1.0)
 
 drawM :: (MonadRandom m) => Raffle a -> m a
@@ -50,4 +52,5 @@ drawM (Raffle l total _) = do
     getAt i ((x,t):xs)
       | i <= 0 = x
       | otherwise = getAt (i-t) xs
+    getAt _ [] = error "invalid state in drawM (maybe tried to draw empty list?)"
 

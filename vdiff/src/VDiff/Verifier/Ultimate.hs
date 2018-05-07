@@ -42,7 +42,7 @@ runUltimate cmd =
             case (ec, lastMay (C8.lines out))  of
               (ExitSuccess, Just "TRUE")  -> return Unsat
               (ExitSuccess, Just "FALSE") -> return Sat
-              (_, l)                      -> do
+              _                           -> do
                 logWarn $ "unexpected exit code: " <> display (tshow ec)
                   <> ", output was " <> display (tshow out)
                   <> ", error was " <> display (tshow err)

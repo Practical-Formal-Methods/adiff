@@ -10,7 +10,6 @@ import           VDiff.Types
 
 import           Control.Applicative  (optional)
 import           Control.Monad.Random
-import           System.Random
 
 main :: IO ()
 main = do

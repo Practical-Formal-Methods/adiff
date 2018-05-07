@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | provides some lenses that makes working with the AST more bearable
 module Language.C.Data.Lens
   ( externalDeclarations

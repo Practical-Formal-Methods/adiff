@@ -11,6 +11,7 @@ module VDiff.Strategy.Common.ConstantPool
 import           RIO
 import qualified RIO.Map                           as Map
 
+import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
 import           Data.List
 import           Language.C
@@ -18,7 +19,7 @@ import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep        hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
 
-import           VDiff.Instrumentation
+import           VDiff.Types
 
 newtype ConstantPool = ConstantPool (Map Type [CConstant SemPhase])
 
@@ -44,9 +45,6 @@ dedupConstants (ConstantPool p) = ConstantPool $ fmap nub' p
 lookupPool :: Type -> ConstantPool -> [CConstant SemPhase]
 lookupPool ty (ConstantPool p) = Map.findWithDefault [] ty p
 
-
-displayList :: Display a => [a] -> Utf8Builder
-displayList xs = mconcat $ intersperse ", " (map display xs)
 
 
 blurConstants :: ConstantPool -> ConstantPool

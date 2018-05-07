@@ -51,8 +51,6 @@ import           Control.Monad.State.Strict
 import           Control.Monad.Writer          hiding ((<>))
 import           Data.Generics.Uniplate.Data   ()
 import qualified Data.Generics.Uniplate.Zipper as Z
-import           Language.C
-import           Language.C.Data.Lens
 
 type StmtZipper= Z.Zipper Stmt Stmt
 
@@ -145,10 +143,7 @@ data AstPosition = AstPosition
   } deriving (Eq, Ord, Show)
 
 astDepth :: AstPosition -> Int
-astDepth (AstPosition _ indices) = length indices
-
-defPosition :: String -> AstPosition
-defPosition fn = AstPosition fn [0]
+astDepth (AstPosition _ is) = length is
 
 
 instance Display AstPosition where

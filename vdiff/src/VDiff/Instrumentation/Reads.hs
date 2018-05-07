@@ -8,14 +8,11 @@ module VDiff.Instrumentation.Reads where
 
 import           RIO
 
-import           Control.Lens.Operators            hiding ((^.))
-import           Control.Monad.Writer              hiding ((<>))
-import qualified Data.DList                        as DL
+import           Control.Monad.Writer            hiding ((<>))
+import qualified Data.DList                      as DL
 import           Data.Functor.Identity
-import           Data.Generics.Uniplate.Data       ()
-import           Data.Generics.Uniplate.Operations
 import           VDiff.Instrumentation.Browser
-import qualified VDiff.Instrumentation.Fragments   as Fragments
+import qualified VDiff.Instrumentation.Fragments as Fragments
 import           VDiff.Types
 
 data VarRead = VarRead
@@ -28,7 +25,6 @@ makeFieldsNoPrefix ''VarRead
 
 currentReads :: (MonadBrowser m) => m [(Ident, Type)]
 currentReads = do
-  p <- currentPosition
   s <- currentStmt
   return $ readsStatement s
 
@@ -67,8 +63,8 @@ readsStatement s = case s of
         reads        = concatMap readsInitializer initializers :: [(Ident,Type)]
         initializers = mapMaybe (\(_,x,_) -> x) declrs
         declarators  = mapMaybe (\(x,_,_) -> x) declrs :: [CDeclarator SemPhase]
-        declared     = mapMaybe identifier declarators
-          where identifier (CDeclr mi _ _ _ _) = mi
+        declared     = mapMaybe identifier' declarators
+          where identifier' (CDeclr mi _ _ _ _) = mi
     readsDeclaration _ = ([],[])
 
 
@@ -110,8 +106,8 @@ markAllReads tu =
   in snd <$> runIdentity $ runBrowserT act tu
 
 findAllReads :: TU -> [VarRead]
-findAllReads tu = let (_,log) = runWriter (runBrowserT action tu)
-                  in (DL.toList log)
+findAllReads tu = let (_,lg) = runWriter (runBrowserT action tu)
+                  in (DL.toList lg)
   where
     action :: BrowserT  (Writer (DL.DList VarRead)) ()
     action = do

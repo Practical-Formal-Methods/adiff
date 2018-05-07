@@ -120,3 +120,6 @@ RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 	make install && \
 	cd /tmp && \
 	rm -Rf klee
+
+# cairo (needed for vdiff-viewer)
+RUN apt-get install -y libcairo2-dev

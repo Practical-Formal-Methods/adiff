@@ -3,8 +3,6 @@ module VDiff.Verifier
   , debuggingVerifiers
   ) where
 
-import           Data.List                 (sort)
-
 import           VDiff.Types
 import           VDiff.Verifier.Cbmc
 import           VDiff.Verifier.CpaChecker

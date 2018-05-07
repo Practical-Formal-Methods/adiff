@@ -10,14 +10,15 @@ module VDiff.Strategy.Common.Averages
   , updateAverages
   , getAverages
   , emptyAverages
+  , getAveragesCounter
   ) where
 
 import           RIO
 import           VDiff.Types
 
 data Averages = Averages
-  { getAverages :: ![Double]     -- ^ average runtime for each verifier
-  , counter     :: !Int -- ^ number of past runs
+  { getAverages        :: ![Double]     -- ^ average runtime for each verifier
+  , getAveragesCounter :: !Int -- ^ number of past runs
   } deriving (Show)
 
 instance Display Averages where

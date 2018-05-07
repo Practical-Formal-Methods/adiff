@@ -12,6 +12,7 @@ import qualified Data.ByteString.Char8          as C8
 import           Data.Text.Encoding
 import           Database.SQLite.Simple.ToField
 import           Database.SQLite.Simple.FromField
+import qualified Database.SQLite.Simple     as SQL
 
 import           RIO
 
@@ -85,4 +86,10 @@ instance ToField Verdict where
   toField Unknown = toField ("unknown" :: String)
 
 
+instance SQL.FromRow CProgram where
+  fromRow = do
+    h <- SQL.field
+    o <- SQL.field
+    c <- SQL.field
+    return $ CProgram c o h
 

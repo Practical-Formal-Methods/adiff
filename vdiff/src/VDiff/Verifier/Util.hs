@@ -11,7 +11,6 @@ module VDiff.Verifier.Util
   , withSpec
   , reachSafety
   , debugOutput
-  , execTimed
   , withTiming
   , VDiff.Verifier.Util.callCommand
   , Sys.readCreateProcess
@@ -58,10 +57,7 @@ debugOutput vn out = do
   forM_ ls $ \l ->
     logDebug $  "[" <> display vn <> "] " <> displayBytesUtf8 l
 
-toDisplayBuilder :: String -> Utf8Builder
-toDisplayBuilder = displayBytesUtf8 . C8.pack
 
-{-# DEPRECATED execTimed "use withTiming instead" #-}
 execTimed :: HasTimeLimit env => CreateProcess -> Text -> RIO env (Maybe (ExitCode, Timing), ByteString, ByteString)
 execTimed cp inp = do
   tl <- view timeLimitL
@@ -79,8 +75,8 @@ withTiming cp inp cont = do
     Nothing           -> do
       logInfo "command timed out"
       return VerifierTimedOut
-    Just (ec, timing) -> do
+    Just (ec, t) -> do
       logInfo $ "command terminated with exit code " <> display (tshow ec)
       vrdct <- cont ec out err
-      return $ VerifierTerminated vrdct timing
+      return $ VerifierTerminated vrdct t
 

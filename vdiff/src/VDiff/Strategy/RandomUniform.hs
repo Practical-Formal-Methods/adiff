@@ -8,17 +8,14 @@ module VDiff.Strategy.RandomUniform
   , breadthFirstStrategy
   ) where
 
-import           Control.Lens.TH
 import           Control.Monad.List
 import           Data.Functor.Identity
-import qualified Prelude                            as P
 import           RIO
-import           System.Random.Shuffle.Extended
+import           System.Random.Shuffle.Extended()
 
 import           Language.C
 import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
-import           VDiff.Strategy.Common.ConstantPool
 import qualified VDiff.Strategy.Common.Raffle       as Raffle
 import           VDiff.Types
 

@@ -17,7 +17,7 @@ cbmc = def { verifierName = "cbmc"
 runCbmc :: FilePath -> RIO VerifierEnv VerifierResult
 runCbmc fn = do
   let cmd = shell $ "cbmc --32 --error-label ERROR " ++ fn
-  withTiming cmd "" $ \ec out err ->
+  withTiming cmd "" $ \ec out _ ->
     case L.last (C8.lines out) of
          ("VERIFICATION FAILED")     -> return Sat
          ("VERIFICATION SUCCESSFUL") -> return Unsat

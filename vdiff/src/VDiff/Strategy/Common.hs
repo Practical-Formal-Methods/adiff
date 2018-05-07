@@ -25,7 +25,6 @@ import           Text.PrettyPrint.HughesPJ          (render)
 
 
 import           VDiff.Data
-import           VDiff.Instrumentation
 import           VDiff.Persistence
 import           VDiff.Strategy.Common.ConstantPool
 import           VDiff.Types
@@ -62,8 +61,8 @@ verify' tu = do
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
         runs <- forM vs $ \v -> do
-                env <- mkVerifierEnv time
-                r <- runRIO env $ execute v fp
+                vEnv <- mkVerifierEnv time
+                r <- runRIO vEnv $ execute v fp
                 let run = VerifierRun (verifierName v) r (program' ^. hash)
                 persist' run
                 return run
@@ -118,9 +117,9 @@ assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (
 
 
 assertUnequal :: Ident -> CConstant SemPhase -> CStatement SemPhase
-assertUnequal varName constant = assertStmt expression
+assertUnequal varName c = assertStmt expression
   where
-    expression = CBinary CNeqOp var (CConst constant) (undefNode, boolType)
+    expression = CBinary CNeqOp var (CConst c) (undefNode, boolType)
     var        = CVar varName (undefNode, voidType)
 
 

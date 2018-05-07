@@ -56,12 +56,6 @@ makeFieldsNoPrefix ''RunFinding
 instance SQL.FromRow RunFinding where
   fromRow = RunFinding <$> field <*> field <*> field <*> field <*> field <*> field
 
-instance SQL.FromRow CProgram where
-  fromRow = do
-    h <- field
-    o <- field
-    c <- field
-    return $ CProgram c o h
 
 
 allIncomplete :: (HasDatabase env) => RIO env [RunFinding]

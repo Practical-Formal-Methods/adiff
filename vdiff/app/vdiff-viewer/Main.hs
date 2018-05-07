@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main where
 
@@ -9,8 +10,8 @@ import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
 import           Data.Tuple.Extra
 import qualified Database.SQLite.Simple                 as SQL
--- import           Graphics.Rendering.Chart.Backend.Cairo
--- import qualified Graphics.Rendering.Chart.Easy          as Chart
+import           Graphics.Rendering.Chart.Backend.Cairo
+import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
 import           RIO
 import           RIO.List
@@ -88,8 +89,7 @@ executeView (Program hsh) = do
       exitFailure
 executeView (TimeMemoryGraph outp) = do
   d <- Q.allRuns
-  error "not available"
-  -- liftIO $ renderPoints (cleanData d) outp
+  liftIO $ renderPoints (cleanData d) outp
 
 executeView (Runs hsh) = do
   runs <- Q.allRunsByHash hsh
@@ -180,36 +180,36 @@ query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc
 -- for the time / memory chart
 --------------------------------------------------------------------------------
 
--- data DataLine = DataLine
---   { verifier    :: String
---   , proportions :: [(Double, Int)]
---   }
+data DataLine = DataLine
+  { verifier    :: String
+  , proportions :: [(Double, Int)]
+  }
 
--- cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
--- cleanData runs =
---   let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
---       grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
---       tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
---   in tagged
---   where
---     e23 g = [(y,z) | (_,y,z) <- g]
+cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
+cleanData runs =
+  let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
+      grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
+      tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
+  in tagged
+  where
+    e23 g = [(y,z) | (_,y,z) <- g]
 
 
--- clrs :: [Chart.AlphaColour Double]
--- clrs = map Chart.opaque [ Chart.red
---                         , Chart.blue
---                         , Chart.green
---                         , Chart.yellow
---                         , Chart.black
---                         , Chart.brown
---                         , Chart.coral
---                         ]
+clrs :: [Chart.AlphaColour Double]
+clrs = map Chart.opaque [ Chart.red
+                        , Chart.blue
+                        , Chart.green
+                        , Chart.yellow
+                        , Chart.black
+                        , Chart.brown
+                        , Chart.coral
+                        ]
 
--- renderPoints :: [DataLine] -> FilePath -> IO ()
--- renderPoints lns outp = do
---   let fileOptions = (fo_format .~ SVG) def
---   toFile fileOptions outp $ do
---     Chart.layout_title .= "resident memory (MiB) / Time (s)"
---     forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
---       Chart.setColors [c]
---       Chart.plot (Chart.points (verifier ln) (proportions ln))
+renderPoints :: [DataLine] -> FilePath -> IO ()
+renderPoints lns outp = do
+  let fileOptions = (fo_format .~ SVG) def
+  toFile fileOptions outp $ do
+    Chart.layout_title .= "resident memory (MiB) / Time (s)"
+    forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
+      Chart.setColors [c]
+      Chart.plot (Chart.points (verifier ln) (proportions ln))

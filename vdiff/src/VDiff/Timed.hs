@@ -5,10 +5,6 @@
 module VDiff.Timed
   ( Timing(..)
   , exec
-  , userTime
-  , systemTime
-  , elapsedWall
-  , maxResidentMemory
   ) where
 
 import           Data.Text.IO            (hPutStr)

@@ -182,6 +182,7 @@ exploreStatementHeavy = do
                   Just x' -> return x'
                   Nothing -> mkRandomAssertion i ty
         insertBefore asrt
+        budget -= 1
         buildTranslationUnit >>= verify'
   -- and loop if the budget is still not depleted
   whenBudget_ (>0) exploreStatementHeavy
@@ -197,6 +198,7 @@ exploreStatement = tryout $ do
   if null rs
     then return 0
     else do
+    budget -= 1
     insertBefore assertFalse
     (res,conclusion) <- (buildTranslationUnit >>= verify)
     -- update moving average
@@ -207,6 +209,7 @@ exploreStatement = tryout $ do
     let score = d + t
     return score
 
+updateAverages' :: (IsStrategyEnv env) => [VerifierRun] -> Smart env ()
 updateAverages' res = do
   tl <- fromIntegral <$> view (diffParameters  . timelimit)
   let times = map (maybe (tl / 1000000) elapsedWall . timing . verifierResult) res
@@ -214,9 +217,6 @@ updateAverages' res = do
 
 
 
--- | like 'verify\'' but also subtracts from the budget
-smartVerify' tu = budget -= 1 >> verify' tu
-smartVerify tu = budget -= 1 >> verify tu
 
 -- subject to change
 -- always more than zero
