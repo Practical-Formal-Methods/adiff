@@ -29,6 +29,7 @@ module VDiff.Instrumentation
  , findCalledFunction
  , go_
  , AstPosition
+ , astDepth
  -- * Internals
  , insertBeforeNthStatement
  , markAllReads

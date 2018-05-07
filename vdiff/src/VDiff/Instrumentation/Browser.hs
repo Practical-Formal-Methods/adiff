@@ -23,6 +23,7 @@ module VDiff.Instrumentation.Browser
   , BrowserT(..)
   , runBrowserT
   , AstPosition(..)
+  , astDepth
   , Direction(..)
   , tryout
   -- * Operations at the current position
@@ -43,11 +44,11 @@ module VDiff.Instrumentation.Browser
 
 import qualified Prelude                       as P
 import           RIO                           hiding ((^.))
-import VDiff.Types
+import           VDiff.Types
 
 import           Control.Lens
 import           Control.Monad.State.Strict
-import           Control.Monad.Writer hiding ((<>))
+import           Control.Monad.Writer          hiding ((<>))
 import           Data.Generics.Uniplate.Data   ()
 import qualified Data.Generics.Uniplate.Zipper as Z
 import           Language.C
@@ -142,6 +143,9 @@ data AstPosition = AstPosition
   { functionName :: String
   , indices      :: [Int]
   } deriving (Eq, Ord, Show)
+
+astDepth :: AstPosition -> Int
+astDepth (AstPosition _ indices) = length indices
 
 defPosition :: String -> AstPosition
 defPosition fn = AstPosition fn [0]

@@ -33,6 +33,8 @@ import           VDiff.Data
 
 data Strategy = RandomWalkStrategy
               | RandomUniformStrategy
+              | BreadthFirstStrategy
+              | DepthFirstStrategy
               | SmartStrategy
 
 type Microseconds = Int

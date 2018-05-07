@@ -109,15 +109,15 @@ markAllReads tu =
         traverseReads (insertBefore . Fragments.mkReadMarker)
   in snd <$> runIdentity $ runBrowserT act tu
 
-findAllReads :: TU -> [(AstPosition, Ident, Type)]
+findAllReads :: TU -> [VarRead]
 findAllReads tu = let (_,log) = runWriter (runBrowserT action tu)
                   in (DL.toList log)
   where
-    action :: BrowserT  (Writer (DL.DList (AstPosition, Ident, Type))) ()
+    action :: BrowserT  (Writer (DL.DList VarRead)) ()
     action = do
       forM_ (definedFunctions tu) $ \f -> do
         gotoFunction (identToString f)
         traverseReads $ \vars -> do
             p <- currentPosition
             forM_ vars $ \(i,t) -> do
-              lift $ tell $ DL.singleton (p,i,t)
+              lift $ tell $ DL.singleton $ VarRead p i t
