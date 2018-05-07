@@ -39,7 +39,9 @@ cmdDiff params = do
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
 cmdParseTest :: HasLogFunc env => FilePath -> RIO env ()
-cmdParseTest fn = openCFile fn >>= liftIO . putStrLn . render . maybe "" pretty
+cmdParseTest fn = openCFile fn >>= \case
+  Nothing -> liftIO exitFailure
+  Just ast -> liftIO $ putStrLn $ render $ pretty ast
 
 
 cmdMarkReads :: HasLogFunc env => FilePath -> RIO env ()
