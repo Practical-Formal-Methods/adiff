@@ -32,3 +32,5 @@ executeStrategy :: (IsStrategyEnv env) => Strategy -> RIO env ()
 executeStrategy RandomWalkStrategy    = randomWalkStrategy
 executeStrategy RandomUniformStrategy = randomUniformStrategy
 executeStrategy SmartStrategy         = smartStrategy
+executeStrategy DepthFirstStrategy    = depthFirstStrategy
+executeStrategy BreadthFirstStrategy  = breadthFirstStrategy
