@@ -21,6 +21,7 @@ import           Test.Tasty.Golden
 import           Test.Tasty.HUnit
 
 import           VDiff.Instrumentation
+import           VDiff.Types
 
 data NoLogging = NoLogging
 instance HasLogFunc NoLogging where

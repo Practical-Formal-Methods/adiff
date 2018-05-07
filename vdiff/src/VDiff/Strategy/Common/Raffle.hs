@@ -44,13 +44,22 @@ fromList l = foldr insert emptyRaffle l
 fromList1 :: [a] -> Raffle a
 fromList1 l = VDiff.Strategy.Common.Raffle.fromList $ zip l (P.repeat 1.0)
 
+draw :: (RandomGen g)  => g -> Raffle a -> (a, g)
+draw g (Raffle l total _) =
+  let (i,g') = randomR (0, total) g
+  in (getAt i total l, g')
+
+
 drawM :: (MonadRandom m) => Raffle a -> m a
 drawM (Raffle l total _) = do
   i <- getRandomR (0, total)
-  return $ getAt i l
-  where
-    getAt i ((x,t):xs)
-      | i <= 0 = x
-      | otherwise = getAt (i-t) xs
-    getAt _ [] = error "invalid state in drawM (maybe tried to draw empty list?)"
+  return $ getAt i total l
 
+
+
+getAt :: Double -> Double -> [(a,Double)] -> a
+getAt i total ((x,t):xs)
+  | i + t >= total = x
+  | i <= 0 = x
+  | otherwise = getAt (i-t) total xs
+getAt _ _ [] = error "invalid state in drawM (maybe tried to draw empty list?)"

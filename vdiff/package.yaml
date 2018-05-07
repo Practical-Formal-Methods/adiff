@@ -41,7 +41,6 @@ executables:
       - vdiff
       - Chart
       - Chart-cairo
-      - extra
     ghc-options: -threaded -O2 -rtsopts
 
 library:
@@ -52,7 +51,7 @@ tests:
     main: Regression.hs
     source-dirs: test/regression
     dependencies:
-      - rio >= 0.0.3
+      - rio >= 0.1.0
       - tasty 
       - tasty-hunit
       - tasty-hedgehog
@@ -66,7 +65,7 @@ tests:
     main: Integration.hs
     source-dirs: test/integration
     dependencies:
-      - rio >= 0.0.3
+      - rio >= 0.1.0
       - tasty 
       - tasty-hunit
       - tasty-hedgehog
@@ -109,4 +108,11 @@ dependencies:
   - ilist
   - random-shuffle
   - MonadRandom
+  - tasty 
+  - tasty-hunit
+  - tasty-hedgehog
+  - tasty-golden
+  - hedgehog
+  - filepath
+  - monad-extras
   

@@ -7,6 +7,7 @@ import           Text.PrettyPrint           (render)
 
 import           Util
 import           VDiff.Instrumentation
+import           VDiff.Types
 
 
 

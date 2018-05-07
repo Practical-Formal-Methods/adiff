@@ -2,13 +2,12 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans   #-}
 
 module Main where
 
 import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
-import           Data.Tuple.Extra
 import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
@@ -194,6 +193,7 @@ cleanData runs =
   where
     e23 g = [(y,z) | (_,y,z) <- g]
 
+fst3 (x,_,_) = x
 
 clrs :: [Chart.AlphaColour Double]
 clrs = map Chart.opaque [ Chart.red
