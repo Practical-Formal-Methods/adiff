@@ -55,7 +55,7 @@ mkStrategy prioritize = do
     replicateM_ bdg $ do
       r <- Raffle.drawM positions
       let constants = Raffle.fromList1 $ map Just $ lookupPool (r ^. varType) constantPool
-      let constants' = Raffle.insert (Nothing, Raffle.countTickets constants) constants
+      let constants' = Raffle.insert (Nothing, (max 1 $ Raffle.countTickets constants)) constants
       constant <- Raffle.drawM constants' >>= \case
         Nothing -> mkRandomConstant (r ^. varType)
         Just c -> return c
