@@ -53,7 +53,7 @@ draw g (Raffle l total _) =
 drawM :: (MonadRandom m) => Raffle a -> m a
 drawM (Raffle l total _) = do
   i <- getRandomR (0, total)
-  return $ getAt i total l
+  return $! getAt i total l
 
 
 
@@ -61,5 +61,5 @@ getAt :: Double -> Double -> [(a,Double)] -> a
 getAt i total ((x,t):xs)
   | i + t >= total = x
   | i <= 0 = x
-  | otherwise = getAt (i-t) total xs
+  | otherwise = getAt (i-t) (total - t) xs
 getAt _ _ [] = error "invalid state in drawM (maybe tried to draw empty list?)"
