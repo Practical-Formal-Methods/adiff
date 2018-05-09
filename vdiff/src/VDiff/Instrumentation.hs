@@ -10,6 +10,7 @@ module VDiff.Instrumentation
  (
    -- * Handling C files
   openCFile
+ , preprocess
  , maskAsserts
  , defineAssert
  , Direction(..)
@@ -81,6 +82,13 @@ openCFile fn = do
 
 --------------------------------------------------------------------------------
 
+-- | Before we can add assertions to file we have apply a few transformations first.
+-- * mask asserts
+-- * declare __VERIFIER_error (if not declared)
+-- * define __VERIFIER_assert (if not defined)
+preprocess = defineAssert . declareError . maskAsserts
+
+
 findCalledFunction :: (MonadBrowser m) => m (Maybe String)
 findCalledFunction = do
   stmt <- currentStmt
@@ -118,6 +126,16 @@ defineAssert tu = case tu ^? (ix "__VERIFIER_assert") of
                     Nothing ->
                       let (Just p) = indexOfDeclaration "__VERIFIER_error" tu
                       in insertExtDeclAt (p+1) (CFDefExt Fragments.assertDefinition) tu
+
+
+
+declareError :: TU ->  TU
+declareError tu = case tu ^? (ix "__VERIFIER_error") of
+                    Just _ -> tu
+                    Nothing -> trace "declaring error" $ insertExtDeclAt 0 (CDeclExt Fragments.errorDeclaration) tu
+
+--------------------------------------------------------------------------------
+-- Small Helpers
 
 insertExtDeclAt  :: Int -> CExternalDeclaration p -> CTranslationUnit p -> CTranslationUnit p
 insertExtDeclAt  n d (CTranslUnit exts ann) = CTranslUnit (IL.insertAt n d exts) ann

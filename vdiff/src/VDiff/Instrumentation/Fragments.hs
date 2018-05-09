@@ -1,8 +1,8 @@
 module VDiff.Instrumentation.Fragments where
 
-import RIO
-import VDiff.Types
-import Language.C.Analysis.TypeUtils
+import           Language.C.Analysis.TypeUtils
+import           RIO
+import           VDiff.Types
 
 mkReadMarker ::  [(Ident,Type)] -> Stmt
 mkReadMarker vars =
@@ -35,5 +35,15 @@ assertDefinition = CFunDef specs decl [] body' undefNode
         ifStmt    = CIf notCond errorStmt Nothing (undefNode, voidType)
         notCond   = CUnary CNegOp (CVar (internalIdent "cond") (undefNode, intType)) (undefNode, intType)
         errorStmt = CLabel (builtinIdent "ERROR")  callError [] (undefNode, voidType)
-        callError = CExpr (Just (CCall (CVar (builtinIdent "__VERIFIER_ERROR") (undefNode,voidType)) [] (undefNode, voidType))) (undefNode,voidType)
+        callError = CExpr (Just (CCall (CVar (builtinIdent "__VERIFIER_error") (undefNode,voidType)) [] (undefNode, voidType))) (undefNode,voidType)
         intType   = voidType -- not correct, but doesn't matter
+
+errorDeclaration :: CDeclaration SemPhase
+errorDeclaration = CDecl specs [(Just declr, Nothing, Nothing)] undefNode
+  where
+    specs = [ CStorageSpec $ CExtern undefNode --extern
+            ,  CTypeSpec $ CVoidType undefNode -- void
+            ]
+    declr = CDeclr (Just $ builtinIdent "__VERIFIER_error") [fdeclr] Nothing attrs undefNode
+    fdeclr = CFunDeclr (Left []) [] undefNode
+    attrs = [CAttr (builtinIdent "__noreturn__") [] undefNode]
