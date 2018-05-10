@@ -9,7 +9,7 @@ import           VDiff.Verifier.Util
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.
 cbmc :: Verifier
-cbmc = def { verifierName = "cbmc"
+cbmc = Verifier { verifierName = "cbmc"
            , execute = runCbmc
            , version = cbmcVersion
            }

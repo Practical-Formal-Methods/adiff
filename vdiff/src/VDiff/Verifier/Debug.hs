@@ -18,10 +18,11 @@ debuggingVerifiers = [vim, vim2, alwaysSat, alwaysUnsat]
 -- | This is not a real verifier. It uses vim to show the file to the user.
 -- The user can then say successful by closing vim regularly (:q) or failed by closing vim with non-zero exit code (:cq)
 vim :: Verifier
-vim = def { verifierName = "vim"
-          , execute = runVim
-          , version = vimVersion
-          }
+vim = Verifier
+  { verifierName = "vim"
+  , execute = runVim
+  , version = vimVersion
+  }
 
 vim2 :: Verifier
 vim2 = vim { verifierName = "vim2" }
@@ -49,10 +50,11 @@ alwaysSat  = always Sat
 alwaysUnsat = always Unsat
 
 always :: Verdict -> Verifier
-always verdict = def { verifierName = "always-" <> show verdict
-                , execute = const $ return (VerifierTerminated verdict timing)
-                , version = return (Just "1")
-                }
+always verdict = Verifier
+  { verifierName = "always-" <> show verdict
+  , execute = const $ return (VerifierTerminated verdict timing)
+  , version = return (Just "1")
+  }
 
 
 timing :: Timing

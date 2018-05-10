@@ -4,7 +4,6 @@ module VDiff.Verifier.Util
   , VerifierResult(..)
   , Verdict(..)
   , module Safe
-  , def
   , withSystemTempFile
   , hFlush
   , embedFile
@@ -24,7 +23,6 @@ module VDiff.Verifier.Util
 where
 
 import qualified Data.ByteString.Char8 as C8
-import           Data.Default          (def)
 import           Data.FileEmbed
 import           RIO
 import           Safe

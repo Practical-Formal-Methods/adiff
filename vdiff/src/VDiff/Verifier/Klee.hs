@@ -12,10 +12,11 @@ import           VDiff.Verifier.Util
 
 
 klee :: Verifier
-klee = def { verifierName = "klee"
-           , execute = kleeRun
-           , version = kleeVersion
-           }
+klee = Verifier
+  { verifierName = "klee"
+  , execute = kleeRun
+  , version = kleeVersion
+  }
 
 kleeVersion :: IO (Maybe String)
 kleeVersion = do

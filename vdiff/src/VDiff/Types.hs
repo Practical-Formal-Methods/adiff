@@ -8,7 +8,6 @@
 
 module VDiff.Types
   ( module VDiff.Types
-  , module Data.Default
   , module Language.C
   , module Language.C.Data.Lens
   , module Language.C.Analysis.AstAnalysis2
@@ -20,7 +19,6 @@ import           RIO
 
 import           Control.Lens.TH
 import           Control.Monad.Random
-import           Data.Default
 import           Data.List                        (intersperse)
 import           Data.Text                        (pack)
 import qualified Database.SQLite.Simple           as SQL
@@ -141,12 +139,6 @@ instance Eq Verifier where
 
 instance Ord Verifier where
   v1 <= v2 = verifierName (v1 :: Verifier) <= verifierName (v2 :: Verifier)
-
-instance Default Verifier where
-  def = Verifier { verifierName = error "verifierName has no default value"
-                 , execute  =  error "verifierExecute has no default value"
-                 , version = return Nothing
-                 }
 
 
 

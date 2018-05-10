@@ -82,9 +82,7 @@ dependencies:
   - rio >= 0.1.0
   - base16-bytestring
   - bytestring
-  - utf8-string
   - cryptohash
-  - data-default
   - file-embed
   - language-c
   - optparse-applicative
@@ -96,7 +94,6 @@ dependencies:
   - transformers
   - mtl
   - text
-  - unix
   - lens
   - uniplate
   - pptable >= 0.3.0
@@ -106,13 +103,6 @@ dependencies:
   - template-haskell
   - dlist
   - ilist
-  - random-shuffle
   - MonadRandom
-  - tasty 
-  - tasty-hunit
-  - tasty-hedgehog
-  - tasty-golden
-  - hedgehog
   - filepath
-  - monad-extras
   

@@ -207,7 +207,7 @@ clrs = map Chart.opaque [ Chart.red
 
 renderPoints :: [DataLine] -> FilePath -> IO ()
 renderPoints lns outp = do
-  let fileOptions = (fo_format .~ SVG) def
+  let fileOptions = (fo_format .~ SVG) Chart.def
   toFile fileOptions outp $ do
     Chart.layout_title .= "resident memory (MiB) / Time (s)"
     forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do

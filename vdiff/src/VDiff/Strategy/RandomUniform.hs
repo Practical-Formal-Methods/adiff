@@ -1,6 +1,4 @@
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TemplateHaskell        #-}
 
 module VDiff.Strategy.RandomUniform
   ( randomUniformStrategy
@@ -11,7 +9,6 @@ module VDiff.Strategy.RandomUniform
 import           Control.Monad.List
 import           Data.Functor.Identity
 import           RIO
-import           System.Random.Shuffle.Extended()
 
 import           Language.C
 import           VDiff.Instrumentation
@@ -24,7 +21,7 @@ type Prioritization  = VarRead -> Double
 
 -- | Every position has priority 1.0
 randomUniformStrategy :: (IsStrategyEnv env) => RIO env ()
-randomUniformStrategy = mkStrategy  (\_ -> 1.0)
+randomUniformStrategy = mkStrategy  (const 1.0)
 
 -- | Priority proportional to depth
 depthFirstStrategy :: (IsStrategyEnv env) => RIO env ()
@@ -44,18 +41,17 @@ breadthFirstStrategy = mkStrategy p
 
 mkStrategy :: (IsStrategyEnv env) => Prioritization -> RIO env ()
 mkStrategy prioritize = do
-  logDebug "starting randomUniformStrategy"
   tu <- view translationUnit
   bdg <- view (diffParameters . budget)
 
   let positions = Raffle.fromList $ zipMap prioritize $ findAllReads tu
   let constantPool = findAllConstants tu
 
-  unless (Raffle.countElements positions == 0) $ do
+  unless (Raffle.countElements positions == 0) $
     replicateM_ bdg $ do
       r <- Raffle.drawM positions
       let constants = Raffle.fromList1 $ map Just $ lookupPool (r ^. varType) constantPool
-      let constants' = Raffle.insert (Nothing, (max 1 $ Raffle.countTickets constants)) constants
+      let constants' = Raffle.insert (Nothing, max 1 $ Raffle.countTickets constants) constants
       constant <- Raffle.drawM constants' >>= \case
         Nothing -> mkRandomConstant (r ^. varType)
         Just c -> return c

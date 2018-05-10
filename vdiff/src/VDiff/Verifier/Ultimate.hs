@@ -7,16 +7,18 @@ import qualified Data.ByteString.Char8 as C8
 import           VDiff.Verifier.Util
 
 uautomizer :: Verifier
-uautomizer = def { verifierName = "uautomizer"
-                 , execute = automizerRun
-                 , version = uautomizerVersion
-                 }
+uautomizer = Verifier
+  { verifierName = "uautomizer"
+  , execute = automizerRun
+  , version = uautomizerVersion
+  }
 
 utaipan :: Verifier
-utaipan = def { verifierName = "utaipan"
-              , execute = taipanRun
-              , version = taipanVersion
-              }
+utaipan = Verifier
+  { verifierName = "utaipan"
+  , execute = taipanRun
+  , version = taipanVersion
+  }
 
 automizerRun :: FilePath -> RIO VerifierEnv VerifierResult
 automizerRun fn = withSpec reachSafety $ \spec ->
