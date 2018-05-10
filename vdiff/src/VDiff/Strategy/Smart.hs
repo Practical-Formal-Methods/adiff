@@ -65,42 +65,45 @@ smartStrategy = do
 
 runSmart :: IsStrategyEnv env => SmartState -> CTranslationUnit SemPhase-> RIO env (SmartState, CTranslationUnit SemPhase)
 runSmart st stmt= do
-  ((_,st'), stmt') <- runBrowserT (runStateT (unSmart smartStrategy') st) stmt
+  ((_,st'), stmt') <- runBrowserT (runStateT (unSmart $ smartStrategy' 0) st) stmt
   return (st',stmt')
 
 
-smartStrategy' :: (IsStrategyEnv env) => Smart env ()
-smartStrategy' = do
-  -- when budget is not depleted
-  whenBudget_ (>0) $ do
-    -- if in compound statement, go down
-    in_compound <- isCompound <$> currentStmt
-    if in_compound
-      then go Down >> smartStrategy'
-      else do
-        -- find 'best' location
-        logDebug "exploring level"
-        rts <- sortBest <$> exploreLevel
-        let totalRating = sum $ map fst rts
-        totalBudget <- fromIntegral <$> use budget
-        logDebug $ "ratings are: " <> display (tshow rts)
-        forM_ rts $ \(rating, idx) -> do
-          -- go to the statement
-          gotoPosition idx
-          c <- currentStmt
-          logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
-          -- allocate budget proportional to the rating
-          let newBudget = ceiling $ totalBudget / totalRating * rating
-          -- and spent a half of it on this location
-          findCalledFunction >>= \case
-            Nothing -> withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
-            Just fn -> do
-              withBudgetLimit (newBudget `div` 4) exploreStatementHeavy
-              withBudgetLimit (newBudget `div` 4) $ tryout $ gotoFunction fn >> smartStrategy'
-          -- ... and the other half "under" it
-          whenM goDownAtNextChance $
-            withBudgetLimit (newBudget `div` 2) smartStrategy'
-  return ()
+smartStrategy' :: (IsStrategyEnv env) => Int -> Smart env ()
+smartStrategy' recursionLevel
+  | recursionLevel > 1000 = return () -- so we won't get stuck in an infinite loop
+  | otherwise = do
+    logDebug "at smartStrategy'"
+    -- when budget is not depleted
+    whenBudget_ (>0) $ do
+      -- if in compound statement, go down
+      in_compound <- isCompound <$> currentStmt
+      if in_compound
+        then go Down >> smartStrategy' (recursionLevel + 1)
+        else do
+          -- find 'best' location
+          logDebug "exploring level"
+          rts <- sortBest <$> exploreLevel
+          let totalRating = sum $ map fst rts
+          totalBudget <- fromIntegral <$> use budget
+          logDebug $ "ratings are: " <> display (tshow rts)
+          forM_ rts $ \(rating, idx) -> do
+            -- go to the statement
+            gotoPosition idx
+            c <- currentStmt
+            logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
+            -- allocate budget proportional to the rating
+            let newBudget = ceiling $ totalBudget / totalRating * rating
+            -- and spent a half of it on this location
+            findCalledFunction >>= \case
+              Nothing -> withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
+              Just fn -> do
+                withBudgetLimit (newBudget `div` 4) exploreStatementHeavy
+                withBudgetLimit (newBudget `div` 4) $ tryout $ gotoFunction fn >> smartStrategy' (recursionLevel + 1)
+            -- ... and the other half "under" it
+            whenM goDownAtNextChance $
+              withBudgetLimit (newBudget `div` 2) (smartStrategy' (recursionLevel + 1))
+    return ()
 
 
 -- | sets the budget to a smaller limit, but still subtracts from the original value
