@@ -18,6 +18,7 @@ clean:
 	stack clean
 
 install:
+	cp -r scripts/* $(HOME)/.local/bin
 	stack build --copy-bins --no-docker --ghc-options="-O0" --fast
 
 # regression tests
