@@ -22,6 +22,13 @@ dummyAssert = CFunDef specs decl [] body' undefNode
         paramDecl = CDeclr (Just $ internalIdent "condition") [] Nothing [] undefNode :: CDeclarator SemPhase
         body' = CCompound [] [] (undefNode, voidType)
 
+dummyError :: CFunctionDef SemPhase
+dummyError = CFunDef specs decl [] body' undefNode
+  where specs = [CTypeSpec (CVoidType undefNode)]
+        decl = CDeclr  (Just $ internalIdent "__DUMMY_VERIFIER_error" ) derived Nothing [] undefNode
+        derived = [CFunDeclr (Right ([], False)) [] undefNode]
+        body' = CCompound [] [] (undefNode, voidType)
+
 
 
 assertDefinition :: CFunctionDef SemPhase

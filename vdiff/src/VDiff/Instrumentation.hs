@@ -106,14 +106,14 @@ findCalledFunction = do
 -- | * Masking
 --------------------------------------------------------------------------------
 
--- TODO: Also mask original calls to __VERIFIER_error()
 maskAsserts :: TU -> TU
 maskAsserts = insertDummy . transformBi replaceFunctionCalls
   where
-    insertDummy = insertExtDeclAt 0 (CFDefExt Fragments.dummyAssert)
+    insertDummy = insertExtDeclAt 0 (CFDefExt Fragments.dummyError) . insertExtDeclAt 0 (CFDefExt Fragments.dummyAssert)
     replaceFunctionCalls :: CExpression SemPhase -> CExpression SemPhase
     replaceFunctionCalls c@(CCall (CVar v ann) e2 ann2)
       | identToString v == "__VERIFIER_assert"  = CCall (CVar (internalIdent "__DUMMY_VERIFIER_assert") ann) e2 ann2
+      | identToString v == "__VERIFIER_error"  = CCall (CVar (internalIdent "__DUMMY_VERIFIER_error") ann) e2 ann2
       | otherwise = c
     replaceFunctionCalls c = c
 
