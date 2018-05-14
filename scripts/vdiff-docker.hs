@@ -16,13 +16,14 @@ description =
 
 
 data Parameters = Parameters
-  { cpus   :: Int
-  , memory :: String
+  { cpus       :: Int
+  , cpusetCpus :: Maybe String
+  , memory     :: String
   } deriving Show
 
 
 parameterParser :: Parser Parameters
-parameterParser =  Parameters <$> parseCpus <*> parseMemory
+parameterParser =  Parameters <$> parseCpus <*> parseCPUSet <*> parseMemory
   where
     parseCpus = option auto $ mconcat
       [ long "cpus" , help "limit the number of used cpus"
@@ -33,6 +34,11 @@ parameterParser =  Parameters <$> parseCpus <*> parseMemory
       , help "limit the number of used memory"
       , value "8G"
       , metavar "MEM"
+      ]
+    parseCPUSet = optional $ option str $ mconcat
+      [ long "cpuset-cpus"
+      , help "limit the process to the comma separated list of cpus"
+      , metavar "CPUSET"
       ]
 
 opts :: ParserInfo Parameters
@@ -45,6 +51,7 @@ main = do
   let
     limits = [ "--cpus=" ++ show cpus
              , "--memory=" ++ memory
+             , maybe "" ("--cpuset-cpus="++) cpusetCpus
              , "--memory-swap=0"
              ]
     cmd = concat' $ ["docker run -it"] ++ mounts ++ limits ++ ["vdiff/vdiff:latest", "/bin/bash"]
