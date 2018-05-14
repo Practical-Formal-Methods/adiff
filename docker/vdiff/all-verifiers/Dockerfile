@@ -11,18 +11,23 @@ FROM ubuntu:16.04
 USER root
 RUN apt-get update && \
     apt-get -y install \
+    bison \
     build-essential \
     cbmc \
     clang-3.8 \
+    clang-3.9 \
     clang-5.0 \
     cmake \
+    flex \
     git \
     java-common \
     libasound2 \
     libboost-system-dev \
+    libcairo2-dev \
     libfontconfig1 \
     libfreetype6 \
     libgmp-dev \
+    libwww-perl \
     libx11-6 \
     libxau6 \
     libxcb1 \
@@ -32,15 +37,21 @@ RUN apt-get update && \
     libxrender1 \
     libxtst6 \
     libz3-dev \
+    llvm-3.9 \
+    lsb \
     ncurses-dev \
     openjdk-8-jdk-headless \
+    patch \
     python2.7 \
+    software-properties-common\
     subversion \
+    sudo \
     time \
     unzip \
     vim \
     wget \
     zlib1g-dev
+
 
 RUN export MAKEFLAGS=-j$(nproc)
 
@@ -121,5 +132,14 @@ RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 	cd /tmp && \
 	rm -Rf klee
 
-# cairo (needed for vdiff-viewer)
-RUN apt-get install -y libcairo2-dev
+# 2LS
+ RUN cd /tmp && git clone https://github.com/diffblue/2ls.git && \
+     cd 2ls && git checkout 2ls-0.6 && \
+     ./install.sh &&  \
+     cp /tmp/2ls/src/2ls/2ls /usr/local/bin && \
+     rm -Rf /tmp/2ls
+
+# Smack
+RUN cd /tmp && git clone https://github.com/smackers/smack.git && \
+    cd /tmp/smack && git checkout v1.9.0 && \
+    cp /tmp/smack/bin/{boogie,corral,lockpwn,smack,smack-svcomp-wrapper.sh} /usr/local/ibn
