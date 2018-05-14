@@ -19,7 +19,7 @@ clean:
 
 install:
 	cp -r scripts/* $(HOME)/.local/bin
-	stack build --copy-bins --no-docker --ghc-options="-O0" --fast
+	stack build --copy-bins --no-docker
 
 # regression tests
 test:
