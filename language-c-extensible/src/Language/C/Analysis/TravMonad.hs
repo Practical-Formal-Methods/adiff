@@ -101,17 +101,17 @@ class (MonadName m, MonadSymtab m, MonadCError m) => MonadTrav m where
 
 -- check wheter a redefinition is ok
 checkRedef :: (MonadCError m, CNode t, CNode t1) => String -> t -> (DeclarationStatus t1) -> m ()
-checkRedef subject new_decl redecl_status =
-    case redecl_status of
-        NewDecl -> return ()
-        Redeclared old_def   -> throwTravError $
-            redefinition LevelError subject DuplicateDef (nodeInfo new_decl) (nodeInfo old_def)
-        KindMismatch old_def -> throwTravError $
-            redefinition LevelError subject DiffKindRedecl (nodeInfo new_decl) (nodeInfo old_def)
-        Shadowed _old_def     ->  return ()
-            -- warn $
-            -- redefinition LevelWarn subject ShadowedDef (nodeInfo new_decl) (nodeInfo old_def)
-        KeepDef _old_def      -> return ()
+checkRedef subject new_decl redecl_status = return ()
+    -- case redecl_status of
+    --     NewDecl -> return ()
+    --     Redeclared old_def   -> throwTravError $
+    --         redefinition LevelError subject DuplicateDef (nodeInfo new_decl) (nodeInfo old_def)
+    --     KindMismatch old_def -> throwTravError $
+    --         redefinition LevelError subject DiffKindRedecl (nodeInfo new_decl) (nodeInfo old_def)
+    --     Shadowed _old_def     ->  return ()
+    --         -- warn $
+    --         -- redefinition LevelWarn subject ShadowedDef (nodeInfo new_decl) (nodeInfo old_def)
+    --     KeepDef _old_def      -> return ()
 
 -- | forward declaration of a tag. Only necessary for name analysis, but otherwise no semantic
 -- consequences.
@@ -198,8 +198,8 @@ checkVarRedef def redecl =
 
     new_ty = declType def
     canBeOverwritten (Declaration _) = True
-    canBeOverwritten (ObjectDef od)  = isTentative od
-    canBeOverwritten _               = False
+    canBeOverwritten (ObjectDef od)  = True -- isTentative od -- HACK
+    canBeOverwritten _               = True -- False
     agreeOnLinkage new_def old_def
         | declStorage old_def == FunLinkage InternalLinkage = True
         | not (hasLinkage $ declStorage new_def) || not (hasLinkage $ declStorage old_def) = False

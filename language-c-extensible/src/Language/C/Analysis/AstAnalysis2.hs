@@ -24,7 +24,6 @@ import           Language.C.Syntax.Ops
 import           Language.C.Syntax.Utils
 
 import           Data.Generics                    hiding (Generic)
-import           Unsafe.Coerce                    (unsafeCoerce)
 
 
 
@@ -35,7 +34,6 @@ import qualified Data.Map                         as Map
 import           Data.Maybe
 import           Data.Traversable                 (mapM)
 import           Prelude                          hiding (mapM, mapM_)
-
 -- After the analysis (semantic phase) we want to store additional information:
 data SemPhase
 
@@ -757,8 +755,9 @@ analyseDecl is_local decl@(CDecl declspecs declrs node)
                                declspecs' <- mapM analyseDeclSpec declspecs
                                return $ CDecl declspecs' [] node
     | (Just declspecs') <- typedef_spec = do
+        declspecs'' <- mapM analyseDeclSpec declspecs'
         x <- mapM (uncurry (analyseTyDef declspecs')) declr_list
-        return $ unsafeCoerce $ CDecl declspecs declrs node
+        return $ (CDecl declspecs'' x node :: CDeclaration SemPhase)
     | otherwise   = do let (storage_specs, attrs, typequals, typespecs, funspecs, _alignspecs) = partitionDeclSpecs declspecs
                        canonTySpecs <- canonicalTypeSpec typespecs
                        -- TODO: alignspecs not yet processed
@@ -770,10 +769,14 @@ analyseDecl is_local decl@(CDecl declspecs declrs node)
     declr_list = zip (True : repeat False) declrs
     typedef_spec = hasTypeDef declspecs
 
-    analyseTyDef ::  (MonadTrav m) => [CDeclSpec]  -> Bool -> (Maybe CDeclr,Maybe a,Maybe b) -> m ()
+    analyseTyDef ::  (MonadTrav m) => [CDeclSpec]  -> Bool
+      -> (Maybe CDeclr, Maybe (CInitializer NodeInfo), Maybe (CExpression NodeInfo))
+      -> m (Maybe (CDeclarator SemPhase), Maybe (CInitializer SemPhase), Maybe (CExpression SemPhase))
     analyseTyDef declspecs' handle_sue_def declr =
         case declr of
-            (Just tydeclr, Nothing , Nothing) -> analyseTypeDef handle_sue_def declspecs' tydeclr node
+            (Just tydeclr, Nothing , Nothing) -> do
+              tydeclr' <- analyseTypeDef handle_sue_def declspecs' tydeclr node
+              return (Just tydeclr', Nothing, Nothing)
             _ -> astError node "bad typdef declaration: bitfieldsize or initializer present"
     analyseVarDeclr :: (MonadTrav m) => ([CStorageSpec],[CAttr],[CTypeQual],TypeSpecAnalysis ,[CFunSpec]) -> Bool -> (Maybe CDeclr, Maybe Initializer, Maybe a) -> m (Maybe (CDeclarator SemPhase), Maybe (CInitializer SemPhase), Maybe (CExpression SemPhase))
     analyseVarDeclr specs handle_sue_def (Just declr, mInit, Nothing) = do
@@ -795,7 +798,7 @@ analyseDecl is_local decl@(CDecl declspecs declrs node)
 
 
 -- | Analyse a typedef
-analyseTypeDef :: (MonadTrav m) => Bool -> [CDeclSpec] -> CDeclr -> NodeInfo -> m ()
+analyseTypeDef :: (MonadTrav m) => Bool -> [CDeclSpec] -> CDeclr -> NodeInfo -> m (CDeclarator SemPhase)
 analyseTypeDef handle_sue_def declspecs declr node_info = do
     -- analyse the declarator
     (VarDeclInfo name fun_attrs storage_spec attrs ty _node) <- analyseVarDecl' handle_sue_def declspecs declr [] Nothing
@@ -803,6 +806,7 @@ analyseTypeDef handle_sue_def declspecs declr node_info = do
     when (isNoName name) $ astError node_info "NoName in analyseTypeDef"
     let ident = identOfVarName name
     handleTypeDef (TypeDef ident ty attrs node_info)
+    analyseDeclarator declr
     where
     checkValidTypeDef fun_attrs  _ _ | fun_attrs /= noFunctionAttrs =
                                          astError node_info "inline specifier for typeDef"
@@ -814,6 +818,10 @@ checkGuard c e = do
   e' <- tExpr c RValue e
   checkScalar' (nodeInfo e) (getType e')
   return e'
+
+
+
+
 
 data StmtCtx = FunCtx VarDecl
              | LoopCtx
@@ -867,7 +875,23 @@ analyseCConstant c@(CStrConst s ni) = do
   return $ CStrConst s (ni,ty)
 
 analyseInitializerList :: MonadTrav m => CInitializerList NodeInfo -> m (CInitializerList SemPhase)
-analyseInitializerList = undefined
+analyseInitializerList  = mapM f
+  where f (pds, ini) = do
+          pds' <- mapM analysePartDesignator pds
+          ini' <- analyseInitializer ini
+          return (pds', ini')
+
+analyseInitializer :: (MonadTrav m) => CInitializer NodeInfo -> m (CInitializer SemPhase)
+analyseInitializer (CInitExpr e node) = do
+  e' <- tExpr' [] RValue e
+  return $ CInitExpr e' node
+analyseInitializer (CInitList l node) = do
+  l' <- analyseInitializerList l
+  return $ CInitList l' node
+  
+
+analysePartDesignator :: MonadTrav m => CPartDesignator NodeInfo -> m (CPartDesignator SemPhase)
+analysePartDesignator = undefined
 
 -- | handle a function prototype
 extFunProto :: (MonadTrav m) => VarDeclInfo -> m ()
@@ -980,7 +1004,8 @@ tInitList _ (ArrayType t@(DirectType (TyIntegral TyChar) _ _) _ _ _)
               [([], CInitExpr e@(CConst (CStrConst _ _)) x)] = do
   e' <- tExpr [] RValue e
   return [([], CInitExpr e' x)]
-tInitList _ _ initList  = return $ unsafeCoerce initList -- Meh
+tInitList _ _ l = analyseInitializerList l
+-- tInitList _ _ initList  = error "tInitList not implemented yet" -- return $ unsafeCoerce initList -- Meh
 -- tInitList ni t@(ArrayType _ _ _ _) initList =
 --   do let default_ds =
 --            repeat (CArrDesig (CConst (CIntConst (cInteger 0) ni)) ni)
