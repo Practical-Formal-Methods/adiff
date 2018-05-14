@@ -77,7 +77,13 @@ instance Ixed (CTranslationUnit a) where
     where
       traverse' :: (Applicative f) => (CExternalDeclaration a -> f (CExternalDeclaration a)) -> [CExternalDeclaration a] -> f [CExternalDeclaration a]
       traverse' _ []                   = pure []
-      traverse' act (x@(CDeclExt _ ):xs) = (x:) <$> traverse' act xs
+      -- traverse' act (x@(CDeclExt _ ):xs) = (x:) <$> traverse' act xs
+      traverse' act (x@(CDeclExt (CDecl _ [(Just declr, _, _)] _) ):xs) =
+        case declr ^? ident of
+          Just ident
+            | identToString ident == str -> (:) <$> act x <*> traverse' act xs
+          _ -> (x:) <$> traverse' act xs
+
       traverse' act (x@(CFDefExt (CFunDef _ (CDeclr (Just i) _ _ _ _) _ _ _) ):xs)
         | identToString i == str         = (:) <$> act x  <*> traverse' act xs
         | otherwise                      = (x:) <$> traverse' act xs

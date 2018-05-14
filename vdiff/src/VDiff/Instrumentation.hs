@@ -1,7 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
@@ -42,7 +41,7 @@ import           RIO
 import           RIO.FilePath
 import           Safe
 
-import           Control.Lens.Operators            hiding ((^.))
+import           Control.Lens.Operators
 import           Data.Generics.Uniplate.Data       ()
 import           Data.Generics.Uniplate.Operations
 import           Data.List                         (isPrefixOf)
@@ -60,7 +59,7 @@ import           VDiff.Types
 
 
 -- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
-openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe (TU))
+openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe TU)
 openCFile fn = do
   -- we need GCC to remove preprocessor tokens and comments,
   -- unfortunately, GCC only works on files with .c ending. Hence this hack.
@@ -109,7 +108,8 @@ findCalledFunction = do
 maskAsserts :: TU -> TU
 maskAsserts = insertDummy . transformBi replaceFunctionCalls
   where
-    insertDummy = insertExtDeclAt 0 (CFDefExt Fragments.dummyError) . insertExtDeclAt 0 (CFDefExt Fragments.dummyAssert)
+    insertDummy = insertExtDeclAt 0 (CFDefExt Fragments.dummyError) .
+                  insertExtDeclAt 0 (CFDefExt Fragments.dummyAssert)
     replaceFunctionCalls :: CExpression SemPhase -> CExpression SemPhase
     replaceFunctionCalls c@(CCall (CVar v ann) e2 ann2)
       | identToString v == "__VERIFIER_assert"  = CCall (CVar (internalIdent "__DUMMY_VERIFIER_assert") ann) e2 ann2
@@ -121,7 +121,7 @@ maskAsserts = insertDummy . transformBi replaceFunctionCalls
 -- | Some test cases only use @__VERIFIER_error()@, in those cases we have to define @__VERIFIER_assert()@
 -- It's important to insert the definition /after/ the external declaration of @__VERIFIER_error()@.
 defineAssert :: TU -> TU
-defineAssert tu = case tu ^? (ix "__VERIFIER_assert") of
+defineAssert tu = case tu ^? ix "__VERIFIER_assert" of
                     Just _  -> tu
                     Nothing ->
                       let (Just p) = indexOfDeclaration "__VERIFIER_error" tu
@@ -130,9 +130,9 @@ defineAssert tu = case tu ^? (ix "__VERIFIER_assert") of
 
 
 declareError :: TU ->  TU
-declareError tu = case tu ^? (ix "__VERIFIER_error") of
+declareError tu = case tu ^? ix "__VERIFIER_error" of
                     Just _ -> tu
-                    Nothing -> trace "declaring error" $ insertExtDeclAt 0 (CDeclExt Fragments.errorDeclaration) tu
+                    Nothing -> insertExtDeclAt 0 (CDeclExt Fragments.errorDeclaration) tu
 
 --------------------------------------------------------------------------------
 -- Small Helpers
