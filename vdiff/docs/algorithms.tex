@@ -1,0 +1,75 @@
+
+\documentclass{article}
+\usepackage{algorithm}
+\usepackage{amsmath}
+\usepackage{algpseudocode}
+
+\begin{document}
+
+
+\section{Algorithms}
+
+\subsection{weighted positions}
+Three of vdiff's strategies (dfs,bfs and uniform) are instances of the following
+algorithm that is parameterized by a weight function.
+
+\begin{algorithm}
+  \caption{weighted positions}
+  \Procedure{weightedPositions}{weight function $w$, translation unit $tu$, budget $b$}
+  \State $\textit{reads} \gets \Call{findAllReads}{tu}$
+  \State $\textit{constants} \gets \Call{findAllConstants}{tu}$
+  \State $\textit{weights} \gets \text{map $w$ $reads$} $
+  \For {$b$ times} 
+      \State $r \gets \text{randomly draw from $reads$ with weights $weights$}$
+      \State $constant \gets ite(\text{randomBool()}
+      , \text{constants.lookup(r.type)}
+      , \Call{randomValue}{r.type})$
+      \State let $assertion = \texttt{r.variable != constant}$ 
+      \State $tu' \gets$ insert(tu, $assertion$, r.position)
+      \State $result \gets \text{verify}(tu')}$
+  \EndFor
+\end{algorithm}
+\begin{itemize}
+\item `dfs' is `weightedPositions' parametrized by the weight function
+  \[
+    w_{\text{dfs}}(r) = depth (r.position)
+  \]
+\item `bfs' is `weightedPositions' parametrized by
+  \[
+    w_{\text{bfs}}(r) =  1 / depth(r.position)
+  \]
+\item `uniform-random' is `weightedPositions' parametrized by
+  \[
+    w_{\text{uniform}}(r) = 1
+  \]
+\end{itemize}
+
+\subsection{Zipper-based algorithms}
+In short: A zipper is basically a two-dimensional iterator that can also be used
+to modify an object. Whereas a regular iterator only has methods to ask for the
+current element and to move the iterator to the next element, our zipper has the
+following directions: TODO.
+Two of our strategies are based on those zippers.
+
+\begin{algorithm}
+  \caption{random-walk}
+  \Procedure{RandomWalk}{translation unit $tu$, budget $b$}
+    \State $\textit{constants} \gets \Call{findAllConstants}{tu}$
+    \State $zipper \gets \Call{makeZipper}{tu}$
+    \While {$ b > 0 $}
+    \State \Call{MoveRandomDirection}{$zipper$}
+    \State $reads \gets \Call{ReadsAt}{zipper}$
+    \If {$reads.length == 0$}
+    \State \textbf{Continue}
+    \EndIf
+    \State $r \gets \text{randomly choose from $reads$}}$
+    \State $constant <- ite(randomBool(), lookupConstants, randomConstant)$
+    \State let $assertion = $ \texttt{r.variable != constant}
+    \State $tu' \gets \text{zipper.insert($assertion$)}$
+    \State $verify(tu')$
+    \State $b \gets b - 1$
+    \EndWhile
+  \EndProcedure
+\end{algorithm}
+
+\end{document}
