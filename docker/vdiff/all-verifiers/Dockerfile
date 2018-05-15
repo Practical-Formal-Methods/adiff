@@ -142,4 +142,8 @@ RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 # Smack
 RUN cd /tmp && git clone https://github.com/smackers/smack.git && \
     cd /tmp/smack && git checkout v1.9.0 && \
-    cp /tmp/smack/bin/{boogie,corral,lockpwn,smack,smack-svcomp-wrapper.sh} /usr/local/ibn
+    ./bin/build.sh
+RUN cp /tmp/smack/bin/boogie /usr/local/bin && \
+    cp /tmp/smack/bin/corral /usr/local/bin && \
+    cp /tmp/smack/bin/smack /usr/local/bin && \
+    cp /tmp/smack/bin/lockpwn /usr/local/bin
