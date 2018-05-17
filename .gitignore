@@ -1,3 +1,11 @@
 .stack-work
 vdiff.cabal
 **/.#*
+*.log
+*.aux
+_region_.log
+_region_.tex
+*.prv
+*.synctex.gz
+vdiff/docs/auto
+vdiff/docs/*.pdf
