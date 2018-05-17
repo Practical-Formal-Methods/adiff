@@ -3,6 +3,7 @@
 \usepackage{algorithm}
 \usepackage{amsmath}
 \usepackage{algpseudocode}
+\usepackage[utf8]{inputenc}
 
 \begin{document}
 
@@ -10,11 +11,12 @@
 \section{Algorithms}
 
 \subsection{weighted positions}
-Three of vdiff's strategies (dfs,bfs and uniform) are instances of the following
+Three of vdiff's strategies (dfs, bfs and uniform) are instances of the following
 algorithm that is parameterized by a weight function.
 
 \begin{algorithm}
-  \caption{weighted positions}
+  \caption{Weighted positions}
+  \begin{algorithmic}
   \Procedure{weightedPositions}{weight function $w$, translation unit $tu$, budget $b$}
   \State $\textit{reads} \gets \Call{findAllReads}{tu}$
   \State $\textit{constants} \gets \Call{findAllConstants}{tu}$
@@ -26,8 +28,10 @@ algorithm that is parameterized by a weight function.
       , \Call{randomValue}{r.type})$
       \State let $assertion = \texttt{r.variable != constant}$ 
       \State $tu' \gets$ insert(tu, $assertion$, r.position)
-      \State $result \gets \text{verify}(tu')}$
+      \State $result \gets \text{verify}(tu')$
   \EndFor
+  \EndProcedure
+\end{algorithmic}
 \end{algorithm}
 \begin{itemize}
 \item `dfs' is `weightedPositions' parametrized by the weight function
@@ -44,6 +48,7 @@ algorithm that is parameterized by a weight function.
   \]
 \end{itemize}
 
+\newpage
 \subsection{Zipper-based algorithms}
 In short: A zipper is basically a two-dimensional iterator that can also be used
 to modify an object. Whereas a regular iterator only has methods to ask for the
@@ -52,24 +57,103 @@ following directions: TODO.
 Two of our strategies are based on those zippers.
 
 \begin{algorithm}
-  \caption{random-walk}
+\begin{algorithmic}
+  \caption{Random Walk}
   \Procedure{RandomWalk}{translation unit $tu$, budget $b$}
-    \State $\textit{constants} \gets \Call{findAllConstants}{tu}$
-    \State $zipper \gets \Call{makeZipper}{tu}$
-    \While {$ b > 0 $}
-    \State \Call{MoveRandomDirection}{$zipper$}
-    \State $reads \gets \Call{ReadsAt}{zipper}$
-    \If {$reads.length == 0$}
-    \State \textbf{Continue}
-    \EndIf
-    \State $r \gets \text{randomly choose from $reads$}}$
-    \State $constant <- ite(randomBool(), lookupConstants, randomConstant)$
-    \State let $assertion = $ \texttt{r.variable != constant}
-    \State $tu' \gets \text{zipper.insert($assertion$)}$
-    \State $verify(tu')$
-    \State $b \gets b - 1$
-    \EndWhile
+  \State $\textit{constants} \gets \Call{findAllConstants}{tu}$
+  \State $zipper \gets \Call{makeZipper}{tu}$
+  \While {$ b > 0 $}
+  \State \Call{MoveRandomDirection}{$zipper$}
+  \State $reads \gets \Call{ReadsAt}{zipper}$
+  \If {$reads.length == 0$}
+  \State \textbf{Continue}
+  \EndIf
+  \State $r \gets \text{randomly choose from $reads$}$
+  \State $constant <- ite(randomBool(), lookupConstants, randomConstant)$
+  \State let $assertion = $ \texttt{r.variable != constant}
+  \State $tu' \gets \text{zipper.insert($assertion$)}$
+  \State $verify(tu')$
+  \State $b \gets b - 1$
+  \EndWhile
   \EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\algblockdefx[local]{Local}{EndLocal}[1][]{\textbf{local} #1}[0]{\textbf{end local}}
+
+\begin{algorithm}
+  \caption{'Smart' algorithm}
+  \begin{algorithmic}
+  \State var $zipper$
+  \State var $\textit{constants}$
+
+  \Procedure{Smart}{budget $b$}
+  \While {zipper.inCompound()}
+    \State zipper.go(Down);
+  \EndWhile
+  \State $ children \gets \Call{ExploreLevel}{\ }$
+  \For {$c \in children$}
+     \Local
+      \State $b' \gets \text{a fraction of b, proportional to $c.rating$} $
+      \State $\Call{ExplorePosition}{c.position, c.rating, b'}$
+     \EndLocal
+  \EndFor
+  \EndProcedure
+  \vspace{1em}
+  \Procedure{ExplorePosition}{position p, rating r, budget b}
+  \State {zipper.gotoPosition(p)}
+  \If {zipper.currentPosition.isFunctionCall()}
+    \State $\Call{ExploreStatement}{b / 4}$
+    \State {zipper.followFunctionCall()}
+    \State $\Call{Smart}{b / 4}$ \Comment{recurse}
+  \Else
+    \State $\Call{ExploreStatement}{b / 4}$
+  \EndIf
+  \If {zipper.go(Down)}
+    \State $\Call{Smart}{b / 2}$ \Comment{recurse}
+  \EndIf
+  \EndProcedure
+  \vspace{1em}
+  \Procedure{ExploreStatement}{budget b}
+  \State {reads $\gets$ zipper.readsAtCurrentPosition()}
+  \For {$r \in reads$}
+  \If{$b \leq 0$} \State{\textbf{Break}}\EndIf
+  
+  \State {\textbf{let} asrt = a  assertion with constant from constant pool, or if pool
+    is empty a random constant}
+  \State {tu' $\gets$ zipper.insertBefore(art)}
+  \State {verify(tu')}
+  \State {$b \gets b - 1$}
+  \EndFor
+  \EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+Of special interest here is the function $\Call{ExploreLevel}$, as this one
+control how much of the budget is alloted  to different parts of the program.
+
+\begin{algorithm}
+  \begin{algorithmic}
+  \Procedure{ExploreLevel}{}
+   \State {$scores = \emptyset$}
+   \State {$usedBudget = 0$}
+   
+   \Loop
+   \State {$tu' \gets zipper.insert(assertFalseStmt)$}
+   \State {$(results, conclusion) \gets verify(tu')$}
+   \State {$usedBudget \gets usedBudget + 1$}
+   \State {updateMovingAverages(results)}
+   \State {$\textbf{let} d = disagreement(conclusion)$}
+   \State {$\textbf{let} t = irregularity(results.times)$} \Comment{relative error}
+   \State {scores.add(d+t)}
+   
+   \If{not(zipper.go(Down))} \State{\textbf{Break;}} \EndIf
+   \EndLoop
+   \State {\Return (scores, usedBudget)}
+
+   
+  \EndProcedure
+\end{algorithmic}
 \end{algorithm}
 
 \end{document}
