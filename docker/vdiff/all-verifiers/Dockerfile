@@ -139,11 +139,7 @@ RUN cd /tmp && git clone https://github.com/klee/klee.git && \
      cp /tmp/2ls/src/2ls/2ls /usr/local/bin && \
      rm -Rf /tmp/2ls
 
-# Smack
+# Smack (this is not a very clean installation)
 RUN cd /tmp && git clone https://github.com/smackers/smack.git && \
     cd /tmp/smack && git checkout v1.9.0 && \
     ./bin/build.sh
-RUN cp /tmp/smack/bin/boogie /usr/local/bin && \
-    cp /tmp/smack/bin/corral /usr/local/bin && \
-    cp /tmp/smack/bin/smack /usr/local/bin && \
-    cp /tmp/smack/bin/lockpwn /usr/local/bin
