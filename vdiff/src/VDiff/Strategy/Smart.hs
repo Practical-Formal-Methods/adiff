@@ -88,23 +88,26 @@ smartStrategy' recursionLevel
           totalBudget <- fromIntegral <$> use budget
           logDebug $ "ratings are: " <> display (tshow rts)
           forM_ rts $ \(rating, idx) -> do
-            -- go to the statement
-            gotoPosition idx
-            c <- currentStmt
-            logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
-            -- allocate budget proportional to the rating
             let newBudget = ceiling $ totalBudget / totalRating * rating
-            -- and spent a half of it on this location
-            findCalledFunction >>= \case
-              Nothing -> withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
-              Just fn -> do
-                withBudgetLimit (newBudget `div` 4) exploreStatementHeavy
-                withBudgetLimit (newBudget `div` 4) $ tryout $ gotoFunction fn >> smartStrategy' (recursionLevel + 1)
-            -- ... and the other half "under" it
-            whenM goDownAtNextChance $
-              withBudgetLimit (newBudget `div` 2) (smartStrategy' (recursionLevel + 1))
+            explorePosition rating idx newBudget recursionLevel
     return ()
 
+
+explorePosition rating idx newBudget recursionLevel = do
+  -- go to the statement
+  gotoPosition idx
+  c <- currentStmt
+  logDebug $ "at statement(rating = " <> display rating <> ") " <> display c
+  -- allocate budget proportional to the rating
+  -- and spent a half of it on this location
+  findCalledFunction >>= \case
+    Nothing -> withBudgetLimit (newBudget `div` 2) exploreStatementHeavy
+    Just fn -> do
+      withBudgetLimit (newBudget `div` 4) exploreStatementHeavy
+      withBudgetLimit (newBudget `div` 4) $ tryout $ gotoFunction fn >> smartStrategy' (recursionLevel + 1)
+  -- ... and the other half "under" it
+  whenM goDownAtNextChance $
+              withBudgetLimit (newBudget `div` 2) (smartStrategy' (recursionLevel + 1))
 
 -- | sets the budget to a smaller limit, but still subtracts from the original value
 withBudgetLimit :: (IsStrategyEnv env) => Int -> Smart env a -> Smart env a
