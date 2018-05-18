@@ -48,11 +48,6 @@ vsGoldenFile fn name act = goldenVsString fn (replaceExtension fn ( "."  ++ name
             Just ast -> return ast
 
 
-assertBool' :: (MonadIO m) => String -> Bool -> m ()
-assertBool' s b = liftIO $ assertBool s b
-
-
-
 simpleReads :: ByteString
 simpleReads = $(embedOneFileOf  ["assets/test/reads/simple_reads.c"
                                 , "vdiff/assets/test/reads/simple_reads.c"

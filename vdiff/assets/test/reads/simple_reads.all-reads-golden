@@ -9,15 +9,13 @@ int main()
     if (x > 0)
     {
         int a;
-        __VERIFIER_read(foo);
         foo(3);
-        __VERIFIER_read(y, y);
+        __VERIFIER_read(y);
         y = y + 1;
-        __VERIFIER_read(bar);
         bar();
-        __VERIFIER_read(x, x);
+        __VERIFIER_read(x);
         x = x + 1;
-        __VERIFIER_read(z, z);
+        __VERIFIER_read(z);
         z = z + 1;
     }
 }

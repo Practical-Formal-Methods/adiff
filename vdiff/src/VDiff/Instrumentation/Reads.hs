@@ -45,30 +45,45 @@ readStatement mode = \case
   (CSwitch e _ _)     -> readExpression e
   (CFor (Left me1) me2 me3 _ _) -> concat $ catMaybes $ (fmap.fmap $ readExpression) [me1, me2, me3]
   (CFor (Right (CDecl _ ds _)) me2 me3 _ _) -> let
-            reads1 = readExpression $ mapMaybe (\(_,x,_) -> x) ds
+            reads1 = concatMap readExpression $  universeBi $ mapMaybe (\(_,x,_) -> x) ds
             reads2 = concat $ catMaybes $ (fmap.fmap $ readExpression) [me2, me3]
             declared = identifiers $ mapMaybe (\(x,_,_) -> x) ds
 
           in [ r | r <-  (reads1 ++ reads2), null (identifiers r `intersect` declared) ]
   _                   -> []
   where
-    readExpression :: (Data from) => from -> [CExpression SemPhase]
+    readExpression :: CExpression SemPhase-> [CExpression SemPhase]
     readExpression x = case mode of
-      IdentOnly      -> [ e | e@(CVar _ _ ) <- universeBi x]
+      IdentOnly      -> nub prettyp [ e | e@(CVar _ _ ) <- universeBi $ collect x]
       Subexpressions -> subexprs x
 
     subexprs x =
       [ expr :: CExpression SemPhase
-      | expr <- universeBi x
+      | expr <- collect x
       , isIntegralType (getType expr)
       , not . null $ identifiers expr
       , null $ functionCalls expr
       , null $ assignments expr
       ]
-    identifiers e   = [ i :: Ident | i <- universeBi e]
+
+    identifiers e   =  [ i :: Ident | i <- universeBi e]
     functionCalls e = [ fn :: CExpression SemPhase | CCall fn _ _ <- universeBi e]
     assignments  e  = [ a  :: CExpression SemPhase | a@(CAssign _ _ _ _) <- universeBi e]
 
+    -- basically like universe :: Expr -> Expr, but only goes down the left side of an assign statement
+    collect e@(CVar _ _)        = [e]
+    collect e@(CBinary _ l r _) = e : (collect l <> collect r)
+    collect e@(CUnary op e' _)  = if incOrDec op then collect e' else e : collect e'
+    collect (CAssign _ _ e2 _)  = collect e2
+    collect (CCall _ es _)      = concatMap collect es
+    collect e@(CIndex _ e2 _)   = e : collect e2
+    collect _                   = []
+
+    incOrDec CPreIncOp  = True
+    incOrDec CPreDecOp  = True
+    incOrDec CPostIncOp = True
+    incOrDec CPostDecOp = True
+    incOrDec _          = False
 
 
 findAllReads :: SearchMode -> TU -> [ExprRead]

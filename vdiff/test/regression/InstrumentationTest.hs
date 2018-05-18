@@ -49,18 +49,18 @@ testWalk = testCase "walks"  $ do
     walk1 = do
       gotoFunction "main"
       go_ Down
-      currentIdentifiers >>= \es -> assertBool' "find x " (map prettyp es == ["x"])
+      currentIdentifiers >>= \es -> liftIO $ map prettyp es @?= ["x"]
       go_ Down
       go_ Down --into the compound statement
-      currentIdentifiers >>= \es -> assertBool' "find nothing " (null es)
+      currentIdentifiers >>= \es -> liftIO $ map prettyp es @?= []
       go_ Next
-      currentIdentifiers >>= \es -> assertBool' "find y" (map prettyp es  == ["y"])
+      currentIdentifiers >>= \es -> liftIO $ map prettyp es  @?= ["y"]
       go_ Next
-      currentIdentifiers >>= \es -> assertBool' "find nothing " (null es)
+      currentIdentifiers >>= \es -> liftIO $ map prettyp es @?= []
       go_ Next
-      currentIdentifiers >>= \es -> assertBool' "find x" (map prettyp es  == ["x"])
+      currentIdentifiers >>= \es -> liftIO $ map prettyp es  @?= ["x"]
       go_ Next
-      currentIdentifiers >>= \es -> assertBool' "find z" (map prettyp es  == ["z"])
+      currentIdentifiers >>= \es -> liftIO $ map prettyp es  @?= ["z"]
       return ()
 
 

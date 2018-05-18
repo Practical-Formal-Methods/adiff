@@ -13,6 +13,7 @@ module VDiff.Types
   , module Language.C.Analysis.AstAnalysis2
   , Type
   , makeFieldsNoPrefix
+  , nub
   ) where
 
 import           RIO
@@ -20,6 +21,7 @@ import           RIO
 import           Control.Lens.TH
 import           Control.Monad.Random
 import           Data.List                        (intersperse)
+import           Data.List.Key                    (nub)
 import           Data.Text                        (pack)
 import qualified Database.SQLite.Simple           as SQL
 import           Language.C                       hiding (LevelError, LevelWarn,
@@ -40,6 +42,7 @@ data Strategy = RandomWalkStrategy
               | SmartStrategy
 
 data SearchMode = IdentOnly | Subexpressions
+  deriving Show
 
 type Microseconds = Int
 --------------------------------------------------------------------------------

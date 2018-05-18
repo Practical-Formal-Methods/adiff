@@ -46,6 +46,7 @@ cmdParseTest fn = openCFile fn >>= \case
 
 cmdMarkReads :: HasLogFunc env => SearchMode -> FilePath -> RIO env ()
 cmdMarkReads mode fn = do
+  logDebug $ "mode is " <> display (tshow mode)
   (Just ast) <- openCFile fn
   let ast' = markAllReads mode ast
   liftIO . putStrLn . render . pretty $ ast'
