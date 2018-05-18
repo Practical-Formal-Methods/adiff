@@ -31,7 +31,9 @@ module VDiff.Instrumentation
  , astDepth
  -- * Internals
  , insertBeforeNthStatement
+ -- * mostly for testing
  , markAllReads
+ , markAllExprReads
  -- * Other
  , VarRead(..), position, varType, identifier
  , findAllReads

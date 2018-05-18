@@ -22,6 +22,8 @@ module VDiff.Instrumentation.Browser
    MonadBrowser(..)
   , BrowserT(..)
   , runBrowserT
+  , Browser
+  , runBrowser
   , AstPosition(..)
   , astDepth
   , Direction(..)
@@ -72,6 +74,10 @@ newtype BrowserT m a = BrowserT
   { unBrowserT :: (StateT BrowserState m) a
   } deriving (Functor, Applicative, Monad, MonadState BrowserState, MonadTrans)
 
+type Browser a = BrowserT Identity a
+
+runBrowser :: Browser a -> CTranslationUnit SemPhase -> (a, CTranslationUnit SemPhase)
+runBrowser b = runIdentity . runBrowserT b
 
 -- | executes an @BrowserT@ action on the given translation unit. The initial position is always the body of the main function.
 runBrowserT :: (Monad m) => BrowserT m a -> CTranslationUnit SemPhase -> m (a, CTranslationUnit SemPhase)

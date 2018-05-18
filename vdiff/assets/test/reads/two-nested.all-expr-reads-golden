@@ -1,0 +1,20 @@
+int f(int x)
+{
+    return x;
+}
+int main()
+{
+    int x, y;
+    {
+        {
+            __VERIFIER_read(x);
+            f(x);
+        }
+    }
+    {
+        {
+            __VERIFIER_read(y);
+            f(y);
+        }
+    }
+}

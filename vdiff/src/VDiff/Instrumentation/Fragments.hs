@@ -6,9 +6,13 @@ import           VDiff.Types
 
 mkReadMarker ::  [(Ident,Type)] -> Stmt
 mkReadMarker vars =
+      let expressions = map (\(i,ty) -> CVar i (undefNode, ty)) vars
+      in mkExprReadMarker expressions
+
+mkExprReadMarker ::  [CExpression SemPhase] -> Stmt
+mkExprReadMarker exprs =
   let fun = CVar (builtinIdent "__VERIFIER_read") (undefNode,voidType)
-      expressions = map (\(i,ty) -> CVar i (undefNode, ty)) vars
-  in CExpr (Just $ CCall fun expressions  (undefNode,voidType)) (undefNode,voidType)
+  in CExpr (Just $ CCall fun exprs (undefNode,voidType)) (undefNode,voidType)
 
 -- | This is a function definition defining the function __dummy__verifier_assert that does nothing
 -- | (Existing asserts will be disabled by renaming things to this function's name)

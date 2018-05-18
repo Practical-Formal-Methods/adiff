@@ -50,6 +50,13 @@ cmdMarkReads fn = do
   let ast' = markAllReads ast
   liftIO . putStrLn . render . pretty $ ast'
 
+cmdMarkExprReads :: HasLogFunc env => FilePath -> RIO env ()
+cmdMarkExprReads fn = do
+  logInfo "marking all read expressions"
+  (Just ast) <- openCFile fn
+  let ast' = markAllExprReads ast
+  liftIO . putStrLn . render . pretty $ ast'
+
 cmdVersions :: RIO a ()
 cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
     putStr $ verifierName verifier

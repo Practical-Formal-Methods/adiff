@@ -26,6 +26,7 @@ testZipping = do
     , pure testInsertions
     , pure testInsertBefore
     , testMarkAllReads
+    , testMarkAllExprReads
     -- , testAllFinds
     , pure testPreprocessor
     , pure testEditingOtherFunction
@@ -110,6 +111,15 @@ testMarkAllReads = do
         let bs = render . pretty . markAllReads $ tu
         return $ LC8.pack bs
 
+testMarkAllExprReads :: IO TestTree
+testMarkAllExprReads = do
+  cFiles <- findByExtension [".c"] "assets/test/reads"
+  return $ testGroup "markAllExprReads golden tests" $ map runTest cFiles
+  where
+    runTest cf = vsGoldenFile cf "all-expr-reads"  $ \tu -> do
+        let bs = render . pretty . markAllExprReads $ tu
+        return $ LC8.pack bs
+
 
 -- testAllFinds :: IO TestTree
 -- testAllFinds = do
@@ -131,7 +141,6 @@ testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-fu
           _ <- go Down
           insertBefore (dummyStmt "dummy")
           buildTranslationUnit
-
 
 
 

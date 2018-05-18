@@ -36,11 +36,12 @@ main = do
 
 runCommands :: HasMainEnv env => MainParameters -> RIO env ()
 runCommands param = case cmd param of
-                      (CmdRun dp)        -> cmdDiff dp
-                      (CmdParseTest fn)  -> cmdParseTest fn
-                      (CmdMarkReads fn)  -> cmdMarkReads fn
-                      CmdVersions        -> cmdVersions
-                      CmdRunVerifiers dp -> cmdRunVerifiers dp
+                      (CmdRun dp)           -> cmdDiff dp
+                      (CmdParseTest fn)     -> cmdParseTest fn
+                      (CmdMarkReads fn)     -> cmdMarkReads fn
+                      (CmdMarkExprReads fn) -> cmdMarkExprReads fn
+                      CmdVersions           -> cmdVersions
+                      CmdRunVerifiers dp    -> cmdRunVerifiers dp
 
 
 
@@ -61,6 +62,7 @@ data Cmd  = CmdRun DiffParameters
           | CmdRunVerifiers DiffParameters
           | CmdParseTest FilePath
           | CmdMarkReads FilePath
+          | CmdMarkExprReads FilePath
           | CmdVersions
 
 
@@ -74,7 +76,7 @@ opts = info (parseMainParameters <**> helper)
 
 parseMainParameters :: Parser MainParameters
 parseMainParameters = MainParameters <$> level <*> databasePath <*> parseSeed <*> parseCmd
-  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
+  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdMarkExprReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
 
 
 parseSeed :: Parser (Maybe Int)
@@ -93,6 +95,9 @@ parseCmdTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints t
 
 parseCmdMarkReads :: Parser Cmd
 parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> cFile
+
+parseCmdMarkExprReads :: Parser Cmd
+parseCmdMarkExprReads = CmdMarkExprReads <$ switch (long "mark-expr-reads" <> help "marks the read subexpressions in the given file") <*> cFile
 
 parseCmdRunDiff :: Parser Cmd
 parseCmdRunDiff = CmdRun <$> Args.diffParameters
