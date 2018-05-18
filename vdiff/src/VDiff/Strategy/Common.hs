@@ -25,6 +25,8 @@ import           Text.PrettyPrint.HughesPJ          (render)
 
 
 import           VDiff.Data
+import           VDiff.Instrumentation
+import           VDiff.Instrumentation.Reads
 import           VDiff.Persistence
 import           VDiff.Strategy.Common.ConstantPool
 import           VDiff.Types
@@ -82,12 +84,12 @@ conclude  rs = if
     unsats = [ runVerifierName r | r <- rs, verdict (verifierResult r) == Unsat ]
     sats =   [ runVerifierName r | r <- rs, verdict (verifierResult r) == Sat ]
 
-mkRandomAssertion :: (MonadIO m ) => Ident -> Type -> m Stmt
-mkRandomAssertion varName ty = do
+mkRandomAssertion :: (MonadIO m ) => CExpression SemPhase -> m Stmt
+mkRandomAssertion e = do
+      let ty = getType e
       constv <-mkRandomConstant ty
       let constant'  = CConst constv
-          var        = CVar varName (undefNode, ty)
-          expression = CBinary CNeqOp var constant' (undefNode, boolType)
+          expression = CBinary CNeqOp e constant' (undefNode, boolType)
       return (assertStmt expression)
 
 mkRandomConstant :: (MonadIO m) => Type -> m (CConstant SemPhase)
@@ -116,11 +118,10 @@ assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (
     identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
 
 
-assertUnequal :: Ident -> CConstant SemPhase -> CStatement SemPhase
-assertUnequal varName c = assertStmt expression
+assertUnequal :: CExpression SemPhase -> CConstant SemPhase -> CStatement SemPhase
+assertUnequal expr c = assertStmt expression
   where
-    expression = CBinary CNeqOp var (CConst c) (undefNode, boolType)
-    var        = CVar varName (undefNode, voidType)
+    expression = CBinary CNeqOp expr (CConst c) (undefNode, boolType)
 
 
 -- | a simple 'assert(false)' statement
@@ -134,3 +135,10 @@ chooseOneOf :: (MonadIO m) => [a] ->  m (Maybe a)
 chooseOneOf options = do
   i <- liftIO $ getStdRandom $ randomR (0, length options - 1)
   return (options `atMay` i)
+
+
+currentReads :: (MonadBrowser m, MonadReader env m, HasDiffParameters env) => m [CExpression SemPhase]
+currentReads = do
+  m <- view (diffParameters . searchMode)
+  stmt <- currentStmt
+  return $ readStatement m stmt

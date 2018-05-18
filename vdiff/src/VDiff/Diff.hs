@@ -44,17 +44,10 @@ cmdParseTest fn = openCFile fn >>= \case
   Just ast -> liftIO $ putStrLn $ render $ pretty ast
 
 
-cmdMarkReads :: HasLogFunc env => FilePath -> RIO env ()
-cmdMarkReads fn = do
+cmdMarkReads :: HasLogFunc env => SearchMode -> FilePath -> RIO env ()
+cmdMarkReads mode fn = do
   (Just ast) <- openCFile fn
-  let ast' = markAllReads ast
-  liftIO . putStrLn . render . pretty $ ast'
-
-cmdMarkExprReads :: HasLogFunc env => FilePath -> RIO env ()
-cmdMarkExprReads fn = do
-  logInfo "marking all read expressions"
-  (Just ast) <- openCFile fn
-  let ast' = markAllExprReads ast
+  let ast' = markAllReads mode ast
   liftIO . putStrLn . render . pretty $ ast'
 
 cmdVersions :: RIO a ()

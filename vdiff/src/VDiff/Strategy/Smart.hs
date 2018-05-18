@@ -179,14 +179,13 @@ exploreStatementHeavy :: (IsStrategyEnv env) => Smart env ()
 exploreStatementHeavy = do
   logDebug "exploreHeavy"
   -- read variables
-  vs <- currentReads
-  logDebug $ "reads are " <> display (tshow vs)
-  forM_ vs $ \(i,ty) ->
+  exprs <- currentReads
+  forM_ exprs $ \e ->
       whenBudget_ (>0) $ tryout $ do
         -- try a 'pool assertion' first, but if there's nothing in the pool use random
-        asrt <- mkAssertionFromPool i ty >>= \case
+        asrt <- mkAssertionFromPool e >>= \case
                   Just x' -> return x'
-                  Nothing -> mkRandomAssertion i ty
+                  Nothing -> mkRandomAssertion e
         insertBefore asrt
         budget -= 1
         buildTranslationUnit >>= verify'
@@ -265,20 +264,18 @@ relativeError a b
 
 
 -- | Chooses a constant: First tries to choose randomly from the pool for the type.
-mkAssertionFromPool :: Ident -> Type -> Smart env (Maybe Stmt)
-mkAssertionFromPool varName ty = do
+mkAssertionFromPool :: CExpression SemPhase -> Smart env (Maybe Stmt)
+mkAssertionFromPool e = do
+  let ty = getType e
   cs <- lookupPool ty <$> use constants
   chooseOneOf cs >>= \case
     Nothing -> return Nothing
     Just c' -> do
-      let var = CVar varName (undefNode, ty)
-          cnst = CConst c'
-          expr = CBinary CNeqOp var cnst (undefNode, voidType)
+      let cnst = CConst c'
+          expr = CBinary CNeqOp e cnst (undefNode, voidType)
       return $ Just $ assertStmt expr
 
 
 
 sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]
 sortBest = sortBy (flip $ comparing fst)
-
-

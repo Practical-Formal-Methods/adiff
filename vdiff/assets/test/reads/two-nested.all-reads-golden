@@ -7,13 +7,13 @@ int main()
     int x, y;
     {
         {
-            __VERIFIER_read(x);
+            __VERIFIER_read(f, x);
             f(x);
         }
     }
     {
         {
-            __VERIFIER_read(y);
+            __VERIFIER_read(f, y);
             f(y);
         }
     }

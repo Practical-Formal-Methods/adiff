@@ -69,8 +69,8 @@ testInsert = testProperty "insertBefore, does not modify location" $ property $ 
   let actn = do
         mapM_ go ds
         x <- currentStmt
-        vs <- currentReads
-        unless (null vs) $ insertBefore (dummyStmt "dummy")
+        let exprs = readStatement IdentOnly x
+        unless (null exprs) $ insertBefore (dummyStmt "dummy")
         y <- currentStmt
         return (x,y)
   ((x,y),_) <- runBrowserT actn tu

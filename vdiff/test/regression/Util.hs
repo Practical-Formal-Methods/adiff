@@ -52,8 +52,6 @@ assertBool' :: (MonadIO m) => String -> Bool -> m ()
 assertBool' s b = liftIO $ assertBool s b
 
 
-varNames :: [(Ident,b)] -> [String]
-varNames = map (identToString.fst)
 
 simpleReads :: ByteString
 simpleReads = $(embedOneFileOf  ["assets/test/reads/simple_reads.c"

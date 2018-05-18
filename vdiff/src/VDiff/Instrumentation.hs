@@ -22,20 +22,19 @@ module VDiff.Instrumentation
  , go
  , gotoPosition
  , gotoFunction
- , currentReads
  , currentStmt
  , currentPosition
  , findCalledFunction
  , go_
  , AstPosition
  , astDepth
+ , readStatement
  -- * Internals
  , insertBeforeNthStatement
  -- * mostly for testing
  , markAllReads
- , markAllExprReads
  -- * Other
- , VarRead(..), position, varType, identifier
+ , ExprRead(..), expression, position
  , findAllReads
  ) where
 

@@ -17,6 +17,10 @@ testInstrumentation = do
   return $ testGroup "instrumentation" tests
 
 
+currentIdentifiers = do
+  s <- currentStmt
+  return $ readStatement IdentOnly s
+
 
 --------------------------------------------------------------------------------
 testZipping :: IO TestTree
@@ -45,18 +49,18 @@ testWalk = testCase "walks"  $ do
     walk1 = do
       gotoFunction "main"
       go_ Down
-      currentReads >>= \v -> assertBool' "find x " (varNames v == ["x"])
+      currentIdentifiers >>= \es -> assertBool' "find x " (map prettyp es == ["x"])
       go_ Down
       go_ Down --into the compound statement
-      currentReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
+      currentIdentifiers >>= \es -> assertBool' "find nothing " (null es)
       go_ Next
-      currentReads >>= \v -> assertBool' "find y" (varNames v  == ["y"])
+      currentIdentifiers >>= \es -> assertBool' "find y" (map prettyp es  == ["y"])
       go_ Next
-      currentReads >>= \v -> assertBool' "find nothing " (null $ varNames v)
+      currentIdentifiers >>= \es -> assertBool' "find nothing " (null es)
       go_ Next
-      currentReads >>= \v -> assertBool' "find x" (varNames v  == ["x"])
+      currentIdentifiers >>= \es -> assertBool' "find x" (map prettyp es  == ["x"])
       go_ Next
-      currentReads >>= \v -> assertBool' "find z" (varNames v  == ["z"])
+      currentIdentifiers >>= \es -> assertBool' "find z" (map prettyp es  == ["z"])
       return ()
 
 
@@ -108,7 +112,7 @@ testMarkAllReads = do
   return $ testGroup "markAllReads golden tests" $ map runTest cFiles
   where
     runTest cf = vsGoldenFile cf "all-reads"  $ \tu -> do
-        let bs = render . pretty . markAllReads $ tu
+        let bs = render . pretty . markAllReads IdentOnly $ tu
         return $ LC8.pack bs
 
 testMarkAllExprReads :: IO TestTree
@@ -117,7 +121,7 @@ testMarkAllExprReads = do
   return $ testGroup "markAllExprReads golden tests" $ map runTest cFiles
   where
     runTest cf = vsGoldenFile cf "all-expr-reads"  $ \tu -> do
-        let bs = render . pretty . markAllExprReads $ tu
+        let bs = render . pretty . markAllReads Subexpressions $ tu
         return $ LC8.pack bs
 
 

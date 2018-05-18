@@ -39,6 +39,8 @@ data Strategy = RandomWalkStrategy
               | DepthFirstStrategy
               | SmartStrategy
 
+data SearchMode = IdentOnly | Subexpressions
+
 type Microseconds = Int
 --------------------------------------------------------------------------------
 -- | * RIO
@@ -144,11 +146,12 @@ instance Ord Verifier where
 
 
 data DiffParameters = DiffParameters
-  { _strategy  :: Strategy
-  , _budget    :: Int
-  , _timelimit :: Int
-  , _verifiers :: [Verifier]
-  , _program   :: FilePath
+  { _strategy   :: Strategy
+  , _budget     :: Int
+  , _timelimit  :: Int
+  , _verifiers  :: [Verifier]
+  , _searchMode :: SearchMode
+  , _program    :: FilePath
   }
 
 makeFieldsNoPrefix ''DiffParameters

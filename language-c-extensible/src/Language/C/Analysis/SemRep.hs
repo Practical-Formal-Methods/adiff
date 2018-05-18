@@ -51,7 +51,7 @@ VarName(..),identOfVarName,isNoName,AsmName,
 -- * Attributes (STUB, not yet analyzed)
 Attr(..),Attributes,noAttributes,mergeAttributes,
 -- * Statements and Expressions (STUB, aliases to Syntax)
-Stmt,Expr,Initializer,AsmBlock,
+Expr,Stmt,Initializer,AsmBlock,
 )
 where
 import           Data.Generics

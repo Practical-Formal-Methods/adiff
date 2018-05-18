@@ -36,12 +36,11 @@ main = do
 
 runCommands :: HasMainEnv env => MainParameters -> RIO env ()
 runCommands param = case cmd param of
-                      (CmdRun dp)           -> cmdDiff dp
-                      (CmdParseTest fn)     -> cmdParseTest fn
-                      (CmdMarkReads fn)     -> cmdMarkReads fn
-                      (CmdMarkExprReads fn) -> cmdMarkExprReads fn
-                      CmdVersions           -> cmdVersions
-                      CmdRunVerifiers dp    -> cmdRunVerifiers dp
+                      (CmdRun dp)            -> cmdDiff dp
+                      (CmdParseTest fn)      -> cmdParseTest fn
+                      (CmdMarkReads mode fn) -> cmdMarkReads mode fn
+                      CmdVersions            -> cmdVersions
+                      CmdRunVerifiers dp     -> cmdRunVerifiers dp
 
 
 
@@ -61,8 +60,7 @@ data MainParameters = MainParameters
 data Cmd  = CmdRun DiffParameters
           | CmdRunVerifiers DiffParameters
           | CmdParseTest FilePath
-          | CmdMarkReads FilePath
-          | CmdMarkExprReads FilePath
+          | CmdMarkReads SearchMode FilePath
           | CmdVersions
 
 
@@ -76,7 +74,7 @@ opts = info (parseMainParameters <**> helper)
 
 parseMainParameters :: Parser MainParameters
 parseMainParameters = MainParameters <$> level <*> databasePath <*> parseSeed <*> parseCmd
-  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdMarkExprReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
+  where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
 
 
 parseSeed :: Parser (Maybe Int)
@@ -94,10 +92,7 @@ parseCmdTest :: Parser Cmd
 parseCmdTest = CmdParseTest <$ switch (long "parse" <> help "parses and prints the given file") <*> cFile
 
 parseCmdMarkReads :: Parser Cmd
-parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> cFile
-
-parseCmdMarkExprReads :: Parser Cmd
-parseCmdMarkExprReads = CmdMarkExprReads <$ switch (long "mark-expr-reads" <> help "marks the read subexpressions in the given file") <*> cFile
+parseCmdMarkReads = CmdMarkReads <$ switch (long "mark-reads" <> help "marks the reads in the given file") <*> Args.searchMode <*> cFile
 
 parseCmdRunDiff :: Parser Cmd
 parseCmdRunDiff = CmdRun <$> Args.diffParameters

@@ -16,7 +16,7 @@ import           VDiff.Strategy.Common
 import qualified VDiff.Strategy.Common.Raffle       as Raffle
 import           VDiff.Types
 
-type Prioritization  = VarRead -> Double
+type Prioritization = ExprRead -> Double
 
 
 -- | Every position has priority 1.0
@@ -36,26 +36,25 @@ breadthFirstStrategy = mkStrategy p
     p r = 1.0 / fromIntegral (astDepth (r ^. position))
 
 
-
-
-
 mkStrategy :: (IsStrategyEnv env) => Prioritization -> RIO env ()
 mkStrategy prioritize = do
   tu <- view translationUnit
   bdg <- view (diffParameters . budget)
+  sm <- view (diffParameters . searchMode)
 
-  let positions = Raffle.fromList $ zipMap prioritize $ findAllReads tu
+  let (reads :: Raffle.Raffle ExprRead) = Raffle.fromList $ zipMap prioritize $ findAllReads sm tu
   let constantPool = findAllConstants tu
 
-  unless (Raffle.countElements positions == 0) $
+  unless (Raffle.countElements reads == 0) $
     replicateM_ bdg $ do
-      r <- Raffle.drawM positions
-      let constants = Raffle.fromList1 $ map Just $ lookupPool (r ^. varType) constantPool
+      r <- Raffle.drawM reads
+      let ty = getType $ r ^. expression
+      let constants = Raffle.fromList1 $ map Just $ lookupPool ty constantPool
       let constants' = Raffle.insert (Nothing, max 1 $ Raffle.countTickets constants) constants
       constant <- Raffle.drawM constants' >>= \case
-        Nothing -> mkRandomConstant (r ^. varType)
+        Nothing -> mkRandomConstant ty
         Just c -> return c
-      let asrt = assertUnequal (r ^. identifier) constant
+      let asrt = assertUnequal (r ^. expression) constant
       let tu' = insertAt (r ^. position) asrt tu
       verify tu'
   where
