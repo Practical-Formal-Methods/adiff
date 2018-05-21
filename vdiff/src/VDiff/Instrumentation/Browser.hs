@@ -88,7 +88,7 @@ runBrowserT a tu = do
   (x, bs :: BrowserState) <- runStateT (unBrowserT a) initialState
   let
       stmt' = Z.fromZipper ((bs ^. stmtZipper) :: StmtZipper ) :: Stmt
-      tu' = tu & (ix (bs ^. currentFunction) . functionDefinition . body) .~ stmt'
+      tu' = (bs ^. currentTU) & (ix (bs ^. currentFunction) . functionDefinition . body) .~ stmt'
   return (x, tu')
 
 class (Monad m) => MonadBrowser m where
@@ -243,8 +243,8 @@ buildTranslationUnit :: (MonadBrowser m) => m (CTranslationUnit SemPhase)
 buildTranslationUnit = do
   st <- getBrowserState
   let stmt = Z.fromZipper (st ^. stmtZipper)
-      tu = st ^. currentTU
-      fn = st ^. currentFunction
+      tu   = st ^. currentTU
+      fn   = st ^. currentFunction
   return $ tu & (ix fn . functionDefinition . body) .~ stmt
 
 

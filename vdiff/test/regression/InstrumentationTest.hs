@@ -144,6 +144,7 @@ testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-fu
           _ <- go Down
           _ <- go Down
           insertBefore (dummyStmt "dummy")
+          gotoFunction "main"
           buildTranslationUnit
 
 
