@@ -64,16 +64,18 @@ readStatement mode = \case
       , not . null $ identifiers expr
       , null $ functionCalls expr
       , null $ assignments expr
+      , null $ incOrDecs expr
       ]
 
-    identifiers e   =  [ i :: Ident | i <- universeBi e]
+    identifiers e   = [ i :: Ident | i <- universeBi e]
     functionCalls e = [ fn :: CExpression SemPhase | CCall fn _ _ <- universeBi e]
     assignments  e  = [ a  :: CExpression SemPhase | a@(CAssign _ _ _ _) <- universeBi e]
+    incOrDecs e     = [ x :: CExpression SemPhase | x@(CUnary op _ _) <- universeBi e, incOrDec op]
 
     -- basically like universe :: Expr -> Expr, but only goes down the left side of an assign statement
     collect e@(CVar _ _)        = [e]
+    collect e@(CUnary _ e1 _ )  = e : collect e1
     collect e@(CBinary _ l r _) = e : (collect l <> collect r)
-    collect e@(CUnary op e' _)  = if incOrDec op then collect e' else e : collect e'
     collect (CAssign _ _ e2 _)  = collect e2
     collect (CCall _ es _)      = concatMap collect es
     collect e@(CIndex _ e2 _)   = e : collect e2
