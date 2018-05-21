@@ -105,4 +105,5 @@ dependencies:
   - ilist
   - MonadRandom
   - filepath
+  - utility-ht
   
