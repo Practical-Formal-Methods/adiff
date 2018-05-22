@@ -5,6 +5,18 @@
 \usepackage{algpseudocode}
 \usepackage[utf8]{inputenc}
 
+% New definitions
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}%
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
+\algtext*{EndSwitch}%
+\algtext*{EndCase}%
+
+
 \begin{document}
 
 
@@ -79,9 +91,10 @@ Two of our strategies are based on those zippers.
 \end{algorithmic}
 \end{algorithm}
 
-\algblockdefx[local]{Local}{EndLocal}[1][]{\textbf{local} #1}[0]{\textbf{end local}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{algorithm}
+
+\begin{algorithm}[ht]
   \caption{'Smart' algorithm}
   \begin{algorithmic}
   \State var $zipper$
@@ -93,10 +106,8 @@ Two of our strategies are based on those zippers.
   \EndWhile
   \State $ children \gets \Call{ExploreLevel}{\ }$
   \For {$c \in children$}
-     \Local
       \State $b' \gets \text{a fraction of b, proportional to $c.rating$} $
       \State $\Call{ExplorePosition}{c.position, c.rating, b'}$
-     \EndLocal
   \EndFor
   \EndProcedure
   \vspace{1em}
@@ -132,28 +143,64 @@ Two of our strategies are based on those zippers.
 Of special interest here is the function $\Call{ExploreLevel}$, as this one
 control how much of the budget is alloted  to different parts of the program.
 
-\begin{algorithm}
+\begin{algorithm}[ht]
   \begin{algorithmic}
   \Procedure{ExploreLevel}{}
    \State {$scores = \emptyset$}
    \State {$usedBudget = 0$}
    
    \Loop
-   \State {$tu' \gets zipper.insert(assertFalseStmt)$}
-   \State {$(results, conclusion) \gets verify(tu')$}
-   \State {$usedBudget \gets usedBudget + 1$}
+   \State {tu' $\gets$ zipper.insert(assertFalseStmt)}
+   \State {(results, conclusion) $\gets$ verify(tu')}
+   \State {usedBudget $\gets$ usedBudget + 1 }
    \State {updateMovingAverages(results)}
-   \State {$\textbf{let} d = disagreement(conclusion)$}
-   \State {$\textbf{let} t = irregularity(results.times)$} \Comment{relative error}
-   \State {scores.add(d+t)}
+   \State {d $\gets$ disagreement(conclusion)}
+   \State {t $\gets$ irregularity(results.times)}
+   \State {scores.add(d + t)}
    
    \If{not(zipper.go(Down))} \State{\textbf{Break;}} \EndIf
    \EndLoop
    \State {\Return (scores, usedBudget)}
-
-   
   \EndProcedure
+
+   \vspace{1em}
+   \Procedure{Disagreement}{conclusion c}
+    \Switch{c}
+    \Case{StrongAgreement}
+    \Return 0.1
+    \EndCase
+    \Case{WeakAgreement}
+    \Return 1.0
+    \EndCase
+    \Case{Unsoundness} \Return 100
+    \EndCase
+    \Case{Incompleteness}
+    \Return 10
+    \EndCase
+    \Case{Disagreement}
+    \Return 3
+    \EndCase
+    \EndSwitch
+   \EndProcedure
+
+   \vspace{1em}
+   \Procedure{irregularity}{timings $ts$}
+   \State {proportions = fractions of timing t with its average time } 
+   \State {$s \gets \Sigma \{ relativeError(t_1,t_2) \mid t_1,t_2 \in proportions \}$}
+   \State {\Return {$s / n^2$}}
+   \EndProcedure
 \end{algorithmic}
 \end{algorithm}
+
+Relative Error:
+\[
+  relativeError(a,b) &=
+  \begin{cases}
+    0 & \text{if $a = b = 0$} \\
+    \dfrac{| a - b |}{\max (|a|, |b|)}
+
+  \end{cases}
+
+\]
 
 \end{document}
