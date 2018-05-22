@@ -182,10 +182,8 @@ exploreStatementHeavy = do
   exprs <- currentReads
   forM_ exprs $ \e ->
       whenBudget_ (>0) $ tryout $ do
-        -- try a 'pool assertion' first, but if there's nothing in the pool use random
-        asrt <- mkAssertionFromPool e >>= \case
-                  Just x' -> return x'
-                  Nothing -> mkRandomAssertion e
+        (Just asrt) <- randomlyBranchMay [ mkAssertionFromPool e
+                                         , Just <$> mkRandomAssertion e]
         insertBefore asrt
         budget -= 1
         buildTranslationUnit >>= verify'

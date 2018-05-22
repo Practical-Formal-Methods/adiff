@@ -191,3 +191,20 @@ randomlyBranch :: (MonadRandom m) => [m a] -> m a
 randomlyBranch xs = chooseOneOf xs >>= \case
   Nothing -> error "randomlyBranch needs at least one branch"
   Just act -> act
+
+-- | Similar to 'randomlyBranch', but here a branch can fail (by returning
+-- @Nothing@) in which another branch is randomly chosen until one branch succeeds
+-- or there are no remaining branches
+randomlyBranchMay :: (MonadRandom m) => [m (Maybe a)] -> m (Maybe a)
+randomlyBranchMay [] =  return Nothing
+randomlyBranchMay l = do
+  idx <- getRandomR (0, length l - 1)
+  (l !! idx) >>= \case
+    Nothing -> randomlyBranchMay (deleteIndex idx l)
+    Just r  -> return $ Just r
+
+-- | Partial function
+deleteIndex 0 (x:xs) = xs
+deleteIndex n (x:xs) = x : (deleteIndex (n-1) xs)
+deleteIndex _ _      = error "illegal usage of deleteIndex"
+
