@@ -157,22 +157,15 @@ untilJust a = a >>= \case Nothing -> untilJust a
 -- statement, the higher the score. This computation is wrapped in tryout, so it
 -- won't change the callees' location
 exploreLevel :: (IsStrategyEnv env) => Smart env [(Double, AstPosition)]
-exploreLevel = do
-  x <- use budget
-  scores <- tryout exploreLevel'
-  x' <- use budget
-  logDebug $ "exploreLevel required a budget of " <> display (x - x') <> ", budget is now " <> display x'
-  return scores
-  where
-    exploreLevel' = do
-      pos <- currentPosition
-      -- cursory exploration of the statement
-      rating <- exploreStatement
-      let el = (rating, pos)
-      nxt <- go Next
-      if nxt
-        then (el:) <$> exploreLevel'
-        else return [el]
+exploreLevel = tryout $ do
+  pos <- currentPosition
+  -- cursory exploration of the statement
+  rating <- exploreStatement
+  let el = (rating, pos)
+  nxt <- go Next
+  if nxt
+    then (el:) <$> exploreLevel
+    else return [el]
 
 -- | tries with as many assertions as possible before the budget runs out
 exploreStatementHeavy :: (IsStrategyEnv env) => Smart env ()
