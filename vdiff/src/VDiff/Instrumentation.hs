@@ -89,6 +89,7 @@ openCFile fn = do
 preprocess = defineAssert . declareError . maskAsserts
 
 
+-- | Returns the name of a function if that function is called at the current statement
 findCalledFunction :: (MonadBrowser m) => m (Maybe String)
 findCalledFunction = do
   stmt <- currentStmt

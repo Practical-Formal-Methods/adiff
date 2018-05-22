@@ -14,13 +14,14 @@ module VDiff.Types
   , Type
   , makeFieldsNoPrefix
   , nub
+  , MonadRandom(..)
   ) where
 
 import           RIO
 
 import           Control.Lens.TH
 import           Control.Monad.Random
-import           Data.List                        (intersperse)
+import           Data.List                        (intersperse, (!!))
 import           Data.List.Key                    (nub)
 import           Data.Text                        (pack)
 import qualified Database.SQLite.Simple           as SQL
@@ -29,6 +30,7 @@ import           Language.C                       hiding (LevelError, LevelWarn,
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
 import           Language.C.Data.Lens
+import           Safe
 import           System.IO                        (FilePath)
 import           Text.PrettyPrint                 (render)
 
@@ -174,4 +176,18 @@ instance Display Stmt where
 prettyp :: Pretty a => a -> String
 prettyp = render . pretty
 
+
+--------------------------------------------------------------------------------
+-- Utilities regarding random decisions
+
 deriving instance MonadRandom (RIO env)
+
+chooseOneOf :: (MonadRandom m) => [a] ->  m (Maybe a)
+chooseOneOf options = do
+  i <- getRandomR (0, length options - 1)
+  return (options `atMay` i)
+
+randomlyBranch :: (MonadRandom m) => [m a] -> m a
+randomlyBranch xs = chooseOneOf xs >>= \case
+  Nothing -> error "randomlyBranch needs at least one branch"
+  Just act -> act

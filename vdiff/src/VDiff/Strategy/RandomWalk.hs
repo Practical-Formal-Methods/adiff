@@ -29,6 +29,12 @@ newtype RandomS env a = RandomS
   { unRandom :: StateT RandomState (BrowserT (RIO env)) a
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState RandomState)
 
+instance MonadRandom (RandomS env) where
+  getRandomR r  = liftIO $ getRandomR r
+  getRandomRs r = liftIO $ getRandomRs r
+  getRandom     = liftIO getRandom
+  getRandoms    = liftIO getRandoms
+
 runRandomS :: IsStrategyEnv env => RandomState -> CTranslationUnit SemPhase -> RIO env (((), RandomState), CTranslationUnit SemPhase)
 runRandomS initState = runBrowserT (runStateT (unRandom randomWalkStrategy') initState)
 
@@ -63,12 +69,14 @@ randomWalkStrategy' = do
 
 
 
-
 -- | walks a random step in the ast
-randomStep :: (MonadIO m, MonadBrowser m) => m ()
+randomStep :: (MonadRandom m, MonadBrowser m) => m ()
 randomStep = do
-  (Just d) <- chooseOneOf [Up, Down, Next, Prev]
-  success <- go d
-  unless success randomStep
-
-
+  findCalledFunction >>= \case
+          Nothing -> oneStep
+          Just fn -> randomlyBranch [gotoFunction fn, oneStep]
+  where
+    oneStep = do
+      (Just d) <- chooseOneOf [Up, Down, Next, Prev]
+      success <- go d
+      unless success oneStep

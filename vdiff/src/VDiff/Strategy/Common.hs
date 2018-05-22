@@ -131,10 +131,6 @@ assertFalse = assertStmt false
     false = CConst $ CIntConst (cInteger 0) voidNode
     voidNode = (undefNode, voidType)
 
-chooseOneOf :: (MonadIO m) => [a] ->  m (Maybe a)
-chooseOneOf options = do
-  i <- liftIO $ getStdRandom $ randomR (0, length options - 1)
-  return (options `atMay` i)
 
 
 currentReads :: (MonadBrowser m, MonadReader env m, HasDiffParameters env) => m [CExpression SemPhase]

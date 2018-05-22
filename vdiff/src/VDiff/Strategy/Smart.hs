@@ -46,6 +46,13 @@ newtype Smart env a = Smart
   { unSmart :: StateT SmartState (BrowserT (RIO env)) a
   } deriving (Functor, Applicative, Monad, MonadBrowser, MonadIO, MonadReader env, MonadState SmartState)
 
+instance MonadRandom (Smart env) where
+  getRandomR r  = liftIO $ getRandomR r
+  getRandomRs r = liftIO $ getRandomRs r
+  getRandom     = liftIO getRandom
+  getRandoms    = liftIO getRandoms
+
+
 smartStrategy :: (IsStrategyEnv env) => RIO env ()
 smartStrategy = do
   logInfo "starting with smartStrategy"
