@@ -84,7 +84,7 @@ conclude  rs = if
     unsats = [ runVerifierName r | r <- rs, verdict (verifierResult r) == Unsat ]
     sats =   [ runVerifierName r | r <- rs, verdict (verifierResult r) == Sat ]
 
-mkRandomAssertion :: (MonadIO m ) => CExpression SemPhase -> m Stmt
+mkRandomAssertion :: (MonadRandom m)  => CExpression SemPhase -> m Stmt
 mkRandomAssertion e = do
       let ty = getType e
       constv <-mkRandomConstant ty
@@ -92,25 +92,36 @@ mkRandomAssertion e = do
           expression = CBinary CNeqOp e constant' (undefNode, boolType)
       return (assertStmt expression)
 
-mkRandomConstant :: (MonadIO m) => Type -> m (CConstant SemPhase)
+mkRandomConstant :: (MonadRandom m) => Type -> m (CConstant SemPhase)
 mkRandomConstant ty
   | ty `sameType` integral TyChar = do
-      (c :: Char) <- liftIO randomIO
+      (c :: Char) <- getRandom
       return $ CCharConst (CChar c False) (undefNode, ty)
 
   | ty `sameType` integral TyBool = do
-    (b :: Bool) <- liftIO randomIO
+    (b :: Bool) <- getRandom
     let v = if b then 1 else 0
     return $ CIntConst (cInteger v) (undefNode, ty)
 
   | ty `sameType` integral TyUInt = do
-      (v :: Int32) <- liftIO randomIO
+      (v :: Int32) <- uniformLengthInt
       return $ CIntConst (cInteger $ fromIntegral (abs v))  (undefNode, ty)
 
   | otherwise = do
-      (v :: Int32) <- liftIO randomIO
+      (v :: Int32) <- uniformLengthInt
       return $ CIntConst (cInteger $ fromIntegral v) (undefNode, ty)
 
+-- | produces a random int32, where the bitwidth is uniformly distributed between 0 and 32
+uniformLengthInt :: (MonadRandom m) => m Int32
+uniformLengthInt = do
+  width <- getRandomR (1,32)
+  bits <- take width <$> getRandoms
+  return $ bitsToNum $! bits
+  where
+    bitsToNum :: [Bool] -> Int32
+    bitsToNum = foldl' f 0
+    f n False = 2 * n
+    f n True  = 2 * n + 1
 
 assertStmt :: CExpression SemPhase -> CStatement SemPhase
 assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (undefNode, voidType)
