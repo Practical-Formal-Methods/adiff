@@ -8,6 +8,7 @@ module Main where
 
 import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
+import qualified Data.List.Key                          as K
 import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
@@ -26,8 +27,9 @@ import           VDiff.Types
 
 
 data ViewCommand = Stats
-                 | List Q.Query
-                 | Count Q.Query
+                 | List Q.Query -- ^ list all findings
+                 | Count Q.Query -- ^ count findings
+                 | DistributionPerFile Q.Query -- ^ show the distribution
                  | Program String
                  | Runs String
                  | TimeMemoryGraph FilePath
@@ -66,19 +68,17 @@ executeView Stats = do
   liftIO $  T.printTable stats
   return ()
 executeView (List q) = do
-  rs <- case q  of
-        Q.Incomplete                   -> Q.allIncomplete
-        Q.Unsound                      -> Q.allUnsound
-        Q.Disagreement                 -> Q.allDisagreement
-        Q.UnsoundAccordingToKleeOrCbmc -> Q.allUnsoundAccordingToKleeOrCbmc
+  rs <- executeQuery q
   liftIO $ T.printTable rs
 executeView (Count q) = do
-  rs <- case q  of
-        Q.Incomplete                   -> Q.allIncomplete
-        Q.Unsound                      -> Q.allUnsound
-        Q.Disagreement                 -> Q.allDisagreement
-        Q.UnsoundAccordingToKleeOrCbmc -> Q.allUnsoundAccordingToKleeOrCbmc
+  rs <- executeQuery q
   liftIO $ print $ length rs
+executeView (DistributionPerFile q) = do
+  rs <- executeQuery q
+  let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn $ rs
+  let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
+  liftIO $ T.printTable counts
+
 executeView (Program hsh) = do
   p <- Q.programByHash hsh
   liftIO $ case p of
@@ -126,7 +126,7 @@ viewParameters :: Parser ViewParameters
 viewParameters = ViewParameters <$> databasePath  <*> viewCommand
 
 viewCommand :: Parser ViewCommand
-viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd <|> mergeCmd <|> runsCmd
+viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd <|> mergeCmd <|> runsCmd <|> distributionCmd
 
 statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd,runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
@@ -166,6 +166,10 @@ runsCmd = Runs <$> option str options
                           , metavar "HASH"
                           ]
 
+distributionCmd = switch options $> DistributionPerFile <*> query
+  where options = mconcat [ long "per-file"
+                          , help "shows the number of findings per file" ]
+
 query :: Parser Q.Query
 query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc
   where incmpl = switch (long "incomplete") $> Q.Incomplete
@@ -173,6 +177,11 @@ query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc
         disagreement = switch (long "disagreement") $> Q.Disagreement
         unsoundKleeCbmc = switch (long "unsound-klee-cbmc") $> Q.UnsoundAccordingToKleeOrCbmc
 
+executeQuery q = case q of
+  Q.Incomplete                   -> Q.allIncomplete
+  Q.Unsound                      -> Q.allUnsound
+  Q.Disagreement                 -> Q.allDisagreement
+  Q.UnsoundAccordingToKleeOrCbmc -> Q.allUnsoundAccordingToKleeOrCbmc
 
 
 --------------------------------------------------------------------------------
