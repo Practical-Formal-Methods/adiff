@@ -22,7 +22,7 @@ allVerifiers = [ cbmc
                , smack
                , uautomizer
                , utaipan
-               , cprover2Ls
+               -- , cprover2Ls -- does not work
                ]
 
 
