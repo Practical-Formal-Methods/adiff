@@ -34,6 +34,7 @@ module VDiff.Instrumentation.Browser
   , currentPosition
   , insertBefore
   , insertBeforeNthStatement
+  , modifyCurrentStmt
   , buildTranslationUnit
   -- * Movements
   , gotoFunction
@@ -41,6 +42,9 @@ module VDiff.Instrumentation.Browser
   , go
   , go_
   , stmtPosition -- TODO: maybe not export this
+  -- * Traversals
+  , traverseStmtM
+  , traverseStmtsOfTU
   ) where
 
 
@@ -248,7 +252,52 @@ buildTranslationUnit = do
   return $ tu & (ix fn . functionDefinition . body) .~ stmt
 
 
+--------------------------------------------------------------------------------
+-- traversal functions
 
+-- | traverses all statements of a translation unit
+traverseStmtsOfTU :: (MonadBrowser m, Semigroup w, Monoid w) => TU -> (m w) -> m w
+traverseStmtsOfTU tu action = do
+  let fnames = map identToString (definedFunctions tu)
+  x <- forM fnames $ \fname -> do
+    gotoFunction fname
+    traverseStmtM action
+  return $ mconcat x
+
+-- | traverses the stmt, calling action at every stmt and collecting the results as a monoidal sum
+traverseStmtM :: (MonadBrowser m, Semigroup w, Monoid w) => (m w) -> m w
+traverseStmtM f = traverseAST' [0]
+  where
+  traverseAST' st = do
+    r <- f
+    d <- go Down
+    rs <- if d
+            then do
+            (n:_) <- (^. stmtPosition ) <$> getBrowserState
+            traverseAST' (n : st)
+            else do
+              x <- go Next
+              if x
+                then traverseAST' st
+                else ascend st
+    return $ r <> rs
+
+  ascend [] = return mempty
+  ascend (n:ns) = do
+    u <- go Up
+    if u
+      then do
+        replicateM_ n (go_ Next)
+        new <- go Next
+        if new
+          then traverseAST' ns
+          else ascend ns
+      else return mempty
+
+modifyCurrentStmt :: (MonadBrowser m) => (Stmt -> Stmt) -> m ()
+modifyCurrentStmt f = do
+  stmt <- currentStmt
+  modifyBrowserState $ stmtZipper %~ (Z.replaceHole (f stmt))
 
 --------------------------------------------------------------------------------
 -- simple utilities
