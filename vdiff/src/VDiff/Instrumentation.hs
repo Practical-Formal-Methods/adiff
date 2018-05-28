@@ -107,11 +107,20 @@ findCalledFunction = do
 -- | * Masking
 --------------------------------------------------------------------------------
 
+-- | replaces all functions calls to __VERIFIER_assert with __DUMMY_VERIFIER_assert.
+-- Also replaces all calls to __VERIFIER_error that are not inside the definition of __VERIFIER_assert() with _DUMMY_VERIFIER_assert.
 maskAsserts :: TU -> TU
-maskAsserts = insertDummy . transformBi replaceFunctionCalls
+maskAsserts = insertDummy . mask
   where
     insertDummy = insertExtDeclAt 0 (CFDefExt Fragments.dummyError) .
                   insertExtDeclAt 0 (CFDefExt Fragments.dummyAssert)
+
+    mask tu =  snd $ runBrowser (traverseStmtsOfTU tu act) tu
+    act = do
+      fn <- functionName <$> currentPosition
+      unless (fn == "__VERIFIER_assert") $ do
+        modifyCurrentStmt $ transformBi replaceFunctionCalls
+
     replaceFunctionCalls :: CExpression SemPhase -> CExpression SemPhase
     replaceFunctionCalls c@(CCall (CVar v ann) e2 ann2)
       | identToString v == "__VERIFIER_assert"  = CCall (CVar (internalIdent "__DUMMY_VERIFIER_assert") ann) e2 ann2
