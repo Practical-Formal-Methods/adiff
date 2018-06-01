@@ -68,13 +68,13 @@ executeView Stats = do
   liftIO $  T.printTable stats
   return ()
 executeView (List q) = do
-  rs <- executeQuery q
+  rs <- Q.executeQuery q
   liftIO $ T.printTable rs
 executeView (Count q) = do
-  rs <- executeQuery q
+  rs <- Q.executeQuery q
   liftIO $ print $ length rs
 executeView (DistributionPerFile q) = do
-  rs <- executeQuery q
+  rs <- Q.executeQuery q
   let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn $ rs
   let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
   liftIO $ T.printTable counts
@@ -171,17 +171,13 @@ distributionCmd = switch options $> DistributionPerFile <*> query
                           , help "shows the number of findings per file" ]
 
 query :: Parser Q.Query
-query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc
+query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc <|>  unsoundKleeCbmcSmack
   where incmpl = switch (long "incomplete") $> Q.Incomplete
         unsound = switch (long "unsound") $> Q.Unsound
         disagreement = switch (long "disagreement") $> Q.Disagreement
         unsoundKleeCbmc = switch (long "unsound-klee-cbmc") $> Q.UnsoundAccordingToKleeOrCbmc
+        unsoundKleeCbmcSmack = switch (long "unsound-klee-cbmc-smack") $> Q.UnsoundAccordingToKleeOrCbmcOrSmack
 
-executeQuery q = case q of
-  Q.Incomplete                   -> Q.allIncomplete
-  Q.Unsound                      -> Q.allUnsound
-  Q.Disagreement                 -> Q.allDisagreement
-  Q.UnsoundAccordingToKleeOrCbmc -> Q.allUnsoundAccordingToKleeOrCbmc
 
 
 --------------------------------------------------------------------------------

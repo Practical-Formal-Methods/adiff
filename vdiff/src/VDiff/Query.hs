@@ -21,16 +21,20 @@ import           Text.PrettyPrint.Tabulate  ()
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Persistence.Internal
-import           VDiff.Types
+import           VDiff.Types                hiding (Disagreement)
 
 data Query
   = Incomplete
   | Unsound
   | Disagreement
   | UnsoundAccordingToKleeOrCbmc
+  | UnsoundAccordingToKleeOrCbmcOrSmack
   deriving (Show, Eq)
 
 type Statistics = [(Text, Text)]
+
+
+
 
 stats :: (HasDatabase env) => RIO env Statistics
 stats = do
@@ -72,6 +76,11 @@ allDisagreement = query_ $(embedQuery "disagreement.sql")
 allUnsoundAccordingToKleeOrCbmc :: (HasDatabase env) => RIO env [RunFinding]
 allUnsoundAccordingToKleeOrCbmc = query_ $(embedQuery "unsound-klee-cbmc.sql")
 
+
+allUnsoundAccordingToKleeOrCbmcOrSmack :: (HasDatabase env) => RIO env [RunFinding]
+allUnsoundAccordingToKleeOrCbmcOrSmack = query_ $(embedQuery "unsound-klee-cbmc-smack.sql")
+
+
 allRuns :: (HasDatabase env) => RIO env [(String, String, Maybe Double, Maybe Int)]
 allRuns = query_ "SELECT verifier_name,result,time,memory FROM runs;"
 
@@ -91,5 +100,12 @@ programByHash hsh = do
 
 updateIndices :: (HasDatabase env, HasLogFunc env) => RIO env ()
 updateIndices = do
-  logDebug "updating indices"
+  -- logDebug "updating indices"
   execute_ $(embedQuery "update-indices.sql")
+
+executeQuery q = case q of
+  Incomplete                          -> allIncomplete
+  Unsound                             -> allUnsound
+  Disagreement                        -> allDisagreement
+  UnsoundAccordingToKleeOrCbmc        -> allUnsoundAccordingToKleeOrCbmc
+  UnsoundAccordingToKleeOrCbmcOrSmack -> allUnsoundAccordingToKleeOrCbmcOrSmack
