@@ -23,12 +23,6 @@ import           Test.Tasty.HUnit
 import           VDiff.Instrumentation
 import           VDiff.Types
 
-data NoLogging = NoLogging
-instance HasLogFunc NoLogging where
-  logFuncL = lens getter setter
-    where logFunc = mkLogFunc (\_ _ _ _ -> return ())
-          getter = const logFunc
-          setter = const $ const NoLogging
 
 dummyDecl :: CDeclaration SemPhase
 dummyDecl = CDecl [] [] undefNode

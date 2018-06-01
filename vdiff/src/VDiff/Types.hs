@@ -208,3 +208,11 @@ deleteIndex 0 (x:xs) = xs
 deleteIndex n (x:xs) = x : (deleteIndex (n-1) xs)
 deleteIndex _ _      = error "illegal usage of deleteIndex"
 
+--------------------------------------------------------------------------------
+
+data NoLogging = NoLogging
+instance HasLogFunc NoLogging where
+  logFuncL = lens getter setter
+    where logFunc = mkLogFunc (\_ _ _ _ -> return ())
+          getter = const logFunc
+          setter = const $ const NoLogging
