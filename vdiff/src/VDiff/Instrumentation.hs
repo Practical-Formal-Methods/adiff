@@ -120,6 +120,7 @@ maskAsserts = insertDummy . mask
       fn <- functionName <$> currentPosition
       unless (fn == "__VERIFIER_assert") $ do
         modifyCurrentStmt $ transformBi replaceFunctionCalls
+        modifyCurrentStmt removeErrorLabel
 
     replaceFunctionCalls :: CExpression SemPhase -> CExpression SemPhase
     replaceFunctionCalls c@(CCall (CVar v ann) e2 ann2)
@@ -127,6 +128,12 @@ maskAsserts = insertDummy . mask
       | identToString v == "__VERIFIER_error"  = CCall (CVar (internalIdent "__DUMMY_VERIFIER_error") ann) e2 ann2
       | otherwise = c
     replaceFunctionCalls c = c
+
+    removeErrorLabel :: Stmt -> Stmt
+    removeErrorLabel (CLabel l stmt _ _)
+      | identToString l == "ERROR" = stmt
+    removeErrorLabel stmt = stmt
+
 
 
 -- | Some test cases only use @__VERIFIER_error()@, in those cases we have to define @__VERIFIER_assert()@
