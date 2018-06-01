@@ -15,5 +15,5 @@ before_install:
 - stack install happy
 
 script:
-  - stack build
+  - stack build --no-docker
   - stack test vdiff:regression
