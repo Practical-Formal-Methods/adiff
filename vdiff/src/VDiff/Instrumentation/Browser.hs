@@ -183,21 +183,24 @@ gotoPosition (AstPosition fn xs) = do
     goto' (y:ys) = gotoSibling y >> go Down >> goto' ys
 
 
--- | Will crash if there is no function definition wit hthe given function name
-gotoFunction :: (MonadBrowser m) => String -> m ()
+-- | Will crash if there is no function definition wit the given function name
+gotoFunction :: (MonadBrowser m) => String -> m Bool
 gotoFunction fn = do
   st <- getBrowserState
   let cTU                 = st ^. currentTU
       currentZip          = st ^. stmtZipper
       currentFunctionName = st ^. currentFunction :: String
       tu'                 = cTU & (ix currentFunctionName . functionDefinition . body) .~ Z.fromZipper currentZip
-      (Just fbody)        = tu' ^? (ix fn . functionDefinition . body)
-      newZipper           = Z.zipper fbody
-  let st' =  st & (currentTU .~ tu')
-                & (currentFunction .~ fn)
-                & (stmtZipper .~ newZipper)
-                & (stmtPosition .~ [0])
-  putBrowserState st'
+  case tu' ^? (ix fn . functionDefinition . body) of
+      (Just fbody)        -> do
+        let newZipper           = Z.zipper fbody
+        let st' =  st & (currentTU .~ tu')
+                      & (currentFunction .~ fn)
+                      & (stmtZipper .~ newZipper)
+                      & (stmtPosition .~ [0])
+        putBrowserState st'
+        return True
+      Nothing -> do return False
 
 
 -- | Move to the nth sibling. Be careful!

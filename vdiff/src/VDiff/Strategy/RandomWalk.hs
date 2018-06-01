@@ -69,12 +69,13 @@ randomWalkStrategy' = do
 
 
 
+
 -- | walks a random step in the ast
 randomStep :: (MonadRandom m, MonadBrowser m) => m ()
 randomStep = do
   findCalledFunction >>= \case
           Nothing -> oneStep
-          Just fn -> randomlyBranch [gotoFunction fn, oneStep]
+          Just fn -> void $ randomlyBranchTrue [gotoFunction fn, oneStep >> return True]
   where
     oneStep = do
       (Just d) <- chooseOneOf [Up, Down, Next, Prev]

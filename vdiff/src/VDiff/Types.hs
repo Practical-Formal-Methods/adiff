@@ -205,6 +205,16 @@ randomlyBranchMay l = do
     Nothing -> randomlyBranchMay (deleteIndex idx l)
     Just r  -> return $ Just r
 
+-- Similar to 'randomlyBranch', but here a branch can fail (by returning
+-- @False@) in which another branch is randomly chosen until one branch succeeds
+-- or there are no remaining branches
+randomlyBranchTrue :: (MonadRandom m) => [m Bool] -> m Bool
+randomlyBranchTrue options = isJust <$> randomlyBranchMay options'
+  where
+    options' = map (boolToMaybe <$>) options
+    boolToMaybe False = Nothing
+    boolToMaybe True = Just ()
+
 -- | Partial function
 deleteIndex 0 (x:xs) = xs
 deleteIndex n (x:xs) = x : (deleteIndex (n-1) xs)
