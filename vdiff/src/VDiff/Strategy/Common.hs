@@ -34,9 +34,6 @@ import           VDiff.Types
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
 
-isCompound ::Stmt -> Bool
-isCompound (CCompound _ _ _ ) = True
-isCompound _                  = False
 
 verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
 verify tu = do

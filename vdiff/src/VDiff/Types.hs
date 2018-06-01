@@ -15,6 +15,7 @@ module VDiff.Types
   , makeFieldsNoPrefix
   , nub
   , MonadRandom(..)
+  , voidType
   ) where
 
 import           RIO
@@ -29,6 +30,7 @@ import           Language.C                       hiding (LevelError, LevelWarn,
                                                    execParser)
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
+import           Language.C.Analysis.TypeUtils (voidType)
 import           Language.C.Data.Lens
 import           Safe
 import           System.IO                        (FilePath)
@@ -216,3 +218,8 @@ instance HasLogFunc NoLogging where
     where logFunc = mkLogFunc (\_ _ _ _ -> return ())
           getter = const logFunc
           setter = const $ const NoLogging
+
+
+isCompound ::Stmt -> Bool
+isCompound (CCompound _ _ _ ) = True
+isCompound _                  = False

@@ -183,6 +183,7 @@ gotoPosition (AstPosition fn xs) = do
     goto' (y:ys) = gotoSibling y >> go Down >> goto' ys
 
 
+-- | Will crash if there is no function definition wit hthe given function name
 gotoFunction :: (MonadBrowser m) => String -> m ()
 gotoFunction fn = do
   st <- getBrowserState
@@ -225,23 +226,34 @@ tryout act = do
   return x
 
 insertBefore :: (MonadBrowser m) => Stmt -> m ()
-insertBefore ins = do
-  st <- getBrowserState
-  let (n:_) = st ^. stmtPosition
-  -- move up
-  go_ Up
-  xx <- currentStmt
-  -- check that we are in a compound statement and replace the compound statement
-  case xx of
-    (CCompound l items ann) -> do
-          let items' = insertBeforeNthStatement ins n items
-              s' =  CCompound l items' ann
-          modifyBrowserState $ stmtZipper %~ Z.replaceHole s'
-    _               -> error "insertBefore was called at a location outside of a compound statement"
-  -- move back to the original position
-  go_ Down
-  replicateM_ (n+1) (go Next)
+insertBefore ins = parentIsCompound >>= \case
+  True -> do
+    st <- getBrowserState
+    let (n:_) = st ^. stmtPosition
+    -- move up
+    go_ Up
+    (CCompound l items ann) <- currentStmt
+    let items' = insertBeforeNthStatement ins n items
+        s'     =  CCompound l items' ann
+    modifyBrowserState $ stmtZipper %~ Z.replaceHole s'
+    -- move back to the statement
+    go_ Down
+    replicateM_ (n+1) (go Next)
 
+  False -> do
+    -- in this we have to create a compound statement
+    stmt <- currentStmt
+    let compound = CCompound [] [CBlockStmt ins,CBlockStmt stmt] (undefNode, voidType)
+    modifyBrowserState $ stmtZipper %~ Z.replaceHole compound
+    -- and move back to the statement
+    go_ Down
+    go_ Next
+
+
+parentIsCompound :: (MonadBrowser m) => m Bool
+parentIsCompound = tryout $ do
+  go Up
+  isCompound <$> currentStmt
 
 buildTranslationUnit :: (MonadBrowser m) => m (CTranslationUnit SemPhase)
 buildTranslationUnit = do
