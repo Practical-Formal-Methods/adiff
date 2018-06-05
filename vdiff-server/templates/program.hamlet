@@ -1,0 +1,22 @@
+
+<h4>Instrumented Program
+^{program}
+
+<h4>Runs
+<table>
+  <thead>
+    <tr>
+      <th>verifier
+      <th>result
+      <th>time 
+      <th>memory
+
+  <tbody>
+    $forall (verifier,result,time,memory) <- runs
+      <tr>
+        <td>#{verifier}
+        <td>#{result}
+        <td>#{maybe "-" show time}
+        <td>#{maybe "-" show memory}
+
+

@@ -1,0 +1,13 @@
+<h4 class="section">Queries
+^{queriesSnippet}
+
+
+
+<h4 class="section">Statistics
+
+<table>
+  $forall (s,t) <- statistics
+    <tr>
+      <td>#{s}
+      <td>#{t}
+

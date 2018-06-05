@@ -25,7 +25,7 @@ library:
   source-dirs: src
 
 executables:
-  vdiff-server-exe:
+  vdiff-server:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
