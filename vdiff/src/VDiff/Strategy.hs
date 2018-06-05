@@ -4,12 +4,11 @@ module VDiff.Strategy
   , availableStrategies
   ) where
 
-import           RIO
+import           VDiff.Prelude
 
 import           VDiff.Strategy.RandomUniform
 import           VDiff.Strategy.RandomWalk
 import           VDiff.Strategy.Smart
-import           VDiff.Types
 
 
 availableStrategies :: [Strategy]

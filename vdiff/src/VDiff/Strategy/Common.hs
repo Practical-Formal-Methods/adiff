@@ -11,12 +11,13 @@ module VDiff.Strategy.Common
   , Type
   ) where
 
-import           Control.Lens                       hiding ((^.))
+import           VDiff.Prelude
+
+import           Control.Lens
 import           Control.Monad.State
 import           Language.C
 import           Language.C.Analysis.SemRep         hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
-import           RIO                                hiding (view)
 import           Safe
 import           System.IO                          (hPutStr)
 import           System.Random
@@ -29,7 +30,6 @@ import           VDiff.Instrumentation
 import           VDiff.Instrumentation.Reads
 import           VDiff.Persistence
 import           VDiff.Strategy.Common.ConstantPool
-import           VDiff.Types
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 

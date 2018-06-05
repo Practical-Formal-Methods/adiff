@@ -8,7 +8,7 @@
 -- | Implements a very simple strategy. Currently only instruments the main function
 module VDiff.Strategy.RandomWalk (randomWalkStrategy) where
 
-import           RIO
+import           VDiff.Prelude
 
 import           Control.Lens               hiding (view)
 import           Control.Monad.State.Strict
@@ -16,7 +16,6 @@ import           Language.C
 
 import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
-import           VDiff.Types
 
 data RandomState = RandomState
   { _budget                :: !Int

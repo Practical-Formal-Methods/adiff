@@ -6,6 +6,8 @@
 
 module Main where
 
+import VDiff.Prelude
+
 import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
 import qualified Data.List.Key                          as K
@@ -13,7 +15,6 @@ import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
-import           RIO
 import           RIO.List
 import           System.Exit
 import           System.IO
@@ -23,7 +24,6 @@ import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence                      (withDiffDB)
 import qualified VDiff.Query                            as Q
-import           VDiff.Types
 
 
 data ViewCommand = Stats

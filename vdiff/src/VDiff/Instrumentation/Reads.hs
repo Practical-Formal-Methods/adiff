@@ -8,7 +8,7 @@
 
 module VDiff.Instrumentation.Reads where
 
-import           RIO
+import           VDiff.Prelude
 
 import           Control.Monad.Writer              hiding ((<>))
 import qualified Data.DList                        as DL
@@ -18,7 +18,6 @@ import           Data.List                         (intersect)
 import           Language.C.Analysis.TypeUtils     (isIntegralType)
 import           VDiff.Instrumentation.Browser
 import qualified VDiff.Instrumentation.Fragments   as Fragments
-import           VDiff.Types
 
 
 -- | A "read expression" is a subexpression that contains read variables and

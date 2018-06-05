@@ -1,12 +1,10 @@
 
 module Main where
 
-import           RIO
-
 import           VDiff.Arguments      as Args
 import           VDiff.Diff
 import           VDiff.Persistence
-import           VDiff.Types
+import           VDiff.Prelude
 
 import           Control.Applicative  (optional)
 import           Control.Monad.Random

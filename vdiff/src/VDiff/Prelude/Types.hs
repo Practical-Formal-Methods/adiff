@@ -3,11 +3,8 @@
 {-# LANGUAGE TemplateHaskell        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-
--- TODO: better name: Prelude
-
-module VDiff.Types
-  ( module VDiff.Types
+module VDiff.Prelude.Types
+  ( module VDiff.Prelude.Types
   , module Language.C
   , module Language.C.Data.Lens
   , module Language.C.Analysis.AstAnalysis2

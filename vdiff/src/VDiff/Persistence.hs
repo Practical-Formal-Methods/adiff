@@ -1,6 +1,6 @@
 module VDiff.Persistence where
 
-import           RIO
+import           VDiff.Prelude
 
 import qualified Crypto.Hash.SHA1               as SHA1
 import qualified Data.ByteString.Base16         as Hex
@@ -11,7 +11,6 @@ import           Database.SQLite.Simple.ToField
 
 import           VDiff.Data
 import           VDiff.Timed
-import           VDiff.Types
 --------------------------------------------------------------------------------
 -- * Persistence
 --------------------------------------------------------------------------------

@@ -1,13 +1,13 @@
 module InstrumentationTest where
 
+import           VDiff.Prelude
+
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import           Language.C
-import           RIO
 import           Text.PrettyPrint           (render)
 
 import           Util
 import           VDiff.Instrumentation
-import           VDiff.Types
 
 
 

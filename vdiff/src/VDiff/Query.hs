@@ -9,7 +9,7 @@
 -- | support queries to the database
 module VDiff.Query where
 
-import           RIO
+import           VDiff.Prelude hiding (Disagreement)
 
 import           Control.Lens.TH
 import           Data.List                  (isInfixOf)
@@ -21,7 +21,6 @@ import           Text.PrettyPrint.Tabulate  ()
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Persistence.Internal
-import           VDiff.Types                hiding (Disagreement)
 
 data Query
   = Incomplete

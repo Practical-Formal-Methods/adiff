@@ -1,7 +1,6 @@
 module VDiff.Verifier.Smack (smack) where
 
-import           RIO
-import           VDiff.Types
+import           VDiff.Prelude
 import           VDiff.Verifier.Util
 
 import           System.Process

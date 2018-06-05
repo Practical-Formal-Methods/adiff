@@ -3,7 +3,8 @@ module VDiff.Verifier
   , debuggingVerifiers
   ) where
 
-import           VDiff.Types
+import           VDiff.Prelude
+
 import           VDiff.Verifier.Cbmc
 import           VDiff.Verifier.CpaChecker
 import           VDiff.Verifier.CProver

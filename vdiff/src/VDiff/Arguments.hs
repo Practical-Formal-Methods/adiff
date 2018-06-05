@@ -7,12 +7,12 @@ module VDiff.Arguments
   , module Options.Applicative
   ) where
 
+import           VDiff.Prelude
+
 import           Options.Applicative
-import           RIO
 import qualified RIO.List            as L
 
 import           VDiff.Strategy
-import           VDiff.Types
 import           VDiff.Verifier
 
 databasePath :: Parser String

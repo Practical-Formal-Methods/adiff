@@ -49,8 +49,7 @@ module VDiff.Instrumentation.Browser
 
 
 import qualified Prelude                       as P
-import           RIO                           hiding ((^.))
-import           VDiff.Types
+import           VDiff.Prelude
 
 import           Control.Lens
 import           Control.Monad.State.Strict
