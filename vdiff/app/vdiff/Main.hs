@@ -9,27 +9,19 @@ import           VDiff.Prelude
 import           Control.Applicative  (optional)
 import           Control.Monad.Random
 
+infos :: InfoMod a
+infos = fullDesc <> progDesc "vdiff - a simple tool to compare program verifiers"
+
 main :: IO ()
-main = do
-  params <- execParser opts :: IO MainParameters
-  -- set up logging
-  logOptions <- logOptionsHandle stderr True
-  let logOptions' = setLogMinLevel (logLevel params) logOptions
-
-  -- setup db
-  withLogFunc logOptions' $ \logger ->
-    withDiffDB (databaseFn params) $ \database -> do
-      let env = MainEnv logger database
-      runRIO env $ do
-        -- initialize random
-        s <- case seed params of
-          Just s  -> return s
-          Nothing -> getRandomR (1,10000)
-        logInfo $ "seed for random generator: " <> display s
-        liftIO $ setStdGen $ mkStdGen s
-
-        -- execute command
-        runCommands params
+main = runVDiffApp parseMainParameters infos $ \params -> do
+  -- initialize random
+  s <- case seed params of
+    Just s  -> return s
+    Nothing -> getRandomR (1,10000)
+  logInfo $ "seed for random generator: " <> display s
+  liftIO $ setStdGen $ mkStdGen s
+  -- execute command
+  runCommands params
 
 
 runCommands :: HasMainEnv env => MainParameters -> RIO env ()
@@ -48,9 +40,7 @@ runCommands param = case cmd param of
 --------------------------------------------------------------------------------
 
 data MainParameters = MainParameters
-  { logLevel   :: LogLevel
-  , databaseFn :: FilePath
-  , seed       :: Maybe Int
+  { seed       :: Maybe Int
   , cmd        :: Cmd
   }
 
@@ -65,13 +55,9 @@ data Cmd  = CmdRun DiffParameters
 --------------------------------------------------------------------------------
 -- | * Argument Parser
 --------------------------------------------------------------------------------
-opts :: ParserInfo MainParameters
-opts = info (parseMainParameters <**> helper)
-            (fullDesc <> progDesc "vdiff - a simple tool to compare program verifiers")
-
 
 parseMainParameters :: Parser MainParameters
-parseMainParameters = MainParameters <$> level <*> databasePath <*> parseSeed <*> parseCmd
+parseMainParameters = MainParameters <$> parseSeed <*> parseCmd
   where parseCmd = parseCmdVersion <|> parseCmdTest <|> parseCmdMarkReads <|> parseCmdRunDiff <|> parseCmdRunVerifiers
 
 
