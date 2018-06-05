@@ -1,12 +1,12 @@
 {-# LANGUAGE LambdaCase #-}
 
+import           VDiff.Prelude
 
 import           Control.Monad
 import           Data.List
+import qualified Data.Map              as Map
 import qualified Data.Set              as Set
-import qualified Data.Map as Map
 import           Options.Applicative
-import           RIO
 import           System.Directory
 import           System.Environment
 import           System.Exit
@@ -15,7 +15,6 @@ import           System.Process
 import           System.Random.Shuffle
 
 import           VDiff.Instrumentation
-import           VDiff.Types
 
 description :: String
 description =
@@ -51,7 +50,7 @@ data Finished = Finished
 
 data TakeEnv = TakeEnv
   { logFunction :: LogFunc
-  , memostore :: IORef (Map FilePath Bool)
+  , memostore   :: IORef (Map FilePath Bool)
   }
 instance HasLogFunc TakeEnv where
   logFuncL = lens logFunction (\env l -> env {logFunction = l})
@@ -60,7 +59,7 @@ main :: IO ()
 main = do
   parameters <- execParser opts
   -- otherwise "tee" is a little unsatisfying
-  RIO.hSetBuffering stdout LineBuffering
+  System.IO.hSetBuffering stdout LineBuffering
   logOptions <- logOptionsHandle stderr True
   let logOptions' = setLogMinLevel LevelInfo logOptions
   withLogFunc logOptions' $ \logger -> do

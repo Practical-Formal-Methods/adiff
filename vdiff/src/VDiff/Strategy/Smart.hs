@@ -14,7 +14,7 @@
 -- statements and recurses on each statement.
 module VDiff.Strategy.Smart (smartStrategy) where
 
-import           RIO                            hiding ((^.))
+import           VDiff.Prelude
 
 import           Control.Lens                   hiding (view)
 import           Control.Monad.State.Strict
@@ -28,7 +28,6 @@ import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
 import           VDiff.Strategy.Common.Averages
 import           VDiff.Timed
-import           VDiff.Types
 
 
 

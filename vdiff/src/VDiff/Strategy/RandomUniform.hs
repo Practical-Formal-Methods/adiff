@@ -6,15 +6,15 @@ module VDiff.Strategy.RandomUniform
   , breadthFirstStrategy
   ) where
 
+import VDiff.Prelude
+
 import           Control.Monad.List
 import           Data.Functor.Identity
-import           RIO
 
 import           Language.C
 import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
 import qualified VDiff.Strategy.Common.Raffle       as Raffle
-import           VDiff.Types
 
 type Prioritization = ExprRead -> Double
 

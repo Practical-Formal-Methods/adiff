@@ -2,8 +2,7 @@
 
 module InstrumentationProperties where
 
-import           RIO
-import           VDiff.Types
+import           VDiff.Prelude
 
 import           Control.Lens
 import           Data.FileEmbed

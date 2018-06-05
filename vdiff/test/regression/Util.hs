@@ -8,12 +8,13 @@ module Util
   , module Test.Tasty.HUnit
   ) where
 
+import           VDiff.Prelude
+
 import           Data.FileEmbed
 import           Language.C
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.TravMonad
 import           Language.C.Analysis.TypeUtils
-import           RIO
 import qualified RIO.ByteString.Lazy              as LBS
 import           System.FilePath                  (replaceExtension)
 import           Test.Tasty
@@ -21,7 +22,6 @@ import           Test.Tasty.Golden
 import           Test.Tasty.HUnit
 
 import           VDiff.Instrumentation
-import           VDiff.Types
 
 
 dummyDecl :: CDeclaration SemPhase

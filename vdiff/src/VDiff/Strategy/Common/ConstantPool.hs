@@ -8,7 +8,7 @@ module VDiff.Strategy.Common.ConstantPool
   , lookupPool
   ) where
 
-import           RIO
+import           VDiff.Prelude
 import qualified RIO.Map                           as Map
 
 import           Data.Generics.Uniplate.Data       ()
@@ -19,7 +19,6 @@ import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep        hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
 
-import           VDiff.Types
 
 newtype ConstantPool = ConstantPool (Map Type [CConstant SemPhase])
 

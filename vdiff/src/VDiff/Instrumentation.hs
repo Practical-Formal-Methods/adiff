@@ -38,7 +38,7 @@ module VDiff.Instrumentation
  , findAllReads
  ) where
 
-import           RIO
+import           VDiff.Prelude
 import           RIO.FilePath
 import           Safe
 
@@ -55,7 +55,6 @@ import           UnliftIO.Directory
 import           VDiff.Instrumentation.Browser
 import qualified VDiff.Instrumentation.Fragments   as Fragments
 import           VDiff.Instrumentation.Reads
-import           VDiff.Types
 
 
 

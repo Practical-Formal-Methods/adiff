@@ -1,8 +1,7 @@
 module VDiff.Instrumentation.Fragments where
 
 import           Language.C.Analysis.TypeUtils
-import           RIO
-import           VDiff.Types
+import           VDiff.Prelude
 
 mkReadMarker ::  [(Ident,Type)] -> Stmt
 mkReadMarker vars =

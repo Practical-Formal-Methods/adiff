@@ -6,7 +6,7 @@
 -- | Main entry point. Implements all the commands that are called from Main
 module VDiff.Diff where
 
-import           RIO
+import           VDiff.Prelude
 
 import           Data.List             (sortBy)
 import           Data.Ord              (comparing)
@@ -19,7 +19,6 @@ import           System.IO
 
 import           VDiff.Instrumentation
 import           VDiff.Strategy
-import           VDiff.Types
 import           VDiff.Verifier
 
 

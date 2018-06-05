@@ -1,6 +1,6 @@
 module Lens where
 
-import           RIO
+import           VDiff.Prelude
 import           Util
 
 import           Control.Lens.Operators
@@ -8,7 +8,6 @@ import qualified Data.ByteString.Lazy.Char8 as LC8
 
 import           Language.C.Data.Lens
 import           VDiff.Instrumentation
-import           VDiff.Types
 
 testLenses :: IO TestTree
 testLenses = do

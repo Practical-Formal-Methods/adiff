@@ -13,8 +13,7 @@ module VDiff.Strategy.Common.Averages
   , getAveragesCounter
   ) where
 
-import           RIO
-import           VDiff.Types
+import           VDiff.Prelude
 
 data Averages = Averages
   { getAverages        :: ![Double]     -- ^ average runtime for each verifier

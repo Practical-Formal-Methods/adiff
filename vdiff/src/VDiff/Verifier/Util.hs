@@ -1,5 +1,5 @@
 module VDiff.Verifier.Util
-  ( VDiff.Types.Verifier(..)
+  ( Verifier(..)
   , System.Exit.ExitCode(..)
   , VerifierResult(..)
   , Verdict(..)
@@ -22,9 +22,10 @@ module VDiff.Verifier.Util
 
 where
 
+import           VDiff.Prelude
+
 import qualified Data.ByteString.Char8 as C8
 import           Data.FileEmbed
-import           RIO
 import           Safe
 import           System.Exit
 import           System.IO             (hPutStr)
@@ -32,7 +33,6 @@ import           System.Process        as Sys
 
 import           VDiff.Data
 import           VDiff.Timed
-import           VDiff.Types
 
 callCommand :: HasLogFunc env => [String] ->  RIO env ()
 callCommand cmd = do

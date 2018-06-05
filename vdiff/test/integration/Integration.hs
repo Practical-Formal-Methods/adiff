@@ -2,15 +2,15 @@
 
 module Main where
 
+import           VDiff.Prelude
+
 import           Data.FileEmbed
-import           RIO
-import qualified RIO.ByteString as BS
+import qualified RIO.ByteString   as BS
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
 import           VDiff.Data
-import           VDiff.Types
-import           VDiff.Verifier (allVerifiers)
+import           VDiff.Verifier   (allVerifiers)
 
 main :: IO ()
 main = defaultMain  $ testGroup "vdiff-integration" [testVerifiers]

@@ -6,6 +6,8 @@
 
 module Main where
 
+import           VDiff.Prelude
+
 import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
 import qualified Data.List.Key                          as K
@@ -13,7 +15,6 @@ import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
-import           RIO
 import           RIO.List
 import           System.Exit
 import           System.IO
@@ -23,7 +24,6 @@ import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence                      (withDiffDB)
 import qualified VDiff.Query                            as Q
-import           VDiff.Types
 
 
 data ViewCommand = Stats
@@ -37,28 +37,18 @@ data ViewCommand = Stats
                  deriving (Show, Eq)
 
 data ViewParameters = ViewParameters
-  { _databaseFn :: FilePath
-  , _command    :: ViewCommand
+  { _command    :: ViewCommand
   }
 makeFieldsNoPrefix ''ViewParameters
 
 
-
+infos = (progDesc "viewer for vdiff")
 
 main :: IO ()
 main = do
-  vp <- execParser opts
-  -- set up logging
-  logOptions <- logOptionsHandle stderr True
-  let logOptions' = setLogMinLevel LevelDebug logOptions
-  -- set up sql
-  -- SQL.withConnection (vp ^. databaseFn) $ \conn ->
-  withDiffDB (vp ^. databaseFn) $ \conn ->
-    withLogFunc logOptions' $ \logger -> do
-      let viewEnv = MainEnv logger conn
-      runRIO viewEnv $ do
-        Q.updateIndices
-        executeView (vp ^. command)
+  runVDiffApp viewParameters infos $ \vp -> do
+    Q.updateIndices
+    executeView (vp ^. command)
 
 instance T.CellValueFormatter Text
 
@@ -118,15 +108,18 @@ executeView (Merge files) = do
           putStr "."
         putStrLn ""
 
-opts :: ParserInfo ViewParameters
-opts = info (viewParameters <**> helper) (progDesc "viewer for vdiff")
 
 
 viewParameters :: Parser ViewParameters
-viewParameters = ViewParameters <$> databasePath  <*> viewCommand
-
-viewCommand :: Parser ViewCommand
-viewCommand = statCmd <|> listCmd <|> countCmd <|> programCmd <|> correlationCmd <|> mergeCmd <|> runsCmd <|> distributionCmd
+viewParameters = ViewParameters <$> viewCommand
+  where
+    viewCommand = asum [ listCmd
+                       , countCmd
+                       , programCmd
+                       , correlationCmd
+                       , mergeCmd
+                       , runsCmd
+                       , distributionCmd ]
 
 statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd,runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
