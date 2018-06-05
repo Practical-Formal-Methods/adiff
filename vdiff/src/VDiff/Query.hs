@@ -9,7 +9,7 @@
 -- | support queries to the database
 module VDiff.Query where
 
-import           VDiff.Prelude hiding (Disagreement)
+import           VDiff.Prelude              hiding (Disagreement)
 
 import           Control.Lens.TH
 import           Data.List                  (isInfixOf)
@@ -28,12 +28,19 @@ data Query
   | Disagreement
   | UnsoundAccordingToKleeOrCbmc
   | UnsoundAccordingToKleeOrCbmcOrSmack
+  | Everything
   deriving (Show, Eq)
 
 type Statistics = [(Text, Text)]
 
-
-
+queryFromName :: String -> Maybe Query
+queryFromName "incomplete"              = Just Incomplete
+queryFromName "unsound"                 = Just Unsound
+queryFromName "disagreement"            = Just Disagreement
+queryFromName "unsound-klee-cbmc"       = Just UnsoundAccordingToKleeOrCbmc
+queryFromName "unsound-klee-cbmc-smack" = Just UnsoundAccordingToKleeOrCbmcOrSmack
+queryFromName "everything"              = Just Everything
+queryFromName _                         = Nothing
 
 stats :: (HasDatabase env) => RIO env Statistics
 stats = do
@@ -83,6 +90,9 @@ allUnsoundAccordingToKleeOrCbmcOrSmack = query_ $(embedQuery "unsound-klee-cbmc-
 allRuns :: (HasDatabase env) => RIO env [(String, String, Maybe Double, Maybe Int)]
 allRuns = query_ "SELECT verifier_name,result,time,memory FROM runs;"
 
+allRuns' :: (HasDatabase env) => RIO env [RunFinding]
+allRuns' = query_ $(embedQuery "all-runs.sql")
+
 allRunsByHash :: (HasDatabase env) => String -> RIO env [(String, String, Maybe Double, Maybe Int)]
 allRunsByHash str = query "SELECT verifier_name,result,time,memory FROM RUNS WHERE code_hash = ? " (SQL.Only str)
 
@@ -108,3 +118,4 @@ executeQuery q = case q of
   Disagreement                        -> allDisagreement
   UnsoundAccordingToKleeOrCbmc        -> allUnsoundAccordingToKleeOrCbmc
   UnsoundAccordingToKleeOrCbmcOrSmack -> allUnsoundAccordingToKleeOrCbmcOrSmack
+  Everything                          -> allRuns'
