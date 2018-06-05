@@ -1,6 +1,7 @@
 flags: {}
 packages:
 - ./vdiff
+- ./vdiff-server
 - location: ./language-c-extensible
   extra-dep: true
 

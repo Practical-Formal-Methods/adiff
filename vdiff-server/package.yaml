@@ -1,0 +1,47 @@
+name:                vdiff-server
+version:             0.1.0.0
+github:              "chkl/vdiff"
+license:             AllRightsReserved 
+author:              "Christian Klinger"
+maintainer:          "io@klinch.de"
+copyright:           "2018 Christian Klinger"
+
+extra-source-files:
+- README.md
+
+description:         Please see the README on GitHub at <https://github.com/chkl/vdiff#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- vdiff
+- vdiff
+- scotty
+- shakespeare 
+- blaze-html
+- sqlite-simple
+- text
+
+library:
+  source-dirs: src
+
+executables:
+  vdiff-server-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - vdiff-server
+
+tests:
+  vdiff-server-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - vdiff-server
