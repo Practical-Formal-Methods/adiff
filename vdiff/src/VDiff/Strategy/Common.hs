@@ -89,6 +89,18 @@ mkRandomAssertion e = do
           expression = CBinary CNeqOp e constant' (undefNode, boolType)
       return (assertStmt expression)
 
+mkAssertionFromPool :: (MonadRandom m) => CExpression SemPhase -> ConstantPool -> m (Maybe Stmt)
+mkAssertionFromPool e pool = do
+  let ty = getType e
+  let cs = lookupPool ty pool
+  chooseOneOf cs >>= \case
+    Nothing -> return Nothing
+    Just c' -> do
+      let cnst = CConst c'
+          expr = CBinary CNeqOp e cnst (undefNode, voidType)
+      return $ Just $ assertStmt expr
+
+
 mkRandomConstant :: (MonadRandom m) => Type -> m (CConstant SemPhase)
 mkRandomConstant ty
   | ty `sameType` integral TyChar = do

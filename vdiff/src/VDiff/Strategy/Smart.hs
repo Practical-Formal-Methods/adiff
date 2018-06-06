@@ -181,7 +181,7 @@ exploreStatementHeavy = do
   exprs <- currentReads
   forM_ exprs $ \e ->
       whenBudget_ (>0) $ tryout $ do
-        (Just asrt) <- randomlyBranchMay [ mkAssertionFromPool e
+        (Just asrt) <- randomlyBranchMay [ mkAssertionFromPool' e
                                          , Just <$> mkRandomAssertion e]
         insertBefore asrt
         budget -= 1
@@ -261,8 +261,8 @@ relativeError a b
 
 
 -- | Chooses a constant: First tries to choose randomly from the pool for the type.
-mkAssertionFromPool :: CExpression SemPhase -> Smart env (Maybe Stmt)
-mkAssertionFromPool e = do
+mkAssertionFromPool' :: CExpression SemPhase -> Smart env (Maybe Stmt)
+mkAssertionFromPool' e = do
   let ty = getType e
   cs <- lookupPool ty <$> use constants
   chooseOneOf cs >>= \case
@@ -272,6 +272,17 @@ mkAssertionFromPool e = do
           expr = CBinary CNeqOp e cnst (undefNode, voidType)
       return $ Just $ assertStmt expr
 
+
+mkAssertionFromPool :: (MonadRandom m) => CExpression SemPhase -> ConstantPool -> m (Maybe Stmt)
+mkAssertionFromPool e pool = do
+  let ty = getType e
+  let cs = lookupPool ty pool
+  chooseOneOf cs >>= \case
+    Nothing -> return Nothing
+    Just c' -> do
+      let cnst = CConst c'
+          expr = CBinary CNeqOp e cnst (undefNode, voidType)
+      return $ Just $ assertStmt expr
 
 
 sortBest :: [(Double, AstPosition)] -> [(Double, AstPosition)]
