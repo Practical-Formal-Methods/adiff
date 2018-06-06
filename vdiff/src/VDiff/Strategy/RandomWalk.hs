@@ -20,6 +20,7 @@ import           VDiff.Strategy.Common
 data RandomState = RandomState
   { _budget                :: !Int
   , _stepsWithoutInsertion :: !Int
+  , _pool :: ConstantPool
   }
 makeFieldsNoPrefix ''RandomState
 
@@ -42,21 +43,23 @@ randomWalkStrategy :: (IsStrategyEnv env) => RIO env ()
 randomWalkStrategy = do
   tu <- view translationUnit
   b <- view (diffParameters . budget)
-  let initState = RandomState b 0
+  let initState = RandomState b 0 (findAllConstants tu)
   void $ runRandomS initState tu
 
 
 randomWalkStrategy' :: (IsStrategyEnv env) => RandomS env ()
 randomWalkStrategy' = do
-  bdg <- use budget
+  bdg  <- use budget
   stps <- use stepsWithoutInsertion
+  pool <- use pool
   when (bdg > 0 && stps < 1000) $ do
     randomStep
     stepsWithoutInsertion += 1
     vars <- currentReads
     unless (null vars) $ tryout $ do
         (Just e) <- chooseOneOf vars
-        asrt <- mkRandomAssertion e
+        (Just asrt) <- randomlyBranchMay [ mkAssertionFromPool e pool
+                                         , Just <$> mkRandomAssertion e]
         stepsWithoutInsertion .= 0
         insertBefore asrt
         tu <- buildTranslationUnit
