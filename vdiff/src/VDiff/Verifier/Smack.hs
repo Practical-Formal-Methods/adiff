@@ -14,7 +14,7 @@ smack = Verifier
 executeSmack :: FilePath -> RIO VerifierEnv VerifierResult
 executeSmack fp = do
   withSystemTempDirectory "smack" $ \dir -> do
-    let cmd = shell $ "cd " ++ dir ++ "; " ++ "CORRAL=\"mono /tmp/corral/bin/Release/corral.exe\" smack -x=svcomp "  ++ fp
+    let cmd = shell $ "cd " ++ dir ++ "; " ++ "CORRAL=\"mono /tmp/corral/bin/Release/corral.exe\" smack -x=svcomp --clang-options=-m32"  ++ fp
     withTiming cmd "" $ \ec _ _ -> do
       case ec of
         ExitFailure _ -> return Sat
