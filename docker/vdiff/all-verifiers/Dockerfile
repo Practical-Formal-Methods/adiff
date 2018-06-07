@@ -116,7 +116,7 @@ RUN git config --global user.email "x@y.com"  &&\
 
 RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 	cd /tmp/klee && \
-#	git checkout 4010156bf946341f42aa82fc0a2669c936d5e106 && \
+  git checkout 4211cea27f1903f68c2b32267eb34cb95c24b9f3 && \
 	git fetch origin pull/605/head:pull605 ;\
 	git fetch origin pull/729/head:pull729 ;\
 	git merge pull605 ;\
