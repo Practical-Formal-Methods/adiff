@@ -119,7 +119,8 @@ viewParameters = ViewParameters <$> viewCommand
                        , correlationCmd
                        , mergeCmd
                        , runsCmd
-                       , distributionCmd ]
+                       , distributionCmd
+                       , statCmd ]
 
 statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd,runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
