@@ -6,7 +6,7 @@ module VDiff.Strategy
 
 import           VDiff.Prelude
 
-import           VDiff.Strategy.RandomUniform
+import           VDiff.Strategy.WeightedPosition
 import           VDiff.Strategy.RandomWalk
 import           VDiff.Strategy.Smart
 

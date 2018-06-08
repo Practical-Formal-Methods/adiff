@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 
-module VDiff.Strategy.RandomUniform
+module VDiff.Strategy.WeightedPosition
   ( randomUniformStrategy
   , depthFirstStrategy
   , breadthFirstStrategy
