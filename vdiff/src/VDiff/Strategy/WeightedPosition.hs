@@ -54,7 +54,7 @@ mkStrategy prioritize = do
   let constantPool = findAllConstants tu
 
   unless (Raffle.countElements reads == 0) $
-    void $ runBudgetT bdg $ do
+    void $ runBudgetT bdg $ forever $ do
       r <- Raffle.drawM reads
       let ty = getType $ r ^. expression
       let constants = Raffle.fromList1 $ map Just $ lookupPool ty constantPool
