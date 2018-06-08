@@ -113,6 +113,7 @@ dependencies:
   - template-haskell
   - dlist
   - ilist
+  - vector
   - MonadRandom
   - filepath
   - utility-ht

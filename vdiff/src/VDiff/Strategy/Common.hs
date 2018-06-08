@@ -24,15 +24,20 @@ import           System.Random
 import           Text.PrettyPrint.HughesPJ          (render)
 
 
-
 import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Instrumentation.Reads
 import           VDiff.Persistence
 import           VDiff.Strategy.Common.ConstantPool
+import VDiff.Strategy.Common.Budget
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
+
+verifyB :: (IsStrategyEnv env, MonadReader env m, MonadIO m, MonadBudget m)
+  => CTranslationUnit SemPhase
+  -> m ([VerifierRun], Conclusion)
+verifyB tu = budgeted (verify tu)
 
 
 verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
@@ -137,20 +142,32 @@ assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (
   where
     identifier = CVar (builtinIdent "__VERIFIER_assert") (undefNode,voidType)
 
-
+-- | assertUnequal e c results in an AST fragment with the assertion @e != c@
 assertUnequal :: CExpression SemPhase -> CConstant SemPhase -> CStatement SemPhase
-assertUnequal expr c = assertStmt expression
+assertUnequal expr c = assertStmt $ expr `unequalC`  (CConst c)
+
+
+-- | assertUnequals e c1, c2,.. results in an AST fragment with the assertion @e
+-- != c1 && e != c2 ...@
+assertUnequals :: CExpression SemPhase -> [CConstant SemPhase] -> CStatement SemPhase
+assertUnequals expr []     = assertStmt constantTrue
+assertUnequals expr (c:cs) = assertStmt $ foldl' f (expr `unequalC` (CConst c)) cs
   where
-    expression = CBinary CNeqOp expr (CConst c) (undefNode, boolType)
+    f e c            = e `andC` (CBinary CNeqOp expr (CConst c) (undefNode, boolType))
+
 
 
 -- | a simple 'assert(false)' statement
 assertFalse :: CStatement SemPhase
-assertFalse = assertStmt false
-  where
-    false = CConst $ CIntConst (cInteger 0) voidNode
-    voidNode = (undefNode, voidType)
+assertFalse = assertStmt constantFalse
 
+constantTrue = CConst $ CIntConst (cInteger 0) (undefNode, voidType)
+constantFalse = CConst $ CIntConst (cInteger 1) (undefNode, voidType)
+
+-- little shortcuts
+andC, unequalC :: CExpression SemPhase -> CExpression SemPhase -> CExpression SemPhase
+e1 `andC` e2     = CBinary CLndOp e1 e2 (undefNode, boolType)
+e1 `unequalC` e2 = CBinary CNeqOp e1 e2 (undefNode, boolType)
 
 
 currentReads :: (MonadBrowser m, MonadReader env m, HasDiffParameters env) => m [CExpression SemPhase]

@@ -1,4 +1,5 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -27,7 +28,7 @@ import           Language.C                       hiding (LevelError, LevelWarn,
                                                    execParser)
 import           Language.C.Analysis.AstAnalysis2
 import           Language.C.Analysis.SemRep       hiding (Stmt)
-import           Language.C.Analysis.TypeUtils (voidType)
+import           Language.C.Analysis.TypeUtils    (voidType)
 import           Language.C.Data.Lens
 import           Safe
 import           System.IO                        (FilePath)
@@ -38,6 +39,7 @@ import           VDiff.Data
 
 data Strategy = RandomWalkStrategy
               | RandomUniformStrategy
+              | RandomUniformBatchStrategy
               | BreadthFirstStrategy
               | DepthFirstStrategy
               | SmartStrategy
@@ -132,6 +134,13 @@ data Conclusion
   | Disagreement                  -- ^ none of the other cases
   deriving (Show)
 
+isDisagreement :: Conclusion -> Bool
+isDisagreement = \case
+  StrongAgreement _ -> False
+  WeakAgreement   _ -> False
+  Unsoundness     _ -> True
+  Incompleteness  _ -> True
+  Disagreement      -> True
 
 
 data Verifier = Verifier
@@ -210,7 +219,7 @@ randomlyBranchTrue options = isJust <$> randomlyBranchMay options'
   where
     options' = map (boolToMaybe <$>) options
     boolToMaybe False = Nothing
-    boolToMaybe True = Just ()
+    boolToMaybe True  = Just ()
 
 -- | Partial function
 deleteIndex 0 (x:xs) = xs

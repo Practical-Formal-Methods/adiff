@@ -67,12 +67,8 @@ strategy = option stratParser options
                           , metavar "STRATEGY"
                           , completeWith strategyNames
                           ]
-        stratParser = (str :: ReadM Text) >>= \case
-          "random-walk"    -> return RandomWalkStrategy
-          "random-uniform" -> return RandomUniformStrategy
-          "smart"          -> return SmartStrategy
-          "bfs"            -> return BreadthFirstStrategy
-          "dfs"            -> return DepthFirstStrategy
-          _ -> readerError$ "Accepted strategies are " ++ txtStrategies
+        stratParser = lookupStrategy <$> str >>= \case
+          Just s -> return s
+          Nothing -> readerError $ "Accepted strategies are " ++ txtStrategies
         txtStrategies = unwords strategyNames
         strategyNames = map strategyName availableStrategies
