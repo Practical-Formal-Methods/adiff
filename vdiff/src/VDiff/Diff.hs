@@ -13,10 +13,12 @@ import           Data.Ord              (comparing)
 import           Language.C
 import           Text.PrettyPrint      (render)
 
+import qualified Data.Text.IO          as T
 import           System.Directory
 import           System.Exit
 import           System.IO
 
+import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Strategy
 import           VDiff.Verifier
@@ -26,7 +28,7 @@ import           VDiff.Verifier
 cmdDiff :: HasMainEnv a => DiffParameters -> RIO a ()
 cmdDiff params = do
   logInfo "starting diff"
-  mAst <- openCFile (params ^. program)
+  mAst <- openCFile (params ^. inputFile)
   case mAst of
     Nothing -> liftIO exitFailure
     Just ast -> do
@@ -51,10 +53,10 @@ cmdMarkReads mode fn = do
   liftIO . putStrLn . render . pretty $ ast'
 
 cmdVersions :: RIO a ()
-cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \verifier -> do
-    putStr $ verifierName verifier
+cmdVersions = liftIO $ forM_ (sortBy (comparing ((^. name))) allVerifiers) $ \verifier -> do
+    T.putStr $ verifier ^. name
     putStr ": "
-    sv <- try (version verifier) >>= \case
+    sv <- try (verifier ^. version) >>= \case
       Left (_ :: IOException) -> return "unknown (error)"
       Right Nothing -> return "unknown"
       Right (Just v) -> return v
@@ -62,10 +64,10 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing verifierName) allVerifiers) $ \v
 
 cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
-  fn' <- liftIO $ makeAbsolute (dp ^. program)
+  fn' <- liftIO $ makeAbsolute (dp ^. inputFile)
   lg <- view logFuncL
   let verifierEnv = VerifierEnv lg (dp ^. timelimit)
   forM_ (dp ^. verifiers) $ \v -> do
-    liftIO $ print (verifierName v)
+    liftIO $ print (v ^. name)
     res <- runRIO verifierEnv $ execute v fn'
     liftIO $ print res

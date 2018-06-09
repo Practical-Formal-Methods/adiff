@@ -3,7 +3,7 @@ module Persistence (testPersistence) where
 import           RIO
 import           Test.Tasty
 
-import           VDiff.Data.Data2
+import           VDiff.Data
 
 import           Database.Beam
 import           Database.Beam.Migrate.Simple
@@ -28,8 +28,8 @@ testSimpl = testCase "simple interactions" $
                          , Program "ef" "bla.i" ""
                          ]
       -- insert some programs
-      runInsert $ insert (_programs vdiffDb) $
+      runInsert $ insert (vdiffDb ^. programs) $
         insertValues somePrograms
       -- and now we query those programs
-      somePrograms' <- runSelectReturningList $ select $ all_ (_programs vdiffDb)
+      somePrograms' <- runSelectReturningList $ select $ all_ (vdiffDb ^. programs)
       liftIO (somePrograms @=? somePrograms')

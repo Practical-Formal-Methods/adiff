@@ -17,5 +17,5 @@ import           Options.Applicative
 import           RIO                                hiding (view, (^.))
 
 import           VDiff.Prelude.Internal.Application
-import           VDiff.Prelude.Types
+import           VDiff.Prelude.Types hiding (program)
 

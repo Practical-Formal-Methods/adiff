@@ -15,6 +15,7 @@ import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
+import qualified Data.Text.IO as Text
 import           RIO.List
 import           System.Exit
 import           System.IO
@@ -30,7 +31,7 @@ data ViewCommand = Stats
                  | List Q.Query -- ^ list all findings
                  | Count Q.Query -- ^ count findings
                  | DistributionPerFile Q.Query -- ^ show the distribution
-                 | Program String
+                 | GetProgram String
                  | Runs String
                  | TimeMemoryGraph FilePath
                  | Merge [FilePath]
@@ -55,7 +56,8 @@ instance T.CellValueFormatter Text
 executeView :: (HasMainEnv env) => ViewCommand -> RIO env ()
 executeView Stats = do
   stats <- Q.stats
-  liftIO $  T.printTable stats
+  -- liftIO $  T.printTable stats
+  error "stats table print"
   return ()
 executeView (List q) = do
   rs <- Q.executeQuery q
@@ -69,10 +71,10 @@ executeView (DistributionPerFile q) = do
   let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
   liftIO $ T.printTable counts
 
-executeView (Program hsh) = do
+executeView (GetProgram hsh) = do
   p <- Q.programByHash hsh
   liftIO $ case p of
-    Just p' -> putStr (p' ^. source)
+    Just p' -> Text.putStr (p' ^. source)
     Nothing -> do
       hPutStrLn stderr $ "could not find program with hash: " <> hsh
       exitFailure
@@ -140,7 +142,7 @@ countCmd = switch options $> Count <*> query
                           , help "returns the number of findings"
                           ]
 
-programCmd = Program <$> option str options
+programCmd = GetProgram <$> option str options
   where options = mconcat [ long "hash"
                           , help "returns the source code of a program with the given hash"
                           , metavar "HASH"

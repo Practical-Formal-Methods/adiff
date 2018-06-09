@@ -9,12 +9,7 @@ import           Safe
 import           VDiff.Verifier.Util
 
 cprover2Ls :: Verifier
-cprover2Ls = Verifier
-  { verifierName = "2ls"
-  , execute = execute2Ls
-  , version = version2Ls
-  }
-
+cprover2Ls = Verifier "2ls" execute2Ls version2Ls
 
 execute2Ls :: FilePath -> RIO VerifierEnv VerifierResult
 execute2Ls fn = do

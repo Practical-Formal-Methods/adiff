@@ -1,4 +1,6 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE MultiWayIf    #-}
 
 -- | argument parsers that are used by both vdiff and vdiff-viewer
 
@@ -9,6 +11,7 @@ module VDiff.Arguments
 
 import           VDiff.Prelude
 
+import qualified Data.Text           as T
 import           Options.Applicative
 import qualified RIO.List            as L
 
@@ -32,17 +35,18 @@ someFile =  argument str options
 verifiers :: Parser [Verifier]
 verifiers = option verifierParser options
   where options = mconcat [ long "verifiers"
-                          , help ("the compared verifiers (available: " ++ show (map verifierName (allVerifiers ++ debuggingVerifiers)) ++ ")"  )
+                          , help ("the compared verifiers (available: " <> show (map (^. name) (allVerifiers ++ debuggingVerifiers)) <> ")"  )
                           , value allVerifiers
                           ]
-        verifierParser = str >>= \s -> if s == ""
-                               then pure []
-                               else let reqVer = words s
-                                        unavailable = reqVer L.\\ map verifierName (allVerifiers ++ debuggingVerifiers)
-                                    in
-                                      if null unavailable
-                                      then pure $ filter (\v -> verifierName v `elem` reqVer) (allVerifiers ++ debuggingVerifiers)
-                                      else readerError $ "unknown verifier(s): " ++ unwords unavailable
+        verifierParser = str >>= \s ->
+          if s == ""
+            then pure []
+            else do
+              let reqVer = T.words s
+              let unavailable = reqVer L.\\ map (^. name) (allVerifiers ++ debuggingVerifiers)
+              if null unavailable
+                then pure $ filter (\v -> (v ^. name) `elem` reqVer) (allVerifiers ++ debuggingVerifiers)
+                else readerError $ "unknown verifier(s): " ++ unwords (map T.unpack unavailable)
 
 
 diffParameters :: Parser DiffParameters

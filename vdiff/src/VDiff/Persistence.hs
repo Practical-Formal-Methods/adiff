@@ -1,4 +1,4 @@
-module VDiff.Persistence where
+module VDiff.Persistence {-# DEPRECATED "use Data instead" #-} where
 
 import           VDiff.Prelude
 
@@ -9,8 +9,9 @@ import qualified Data.ByteString.Char8          as C8
 import qualified Database.SQLite.Simple         as SQL
 import           Database.SQLite.Simple.ToField
 
-import           VDiff.Data
+import           VDiff.DataOld
 import           VDiff.Timed
+
 --------------------------------------------------------------------------------
 -- * Persistence
 --------------------------------------------------------------------------------

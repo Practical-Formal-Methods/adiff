@@ -214,7 +214,8 @@ exploreStatement = tryout $ do
 updateAverages' :: (IsStrategyEnv env) => [VerifierRun] -> Smart env ()
 updateAverages' res = do
   tl <- fromIntegral <$> view (diffParameters  . timelimit)
-  let times = map (maybe (tl / 1000000) elapsedWall . timing . verifierResult) res
+  let mTimes = map (^. (result . wallTime)) res
+      times = map (fromMaybe (tl / 1000000)) mTimes
   averages %= updateAverages times
 
 
@@ -230,9 +231,11 @@ disagreement (Incompleteness _)  = 10
 disagreement  Disagreement       = 3
 
 timeIrregularity :: [VerifierRun] -> Smart env Double
-timeIrregularity result = do
+timeIrregularity res = do
   avgs <- getAverages <$> use averages
-  let times = map (maybe 0 elapsedWall . timing . verifierResult) result
+  -- let times = map (maybe 0 elapsedWall . timing . verifierResult) result
+  let mTimes = map (^. (result . wallTime)) res
+      times = map (fromMaybe 0) mTimes
   return $ timeIrregularity' avgs times
 
 timeIrregularity' :: [Double] -> [Double] -> Double
