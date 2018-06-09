@@ -117,4 +117,8 @@ dependencies:
   - MonadRandom
   - filepath
   - utility-ht
+  - beam-core
+  - beam-sqlite
+  - beam-migrate
+
   
