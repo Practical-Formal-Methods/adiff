@@ -44,8 +44,6 @@ queryFromName _                         = Nothing
 
 stats :: (HasDatabase env) => RIO env Statistics
 stats = undefined
-
--- stats :: (HasDatabase env) => RIO env Statistics
 -- stats = do
 --   [runsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM runs;"
 --   [programsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM programs;"

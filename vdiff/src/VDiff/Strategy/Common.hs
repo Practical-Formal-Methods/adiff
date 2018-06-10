@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
@@ -15,20 +16,24 @@ import           VDiff.Prelude
 
 import           Control.Lens
 import           Control.Monad.State
+import           Database.Beam
+import           Database.Beam.Backend.SQL.BeamExtensions
 import           Language.C
-import           Language.C.Analysis.SemRep         hiding (Stmt)
+import           Language.C.Analysis.SemRep               hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
 import           Safe
-import           System.IO                          (hPutStr)
+import           System.IO                                (hPutStr)
 import           System.Random
-import           Text.PrettyPrint.HughesPJ          (render)
-
+import           Text.PrettyPrint.HughesPJ                (render)
 
 import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Instrumentation.Reads
+import           VDiff.Persistence
+import           VDiff.Strategy.Common.Budget
 import           VDiff.Strategy.Common.ConstantPool
-import VDiff.Strategy.Common.Budget
+
+
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
@@ -49,6 +54,7 @@ verify tu = do
     _ -> return ()
   return (res, conclusion)
 
+
 -- | runs the given translation unit against the configured verifiers.
 verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m (Program, [VerifierRun])
 verify' tu = do
@@ -60,20 +66,15 @@ verify' tu = do
         originalFileName <- view (diffParameters . inputFile)
         let content = render . pretty $ tu
             program' = mkProgram content originalFileName
-        -- persist' program'
-        -- TODO: persist program here
+        storeProgram program'
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
         runs <- forM vs $ \v -> do
                 vEnv <- mkVerifierEnv time
                 r <- runRIO vEnv $ execute v fp
-                let run = VerifierRun undefined undefined undefined undefined
-                -- let run = VerifierRun default_ (val_ $ v ^. verifierName) r (program' ^. hash)
-                -- persist' run
-                -- TODO: persist run here
+                [run] <- runBeam $ runInsertReturningList (vdiffDb ^. runs) $ insertExpressions [VerifierRun default_ (val_ (v ^. name)) (val_ (primaryKey program')) (val_ r) ]
                 return run
         return (program', runs)
-
 
 conclude :: [VerifierRun] -> Conclusion
 conclude  rs = if

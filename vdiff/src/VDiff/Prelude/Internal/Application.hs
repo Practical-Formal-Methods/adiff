@@ -7,8 +7,11 @@ import RIO
 import Options.Applicative
 import qualified Data.List as L
 import qualified Database.SQLite.Simple         as SQL
-
+import Database.Beam.Migrate.Simple
+import Database.Beam.Sqlite.Migrate
+import Database.Beam.Sqlite
 import VDiff.Prelude.Types
+import VDiff.Data
 
 runVDiffApp :: (Parser p) -> (forall b. InfoMod b) -> (p -> RIO MainEnv a) -> IO a
 runVDiffApp parser infoMod app = do
@@ -21,10 +24,16 @@ runVDiffApp parser infoMod app = do
   let logOptions' = setLogMinLevel logLevel logOptions
 
   -- wrap app in withLogFunc and withDiffDB
-  withLogFunc logOptions' $ \logger ->
-    withDiffDB dbPath $ \database -> do
-      let env = MainEnv logger database
-      runRIO env (app customParams)
+  withLogFunc logOptions' $ \logger -> do
+    conn <- liftIO $ SQL.open dbPath
+    -- also run the auto-migration provided by Beam
+    runBeamSqlite conn $ autoMigrate migrationBackend vdiffDbChecked
+    let env = MainEnv logger conn
+    -- run the application
+    r <- runRIO env (app customParams)
+    -- close connection
+    SQL.close conn
+    return r
 
 
 -- | parses loglevel, database
