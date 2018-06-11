@@ -49,6 +49,7 @@ executables:
     dependencies:
       - vdiff
       - random-shuffle
+      - extra>=1.6.5
     ghc-options: -threaded -O2 -rtsopts
 
   
