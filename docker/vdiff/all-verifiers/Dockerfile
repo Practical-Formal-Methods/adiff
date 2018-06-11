@@ -19,6 +19,8 @@ RUN apt-get update && \
     clang-5.0 \
     cmake \
     flex \
+    g++-multilib \
+    gcc-multilib \
     git \
     java-common \
     libasound2 \
