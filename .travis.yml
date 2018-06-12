@@ -16,4 +16,4 @@ before_install:
 
 script:
   - stack build --no-docker
-  - stack test vdiff:regression
+  - stack test --no-docker vdiff:regression
