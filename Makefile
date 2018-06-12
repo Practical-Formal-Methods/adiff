@@ -1,12 +1,5 @@
 
-VERSION= $(shell stack query "locals" | grep version | cut -d" " -f 4 | tr -d "'")
-SDIST= $(shell stack path --dist-dir)
-BINARY= vdiff/$(shell stack path --dist-dir)/build/vdiff/vdiff
-BINARY-VIEWER= vdiff/$(shell stack path --dist-dir)/build/vdiff-viewer/vdiff-viewer
-INTEGRATION= vdiff/$(shell stack path --dist-dir)/build/integration/integration
-
-default: img-run 
-
+default: img-run
 
 compile: img-build
 	stack build
@@ -17,20 +10,13 @@ vdiff-docker: Dockerfile
 clean:
 	stack clean
 
-install:
+install: img-run
 	cp -r scripts/* $(HOME)/.local/bin
 	stack build --copy-bins --no-docker
 
 # regression tests
-test:
-	stack test vdiff:regression
-
-
-# integration
-test-integration: vdiff-docker
-	stack build vdiff:integration --no-run-tests
-	docker run vdiff:latest /bin/bash -lc "integration --color=always"
-
+test: img-run
+	stack test
 
 # docker images
 
