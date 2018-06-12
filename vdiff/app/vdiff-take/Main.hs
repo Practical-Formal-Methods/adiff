@@ -19,37 +19,46 @@ import           System.Random.Shuffle
 
 import           VDiff.Instrumentation
 
-description :: String
-description =
-  " This is a small script that is supposed to run from inside the sv-benchmark folder. " ++
-  " It randomly selects a number of files from SV-Comp in a unbiased fashion. For that it" ++
-  " 'round-robins' the subfolders of the given folder and randomly picks a (parseable) file "
+description, descriptionGenerate, descriptionTake :: String
+description = " This tool produces a fair sampling of benchmarks (e.g. from SV-Comp). "
+descriptionGenerate = " Build a database that contains the parseability property of every file in the given directory"
+descriptionTake = " Takes a fair sample of parseable benchmarks. It excludes a priori benchmarks containing the words " ++
+                  " 'float' or 'driver'. 'Fair' means that it round-robins between the categories. Note that this is only" ++
+                  " fair for smallsample sizes. When the sample size is too big, there might be categories that are already" ++
+                  " depleted, so other there will be more benchmarks from other categories. "
+
+type CategoryLevel = Int
+type DbPath = FilePath
+
+data Parameters
+  = BuildDatabase DbPath FilePath
+  | FairSample DbPath Int CategoryLevel
+  deriving Show
+
 
 main :: IO ()
 main = execParser opts >>= \case
-  BuildDatabase fp -> do
+  BuildDatabase dbPath fp -> do
     -- open database if exists
-    db <- fromMaybe (Database Map.empty) <$> readDatabase "take-database"
+    db <- fromMaybe (Database Map.empty) <$> readDatabase dbPath
     db_ref <- newIORef db
     allFiles <- listFilesRecursive fp
     relFiles <- filterM preferPreprocessed $ filterExisting db $ filterUnwanted allFiles
     -- process the remaining files
     _ <- abortable $ processQueue db_ref relFiles
-    putStrLn "writing back to database file 'take-database'"
-    readIORef db_ref >>= writeDatabase "take-database"
+    putStrLn $ "writing back to database file "++ dbPath
+    readIORef db_ref >>= writeDatabase dbPath
 
-  FairSample n lvl -> do
-    db <- readDatabase "take-database" >>= \case
+  FairSample dbPath n lvl -> do
+    db <- readDatabase dbPath >>= \case
       Nothing -> error "could not find take-database"
       Just db' -> return db'
     -- group into categories
     let categories = Map.elems $ groupIntoCategories db lvl
-    -- shuffle the order of the categories
-    categories' <- shuffleM categories
-    -- shuffle each category in itself
-    categories'' <- mapM shuffleM categories'
+    -- shuffle the order of the categories and the categories itself
+    categories' <- shuffleM =<< mapM shuffleM categories
     -- read 'columnwise'
-    let files = readColumnwise categories''
+    let files = readColumnwise categories'
     mapM_ putStrLn $ take n files
 
 processQueue :: IORef Database -> [FilePath] -> IO ()
@@ -60,26 +69,6 @@ processQueue db_ref files =
     let status = if r then Parseable else NotParseable
     putStrLn $ "result: " ++ show r
     atomicModifyIORef' db_ref (\(Database m) -> (Database (Map.insert f status m) ,()))
-
-
-type CategoryLevel = Int
-
-data Parameters
-  = FairSample Int CategoryLevel
-  | BuildDatabase FilePath
-  deriving Show
-
-parameterParser :: Parser Parameters
-parameterParser =  sampleCmd <|> buildDatabaseCmd
-  where
-    sampleCmd = FairSample <$> parseNum <*> parseLevel
-    buildDatabaseCmd = BuildDatabase <$> option str (long "build-db-for")
-    parseNum = option auto $ mconcat [ long "num" , short 'n', help "limit the number of used cpus"]
-    parseLevel = option auto $ mconcat [ long "category-level" , short 'l', help "defines what a category is", value 2]
-
-opts :: ParserInfo Parameters
-opts = info (parameterParser <**> helper) (progDesc description)
-
 
 
 -- filter out categories that have "float" in its name (we know that most tools don't handle those well)
@@ -119,16 +108,11 @@ writeDatabase fp (Database m) = do
   forM_ (Map.toAscList m ) $ \(f,s) -> do
     hPutStr h f
     hPutStr h ":"
-    hPutStrLn h (show s)
+    hPrint h s
   hFlush h
 
 filterExisting :: Database -> [FilePath] -> [FilePath]
 filterExisting (Database db) = filter $ \f -> f `Map.notMember` db
-
-
-  
---------------------------------------------------------------------------------
-
 
 --------------------------------------------------------------------------------
 -- data mangling
@@ -159,19 +143,41 @@ groupIntoCategories (Database db) lvl = foldl' insertIntoCategories Map.empty pa
     insertIntoCategories m (pref, f) = Map.insertWith (++) pref [f] m
 
 
--- executes the action, but catches ASyncExceptions (e.g. Heap Overflows, UserInterrupt, ThreadKilled)
-abortable :: IO a -> IO (Maybe a)
-abortable act = (Just <$> act) `catch` \(e :: AsyncException) -> do
-  putStrLn $ displayException e
-  return Nothing
-
-
-
+-- | Run the parser (and typechecker) for up to 5 seconds and catch any IOException
 testParse :: FilePath -> IO Bool
-testParse f = testParse' `catch` (\(_ :: IOException) -> return False)
+testParse f = timeoutM (5 * 1000 * 1000) testParse' `catch` (\(_ :: IOException) -> return False)
   where
     testParse' = do
       res <- liftIO $ runRIO NoLogging $ openCFile f
       case force $ prettyp <$> res of
         Nothing -> return False
         Just  _ -> return True
+
+--------------------------------------------------------------------------------
+-- Parameter parsing
+parameterParser  :: Parser Parameters
+parameterParser = hsubparser $ mconcat [ command "generate" (info generateOptions (progDesc descriptionGenerate))
+                                       , command  "take" (info takeOptions (progDesc descriptionTake))
+                                       ]
+  where
+    generateOptions = BuildDatabase <$> dbFile <*> argument str (metavar "DIRECTORY" <> value "./" <> action "file")
+    takeOptions     = FairSample <$> dbFile <*> parseNum <*> parseLevel
+    parseNum        = option auto $ mconcat [ long "num" , short 'n', help "sample size"]
+    parseLevel      = option auto $ mconcat [ long "category-level" , short 'l', help "defines what a category is", value 2]
+    dbFile          = option str  $ mconcat [ long "database", short 'd', action "file" ]
+
+opts :: ParserInfo Parameters
+opts = info (parameterParser <**> helper) (progDesc description)
+
+
+--------------------------------------------------------------------------------
+-- Utils
+-- | executes the action, but catches ASyncExceptions (e.g. Heap Overflows, UserInterrupt, ThreadKilled)
+abortable :: IO a -> IO (Maybe a)
+abortable act = (Just <$> act) `catch` \(e :: AsyncException) -> do
+  putStrLn $ displayException e
+  return Nothing
+
+
+timeoutM :: Int -> IO Bool -> IO Bool
+timeoutM t act = fromMaybe False <$> timeout t act
