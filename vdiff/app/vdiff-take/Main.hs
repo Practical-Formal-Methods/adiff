@@ -1,125 +1,183 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-import           VDiff.Prelude
+import           Prelude                (read)
+import           VDiff.Prelude          hiding (catch, hFlush)
 
-import           Control.Monad
+import           Control.Exception
 import           Data.List
-import qualified Data.Map              as Map
-import qualified Data.Set              as Set
+import qualified Data.Map.Strict        as Map
+import qualified Data.Text              as T
+import qualified Data.Text.IO           as T
 import           Options.Applicative
+import           Safe
 import           System.Directory
-import           System.Environment
-import           System.Exit
+import           System.Directory.Extra (listFilesRecursive)
+import           System.FilePath.Posix
 import           System.IO
-import           System.Process
 import           System.Random.Shuffle
 
 import           VDiff.Instrumentation
 
-description :: String
-description =
-  " This is a small script that is supposed to run from inside the sv-benchmark folder. " ++
-  " It randomly selects a number of files from SV-Comp in a unbiased fashion. For that it" ++
-  " 'round-robins' the subfolders of the given folder and randomly picks a (parseable) file "
+description, descriptionGenerate, descriptionTake :: String
+description = " This tool produces a fair sampling of benchmarks (e.g. from SV-Comp). "
+descriptionGenerate = " Build a database that contains the parseability property of every file in the given directory"
+descriptionTake = " Takes a fair sample of parseable benchmarks. It excludes a priori benchmarks containing the words " ++
+                  " 'float' or 'driver'. 'Fair' means that it round-robins between the categories. Note that this is only" ++
+                  " fair for smallsample sizes. When the sample size is too big, there might be categories that are already" ++
+                  " depleted, so other there will be more benchmarks from other categories. "
+
+type CategoryLevel = Int
+type DbPath = FilePath
+
+data Parameters
+  = BuildDatabase DbPath FilePath
+  | FairSample DbPath Int CategoryLevel
+  deriving Show
 
 
-data Parameters = Parameters
-  { numFiles :: Int
-  } deriving Show
+main :: IO ()
+main = execParser opts >>= \case
+  BuildDatabase dbPath fp -> do
+    -- open database if exists
+    db <- fromMaybe (Database Map.empty) <$> readDatabase dbPath
+    db_ref <- newIORef db
+    allFiles <- listFilesRecursive fp
+    relFiles <- filterM preferPreprocessed $ filterExisting db $ filterUnwanted allFiles
+    -- process the remaining files
+    _ <- abortable $ processQueue db_ref relFiles
+    putStrLn $ "writing back to database file "++ dbPath
+    readIORef db_ref >>= writeDatabase dbPath
+
+  FairSample dbPath n lvl -> do
+    db <- readDatabase dbPath >>= \case
+      Nothing -> error "could not find take-database"
+      Just db' -> return db'
+    -- group into categories
+    let categories = Map.elems $ groupIntoCategories db lvl
+    -- shuffle the order of the categories and the categories itself
+    categories' <- shuffleM =<< mapM shuffleM categories
+    -- read 'columnwise'
+    let files = readColumnwise categories'
+    mapM_ putStrLn $ take n files
+
+processQueue :: IORef Database -> [FilePath] -> IO ()
+processQueue db_ref files =
+  forM_ files $ \f -> do
+    putStrLn $ "testing " ++ f
+    r <- testParse f
+    let status = if r then Parseable else NotParseable
+    putStrLn $ "result: " ++ show r
+    atomicModifyIORef' db_ref (\(Database m) -> (Database (Map.insert f status m) ,()))
 
 
-parameterParser :: Parser Parameters
-parameterParser =  Parameters <$> parseNum
+-- filter out categories that have "float" in its name (we know that most tools don't handle those well)
+filterUnwanted :: [FilePath] -> [FilePath]
+filterUnwanted = filter flt
   where
-    parseNum = option auto $ mconcat [ long "num" , short 'n', help "limit the number of used cpus"]
+    flt file = and [ not (w `isInfixOf` file) | w <- blacklist]
+    blacklist = ["float", "driver"]
+
+--------------------------------------------------------------------------------
+-- "Database"
+newtype Database = Database (Map FilePath Status)
+
+data Status = Parseable | NotParseable
+  deriving (Read,Show,Eq)
+
+
+readDatabase :: FilePath -> IO (Maybe Database)
+readDatabase fp = do
+  x <- doesFileExist fp
+  if x
+    then do
+      cts <- T.readFile fp
+      let m = foldl' insertLine Map.empty (T.lines cts)
+      return $ Just $ Database m
+    else
+      return Nothing
+  where
+    insertLine :: Map FilePath Status -> Text -> Map FilePath Status
+    insertLine m l = case T.splitOn ":" l of
+                       [f,s] -> Map.insert (T.unpack f) (read (T.unpack s)) m
+                       _     -> error "error parsing database file"
+
+writeDatabase :: FilePath -> Database ->  IO ()
+writeDatabase fp (Database m) = do
+  h <- openFile fp WriteMode
+  forM_ (Map.toAscList m ) $ \(f,s) -> do
+    hPutStr h f
+    hPutStr h ":"
+    hPrint h s
+  hFlush h
+
+filterExisting :: Database -> [FilePath] -> [FilePath]
+filterExisting (Database db) = filter $ \f -> f `Map.notMember` db
+
+--------------------------------------------------------------------------------
+-- data mangling
+preferPreprocessed :: FilePath -> IO Bool
+preferPreprocessed fn
+  | takeExtension fn == ".i" = return True
+  | takeExtension fn == ".c" = not <$> doesFileExist ( replaceExtension fn ".i")
+  | otherwise                = return False
+
+
+
+readColumnwise :: [[a]] -> [a]
+readColumnwise rows = let (r,ows) = takeFirstColumn rows
+                      in r ++ readColumnwise ows
+
+takeFirstColumn :: [[a]] -> ([a], [[a]])
+takeFirstColumn rows = (r,rest)
+  where
+    r = mapMaybe headMay rows
+    rest = filter (not . null) $ map tailSafe rows
+
+
+groupIntoCategories :: Database -> Int -> Map Text [FilePath]
+groupIntoCategories (Database db) lvl = foldl' insertIntoCategories Map.empty parseable
+  where
+    parseable    =  [(takePrefix f, f) | (f, Parseable) <- Map.assocs db]
+    takePrefix f = T.intercalate "/" $ take lvl $ T.splitOn "/" $ T.pack f
+    insertIntoCategories m (pref, f) = Map.insertWith (++) pref [f] m
+
+
+-- | Run the parser (and typechecker) for up to 5 seconds and catch any IOException
+testParse :: FilePath -> IO Bool
+testParse f = timeoutM (5 * 1000 * 1000) testParse' `catch` (\(_ :: IOException) -> return False)
+  where
+    testParse' = do
+      res <- liftIO $ runRIO NoLogging $ openCFile f
+      case force $ prettyp <$> res of
+        Nothing -> return False
+        Just  _ -> return True
+
+--------------------------------------------------------------------------------
+-- Parameter parsing
+parameterParser  :: Parser Parameters
+parameterParser = hsubparser $ mconcat [ command "generate" (info generateOptions (progDesc descriptionGenerate))
+                                       , command  "take" (info takeOptions (progDesc descriptionTake))
+                                       ]
+  where
+    generateOptions = BuildDatabase <$> dbFile <*> argument str (metavar "DIRECTORY" <> value "./" <> action "file")
+    takeOptions     = FairSample <$> dbFile <*> parseNum <*> parseLevel
+    parseNum        = option auto $ mconcat [ long "num" , short 'n', help "sample size"]
+    parseLevel      = option auto $ mconcat [ long "category-level" , short 'l', help "defines what a category is", value 2]
+    dbFile          = option str  $ mconcat [ long "database", short 'd', action "file" ]
 
 opts :: ParserInfo Parameters
 opts = info (parameterParser <**> helper) (progDesc description)
 
 
-isNotInfixOf a b = not $ isInfixOf a b
-
--- filter out categories that have "float" in its name (we know that most tools don't handle those well)
-filterFiles :: [FilePath] -> [FilePath]
-filterFiles = filter flt
-  where
-    flt file = and $ [ w `isNotInfixOf` file | w <- blacklist]
-    blacklist = ["float", "driver"]
-
-data Finished = Finished
-
-data TakeEnv = TakeEnv
-  { logFunction :: LogFunc
-  , memostore   :: IORef (Map FilePath Bool)
-  }
-instance HasLogFunc TakeEnv where
-  logFuncL = lens logFunction (\env l -> env {logFunction = l})
-
-main :: IO ()
-main = do
-  parameters <- execParser opts
-  -- otherwise "tee" is a little unsatisfying
-  System.IO.hSetBuffering stdout LineBuffering
-  logOptions <- logOptionsHandle stderr True
-  let logOptions' = setLogMinLevel LevelInfo logOptions
-  withLogFunc logOptions' $ \logger -> do
-    memostoreRef <- newIORef (Map.empty)
-    let env = TakeEnv logger memostoreRef
-    runRIO env $ do
-      logInfo "starting vdiff-take"
-      folders <- (subfolders "." >>= shuffleM)
-      filesRef <- newIORef Set.empty
-      forM_ (cycle folders) $ \folder -> do
-        files <- readIORef filesRef
-        -- abort when we have files
-        when (Set.size files >= numFiles parameters) $ liftIO exitSuccess
-        -- try to pick a file
-        pickFile folder >>= \case
-          Nothing -> logInfo "no file found"
-          Just f -> do
-            logInfo $ "found file: " <> display (tshow f)
-            when (not (Set.member f files)) $ do
-                -- store the file in the set
-                modifyIORef filesRef (Set.insert f)
-                -- write the file to stdout
-                liftIO $ putStrLn f
-
-subfolders :: (MonadIO m, MonadReader env m, HasLogFunc env) => FilePath -> m [FilePath]
-subfolders dir = do
-  contents <- liftIO $ listDirectory dir
-  filterM (liftIO . doesDirectoryExist) contents
-
-pickFile :: FilePath -> RIO TakeEnv (Maybe FilePath)
-pickFile dir = do
-  logInfo $ "trying to pick file from " <> display (tshow dir)
-  contents <- filterFiles . filter (".i" `isSuffixOf`) . map (\fn -> dir ++ "/" ++ fn) <$> liftIO (listDirectory dir)
-  files <- shuffleM =<< filterM (liftIO.doesFileExist) contents
-  takeFirstM testParse files
-
--- | this function uses the memostore in the environment to memoize its results
-testParse :: FilePath -> RIO TakeEnv Bool
-testParse file = do
-  storeRef <- asks memostore
-  store <- readIORef storeRef
-  case (Map.lookup file store) of
-    Nothing -> do
-      res <- testParse' file
-      liftIO $ writeIORef storeRef $ Map.insert file res store
-      return res
-    Just res -> return res
+--------------------------------------------------------------------------------
+-- Utils
+-- | executes the action, but catches ASyncExceptions (e.g. Heap Overflows, UserInterrupt, ThreadKilled)
+abortable :: IO a -> IO (Maybe a)
+abortable act = (Just <$> act) `catch` \(e :: AsyncException) -> do
+  putStrLn $ displayException e
+  return Nothing
 
 
-  where
-    testParse' file = do
-      res <- liftIO $ runRIO NoLogging $ openCFile file
-      case (force $ prettyp <$> res) of
-        Nothing -> return False
-        Just  _ -> return True
-
-
-
-takeFirstM :: (Monad m) => (a -> m Bool) -> [a] -> m (Maybe a)
-takeFirstM t []     = return Nothing
-takeFirstM t (x:xs) = t x >>= \case
-                                True -> return (Just x)
-                                False -> takeFirstM t xs
+timeoutM :: Int -> IO Bool -> IO Bool
+timeoutM t act = fromMaybe False <$> timeout t act
