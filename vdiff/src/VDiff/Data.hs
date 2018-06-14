@@ -46,6 +46,7 @@ module VDiff.Data (
   , vdiffDb
   , vdiffDbChecked
   , VDiffDb
+  , migrateVdiff
   -- * Others
   , VerifierName
   , default_
@@ -64,6 +65,8 @@ import           Database.SQLite.Simple.FromField
 import qualified Crypto.Hash.SHA1                   as SHA1
 import qualified Data.ByteString.Base16             as Hex
 import qualified Data.ByteString.Char8              as C8
+import Database.Beam.Migrate.Simple
+import Database.Beam.Sqlite.Migrate
 
 type VerifierName = Text
 
@@ -202,9 +205,11 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
     mod_programs = checkedTableModification
       { _hash   = "code_hash"
       , _origin = "origin"
-      , _source = "source"
+      , _source = "content"
       }
 
 vdiffDb :: DatabaseSettings be VDiffDb
 vdiffDb = unCheckDatabase vdiffDbChecked
 
+migrateVdiff :: SqliteM ()
+migrateVdiff = autoMigrate migrationBackend vdiffDbChecked

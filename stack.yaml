@@ -17,7 +17,7 @@ extra-deps:
 # Using nightly until a stable release with GHC 8.4 is released
 resolver: nightly-2018-06-12
 
-docker:
-   enable: true
-   image: vdiff/build
-   set-user: false
+#docker:
+#   enable: true
+#   image: vdiff/build
+#   set-user: false

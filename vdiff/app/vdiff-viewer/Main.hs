@@ -9,7 +9,6 @@ module Main where
 import           VDiff.Prelude
 
 import           Control.Lens.Operators                 hiding ((^.))
-import           Control.Lens.TH
 import qualified Data.List.Key                          as K
 import qualified Data.Text.IO                           as Text
 import qualified Database.SQLite.Simple                 as SQL
@@ -23,7 +22,6 @@ import qualified Text.PrettyPrint.Tabulate              as T
 
 import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
-import           VDiff.Persistence                      (withDiffDB)
 import qualified VDiff.Query                            as Q
 
 
