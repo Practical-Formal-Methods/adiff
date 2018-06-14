@@ -11,6 +11,7 @@ extra-deps:
 - rio-0.1.0.0
 - Chart-1.9
 - Chart-cairo-1.9
+- beam-sqlite-0.3.2.1
 
 #resolver: lts-11.10
 # Using nightly until a stable release with GHC 8.4 is released
