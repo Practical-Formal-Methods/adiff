@@ -1,7 +1,7 @@
 <table>
   <tr>
     <td>original filename
-    <td><pre>#{ program  ^. originalFilename}
+    <td><pre>#{ program  ^. origin }
   <tr>
     <td>hash
     <td><pre.hash>#{ hash }

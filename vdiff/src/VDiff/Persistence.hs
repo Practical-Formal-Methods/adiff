@@ -6,6 +6,7 @@ import qualified Crypto.Hash.SHA1               as SHA1
 import qualified Data.ByteString.Base16         as Hex
 import qualified Data.ByteString.Char8          as C8
 
+import           Database.Beam.Sqlite           as Sqlite
 import qualified Database.SQLite.Simple         as SQL
 import           Database.SQLite.Simple.ToField
 
@@ -25,33 +26,11 @@ withDiffDB fn act = do
   SQL.close conn
   return x
 
+runBeam :: (HasDatabase env) => Sqlite.SqliteM a -> RIO env a
+runBeam act = do
+  env <- ask
+  liftIO $ Sqlite.runBeamSqlite (env ^. databaseL) act
 
--- | For things that should be stored into the database
-class Persistent a where
-  persist :: SQL.Connection -> a -> IO ()
-
-instance Persistent CProgram where
-  persist conn p = SQL.execute conn "INSERT OR IGNORE INTO programs(code_hash, origin, content) VALUES(?,?,?) " row
-    where row = [ toField (p ^. hash)
-                , toField (p ^. originalFilename)
-                , toField (p ^. source)
-                ]
-
-instance Persistent VerifierRun where
-  persist conn run = do
-    let row = [ toField (runVerifierName run)
-              , toField (verdict $ verifierResult run)
-              , maybe SQL.SQLNull (toField.elapsedWall)  (timing $ verifierResult run)
-              , maybe SQL.SQLNull (toField.maxResidentMemory) (timing $ verifierResult run)
-              , toField (verifierCode run)
-              ]
-    SQL.execute conn "INSERT INTO runs(verifier_name,result,time,memory,code_hash) VALUES (?,?,?,?,?)" row
-
--- | This is a RIO version of persist
-persist' :: (HasDatabase env, Persistent a) => a -> RIO env ()
-persist' x = do
-  conn <- view databaseL
-  liftIO $ persist conn x
 
 
 query_ :: (SQL.FromRow r, HasDatabase env) => SQL.Query -> RIO env [r]
@@ -74,10 +53,3 @@ fold_ q z f = do
   conn <- view databaseL
   liftIO $ SQL.fold_ conn q z f
 
-
---------------------------------------------------------------------------------
--- * Utilities
---------------------------------------------------------------------------------
-
-mkHash :: String -> Hashed
-mkHash =  Hashed . Hex.encode . SHA1.hash . C8.pack

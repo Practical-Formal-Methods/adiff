@@ -5,11 +5,7 @@ import           VDiff.Verifier.Util
 
 import           System.Process
 
-smack = Verifier
-  { verifierName = "smack"
-  , execute = executeSmack
-  , version = versionSmack
-  }
+smack = Verifier "smack" executeSmack versionSmack
 
 executeSmack :: FilePath -> RIO VerifierEnv VerifierResult
 executeSmack fp = do
