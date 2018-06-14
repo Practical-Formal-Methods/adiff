@@ -43,14 +43,15 @@ queryFromName "everything"              = Just Everything
 queryFromName _                         = Nothing
 
 stats :: (HasDatabase env) => RIO env Statistics
-stats = do
-  [runsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM runs;"
-  [programsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM programs;"
-  [distinctOrigin :: SQL.Only Int] <- query_ "SELECT COUNT(DISTINCT origin) FROM programs;"
-  return [ ("runs", tshow $ SQL.fromOnly runsN)
-         , ("programs", tshow $ SQL.fromOnly programsN)
-         , ("used source files", tshow $ SQL.fromOnly distinctOrigin)
-         ]
+stats = undefined
+-- stats = do
+--   [runsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM runs;"
+--   [programsN :: SQL.Only Int] <- query_ "SELECT COUNT(*) FROM programs;"
+--   [distinctOrigin :: SQL.Only Int] <- query_ "SELECT COUNT(DISTINCT origin) FROM programs;"
+--   return [ ("runs", tshow $ SQL.fromOnly runsN)
+--          , ("programs", tshow $ SQL.fromOnly programsN)
+--          , ("used source files", tshow $ SQL.fromOnly distinctOrigin)
+--          ]
 
 data RunFinding = RunFinding
   { runId         :: Int
@@ -96,15 +97,18 @@ allRuns' = query_ $(embedQuery "all-runs.sql")
 allRunsByHash :: (HasDatabase env) => String -> RIO env [(String, String, Maybe Double, Maybe Int)]
 allRunsByHash str = query "SELECT verifier_name,result,time,memory FROM RUNS WHERE code_hash = ? " (SQL.Only str)
 
+
+programByHash :: (HasDatabase env) => String -> RIO env (Maybe Program)
+programByHash = undefined
 -- this folds over the complete database because sqlite does not have string matching
-programByHash :: (HasDatabase env) => String -> RIO env (Maybe CProgram)
-programByHash hsh = do
-  prgs <- fold_ "SELECT * FROM programs" [] f
-  return $ headMay prgs
-  where
-    f ls prg = if hsh `isInfixOf` show (prg ^. hash)
-               then return (prg:ls)
-               else return ls
+-- programByHash :: (HasDatabase env) => String -> RIO env (Maybe Program)
+-- programByHash hsh = do
+--   prgs <- fold_ "SELECT * FROM programs" [] f
+--   return $ headMay prgs
+--   where
+--     f ls prg = if hsh `isInfixOf` show (prg ^. hash)
+--                then return (prg:ls)
+--                else return ls
 
 
 updateIndices :: (HasDatabase env, HasLogFunc env) => RIO env ()

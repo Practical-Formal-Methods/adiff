@@ -11,6 +11,7 @@ import           VDiff.Prelude
 import           Control.Lens.Operators                 hiding ((^.))
 import           Control.Lens.TH
 import qualified Data.List.Key                          as K
+import qualified Data.Text.IO                           as Text
 import qualified Database.SQLite.Simple                 as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
@@ -30,7 +31,7 @@ data ViewCommand = Stats
                  | List Q.Query -- ^ list all findings
                  | Count Q.Query -- ^ count findings
                  | DistributionPerFile Q.Query -- ^ show the distribution
-                 | Program String
+                 | GetProgram String
                  | Runs String
                  | TimeMemoryGraph FilePath
                  | Merge [FilePath]
@@ -55,30 +56,34 @@ instance T.CellValueFormatter Text
 executeView :: (HasMainEnv env) => ViewCommand -> RIO env ()
 executeView Stats = do
   stats <- Q.stats
-  liftIO $  T.printTable stats
+  liftIO $ print stats
+  -- liftIO $  T.printTable stats
   return ()
 executeView (List q) = do
   rs <- Q.executeQuery q
-  liftIO $ T.printTable rs
+  -- liftIO $ T.printTable rs
+  error "todo executeView (list)"
 executeView (Count q) = do
   rs <- Q.executeQuery q
   liftIO $ print $ length rs
 executeView (DistributionPerFile q) = do
-  rs <- Q.executeQuery q
-  let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn $ rs
-  let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
-  liftIO $ T.printTable counts
+  error "todo"
+  -- rs <- Q.executeQuery q
+  -- let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn $ rs
+  -- let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
+  -- liftIO $ T.printTable counts
 
-executeView (Program hsh) = do
+executeView (GetProgram hsh) = do
   p <- Q.programByHash hsh
   liftIO $ case p of
-    Just p' -> putStr (p' ^. source)
+    Just p' -> Text.putStr (p' ^. source)
     Nothing -> do
       hPutStrLn stderr $ "could not find program with hash: " <> hsh
       exitFailure
 executeView (TimeMemoryGraph outp) = do
   d <- Q.allRuns
-  liftIO $ renderPoints (cleanData d) outp
+  -- liftIO $ renderPoints (cleanData d) outp
+  error "xx"
 
 executeView (Runs hsh) = do
   runs <- Q.allRunsByHash hsh
@@ -140,7 +145,7 @@ countCmd = switch options $> Count <*> query
                           , help "returns the number of findings"
                           ]
 
-programCmd = Program <$> option str options
+programCmd = GetProgram <$> option str options
   where options = mconcat [ long "hash"
                           , help "returns the source code of a program with the given hash"
                           , metavar "HASH"
@@ -183,14 +188,17 @@ data DataLine = DataLine
   , proportions :: [(Double, Int)]
   }
 
-cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
-cleanData runs =
-  let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
-      grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
-      tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
-  in tagged
-  where
-    e23 g = [(y,z) | (_,y,z) <- g]
+cleanData :: [VerifierRun] -> [DataLine]
+cleanData runs = undefined
+  -- let terminated = [ (r ^. name,r ^. source, m `div` 1024 )
+  --                  | r <- runs
+  --                  , (Just m) <- r ^. memory
+  --                  ] -- memory in MiB
+  --     grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
+  --     tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
+  -- in tagged
+  -- where
+  --   e23 g = [(y,z) | (_,y,z) <- g]
 
 fst3 (x,_,_) = x
 

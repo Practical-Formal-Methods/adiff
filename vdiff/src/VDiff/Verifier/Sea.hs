@@ -7,18 +7,10 @@ import qualified Data.ByteString.Char8 as C8
 import           VDiff.Verifier.Util
 
 seahorn :: Verifier
-seahorn = Verifier
-  { verifierName = "seahorn"
-  , execute = runSea False
-  , version = seaVersion
-  }
+seahorn = Verifier "seahorn" (runSea False) seaVersion
 
 seacrab :: Verifier
-seacrab = Verifier
-  { verifierName = "seacrab"
-  , execute = runSea True
-  , version = seaVersion
-  }
+seacrab = Verifier "seacrab" (runSea True) seaVersion
 
 -- | Apparently, the script "sea" has to be run from the directory it is installed in.
 -- At the moment, the path /verifiers/seahorn/bin is hard coded. TODO: Use which or similar to change cwd based on that.

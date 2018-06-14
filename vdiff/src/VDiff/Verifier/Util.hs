@@ -1,7 +1,7 @@
 module VDiff.Verifier.Util
   ( Verifier(..)
   , System.Exit.ExitCode(..)
-  , VerifierResult(..)
+  , VerifierResult
   , Verdict(..)
   , module Safe
   , withSystemTempFile
@@ -72,9 +72,9 @@ withTiming cp inp cont = do
   case termination of
     Nothing           -> do
       logInfo "command timed out"
-      return VerifierTimedOut
+      return $ VerifierResult Nothing Nothing Unknown
     Just (ec, t) -> do
       logInfo $ "command terminated with exit code " <> display (tshow ec)
       vrdct <- cont ec out err
-      return $ VerifierTerminated vrdct t
+      return $ VerifierResult (Just $ elapsedWall t) (Just $ maxResidentMemory t) vrdct
 

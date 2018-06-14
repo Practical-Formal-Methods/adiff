@@ -48,6 +48,30 @@ data SearchMode = IdentOnly | Subexpressions
   deriving Show
 
 type Microseconds = Int
+
+-- | Every verifier is supposed to run in this environment
+data VerifierEnv = VerifierEnv
+  { _verifierEnvLogger :: !LogFunc
+  , _timeLimit         :: !Microseconds
+  }
+
+data Verifier = Verifier
+  { _name    :: VerifierName
+  , execute  :: FilePath -> RIO VerifierEnv VerifierResult
+  , _version :: IO (Maybe String)
+  }
+
+data DiffParameters = DiffParameters
+  { _strategy   :: Strategy
+  , _budget     :: Int
+  , _timelimit  :: Int
+  , _verifiers  :: [Verifier]
+  , _searchMode :: SearchMode
+  , _inputFile  :: FilePath
+  }
+makeFieldsNoPrefix ''DiffParameters
+makeFieldsNoPrefix ''Verifier
+
 --------------------------------------------------------------------------------
 -- | * RIO
 -- | type classes for usage with RIO instances
@@ -76,11 +100,6 @@ instance HasLogFunc MainEnv where
 instance HasDatabase MainEnv where
   databaseL = lens _database (\e d -> e {_database = d})
 
--- | Every verifier is supposed to run in this environment
-data VerifierEnv = VerifierEnv
-  { _verifierEnvLogger :: !LogFunc
-  , _timeLimit         :: !Microseconds
-  }
 instance HasLogFunc VerifierEnv where
   logFuncL = lens _verifierEnvLogger (\e l -> e { _verifierEnvLogger = l})
 
@@ -143,31 +162,16 @@ isDisagreement = \case
   Disagreement      -> True
 
 
-data Verifier = Verifier
-  { verifierName :: VerifierName
-  , execute      :: FilePath -> RIO VerifierEnv VerifierResult
-  , version      :: IO (Maybe String)
-  }
 
 instance Eq Verifier where
-  v1 == v2 = verifierName (v1 :: Verifier) == verifierName (v2 :: Verifier)
+  v1 == v2 = _name (v1 :: Verifier) == _name (v2 :: Verifier)
 
 instance Ord Verifier where
-  v1 <= v2 = verifierName (v1 :: Verifier) <= verifierName (v2 :: Verifier)
+  v1 <= v2 = _name (v1 :: Verifier) <= _name (v2 :: Verifier)
 
 
 
 
-data DiffParameters = DiffParameters
-  { _strategy   :: Strategy
-  , _budget     :: Int
-  , _timelimit  :: Int
-  , _verifiers  :: [Verifier]
-  , _searchMode :: SearchMode
-  , _program    :: FilePath
-  }
-
-makeFieldsNoPrefix ''DiffParameters
 
 type Property = String
 type TU       = CTranslationUnit SemPhase
