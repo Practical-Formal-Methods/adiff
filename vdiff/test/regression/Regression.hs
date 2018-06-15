@@ -8,8 +8,9 @@ import           InstrumentationTest
 import           Lens
 import           TimedTest
 
+import           Persistence
+import           Query
 import           Strategy.Common
-import Persistence
 
 
 main :: IO ()
@@ -26,6 +27,7 @@ constructTree = do
     , testLenses
     , pure testCommon
     , pure testPersistence
+    , pure testQueries
     ]
   return $ testGroup "vdiff" tree
 

@@ -10,6 +10,7 @@ import           Database.Beam
 import           Database.Beam.Sqlite           as Sqlite
 import qualified Database.SQLite.Simple         as SQL
 import           Database.SQLite.Simple.ToField
+import           System.IO                      (putStrLn)
 
 import           VDiff.Data
 import           VDiff.Timed
@@ -22,6 +23,11 @@ runBeam :: (HasDatabase env) => Sqlite.SqliteM a -> RIO env a
 runBeam act = do
   env <- ask
   liftIO $ Sqlite.runBeamSqlite (env ^. databaseL) act
+
+runBeamDebug :: (HasDatabase env) => Sqlite.SqliteM a -> RIO env a
+runBeamDebug act = do
+  env <- ask
+  liftIO $ Sqlite.runBeamSqliteDebug putStrLn (env ^. databaseL) act
 
 
 

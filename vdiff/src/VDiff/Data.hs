@@ -134,9 +134,6 @@ data VerifierResultMixin f = VerifierResult
   , _verdict  :: C f Verdict
   } deriving (Generic, Beamable)
 
-wallTime :: (Functor f) => Lens' (VerifierResultMixin f) (C f (Maybe Double))
-memory   :: (Functor f) => Lens' (VerifierResultMixin f) (C f (Maybe Int))
-verdict  :: (Functor f) => Lens' (VerifierResultMixin f) (C f Verdict)
 VerifierResult (LensFor wallTime) (LensFor memory) (LensFor verdict) = tableLenses
 
 type VerifierResult = VerifierResultMixin Identity
@@ -162,6 +159,7 @@ result = lens _result (\run res -> run { _result = res})
 
 type VerifierRun = VerifierRunT Identity
 type VerifierRunId = PrimaryKey VerifierRunT Identity
+
 
 toRunId :: Int -> VerifierRunId
 toRunId = VerifierRunId
@@ -213,3 +211,11 @@ vdiffDb = unCheckDatabase vdiffDbChecked
 
 migrateVdiff :: SqliteM ()
 migrateVdiff = autoMigrate migrationBackend vdiffDbChecked
+
+--------------------------------------------------------------------------------
+-- Some useful instances
+
+deriving instance Eq VerifierRunId
+deriving instance Eq ProgramId
+deriving instance Eq VerifierResult
+deriving instance Eq VerifierRun

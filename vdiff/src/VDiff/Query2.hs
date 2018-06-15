@@ -3,6 +3,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
+
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
 
@@ -57,6 +58,33 @@ storeProgram p = do
   exists <- isJust <$> programByHash (p ^. hash)
   unless exists $ runBeam $ runInsert $ insert (vdiffDb ^. programs) $ insertValues [p]
 
-
 storeRun :: (HasDatabase env) => VerifierRun -> RIO env ()
 storeRun r = runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [r]
+
+
+-- | returns a table with runIds and the count of the given verdict on the
+-- program of the run. 'RunId' that have a count of 0 do not show up here, so make
+-- sure that you use a left join and convert the NULL to a 0 in later steps.
+runIdWithVerdict :: Verdict -> Q _ _ _ _
+runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
+  r <- allRuns_
+  r' <- leftJoin_ allRuns_ (\r' -> (r' ^. program) ==. r ^. program)
+  return (r,r')
+  where
+    aggregateGroupLeft  = aggregate_ (\(r,_) -> (group_ (r ^. runId), countAll_))
+    filterRightVerdict  = filter_ (\(_, r) -> ((r ^. (result . verdict)) ==. val_ (Just v)))
+
+
+allFindings :: Q _ _ _ (VerifierRunT (QExpr _ _) , QExpr _ _ Int, QExpr _ _ Int)
+allFindings = do
+  r <- allRuns_
+  (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
+  (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
+  return (r, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
+
+
+incompleteFindings :: Q _ _ _ _
+incompleteFindings = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
+
+unsoundFindings :: Q _ _ _ _
+unsoundFindings = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings

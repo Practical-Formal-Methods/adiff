@@ -7,15 +7,12 @@
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | support queries to the database
-module VDiff.Query where
+module VDiff.Query {-# DEPRECATED "use Query2 instead" #-} where
 
 import           VDiff.Prelude              hiding (Disagreement)
 
-import           Control.Lens.TH
-import           Data.List                  (isInfixOf)
 import           Database.SQLite.Simple     (field)
 import qualified Database.SQLite.Simple     as SQL
-import           Safe
 import           Text.PrettyPrint.Tabulate  ()
 
 import           VDiff.Data
