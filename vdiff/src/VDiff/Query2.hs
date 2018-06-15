@@ -1,8 +1,11 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE PartialTypeSignatures     #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{- signatures of beam-related functions are incredibly verbose, so let's settle for partial type signatures.
+   Sometimes it is straight up impossible to write the types down because of ambiguous types .-}
+{-# OPTIONS_GHC -fno-warn-partial-type-signatures -fno-warn-missing-signatures #-}
 
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
@@ -13,9 +16,6 @@ import           Database.Beam
 import           VDiff.Data
 import           VDiff.Persistence
 
-
-allRuns_      = all_ (vdiffDb ^. runs)
-allPrograms_  = all_ (vdiffDb ^. programs)
 
 
 type Statistics = [(Text, Text)]
@@ -30,8 +30,8 @@ stats = runBeam $ do
          , ("original files used", tshow distinctOriginsN)
          ]
   where
-    runCount     = aggregate_ (const countAll_) allRuns_
-    programCount = aggregate_ (const countAll_) allPrograms_
+    runCount        = aggregate_ (const countAll_) allRuns_
+    programCount    = aggregate_ (const countAll_) allPrograms_
     distinctOrigins = aggregate_ (\c -> countOver_ distinctInGroup_ (c ^. origin)) allPrograms_
 
 
@@ -75,6 +75,12 @@ runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
     filterRightVerdict  = filter_ (\(_, r) -> ((r ^. (result . verdict)) ==. val_ (Just v)))
 
 
+
+incompleteFindings, unsoundFindings, disagreementFindings :: Q _ _ _ _
+incompleteFindings   = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
+unsoundFindings      = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
+disagreementFindings = filter_ (\(_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+
 allFindings :: Q _ _ _ (VerifierRunT (QExpr _ _) , QExpr _ _ Int, QExpr _ _ Int)
 allFindings = do
   r <- allRuns_
@@ -82,9 +88,11 @@ allFindings = do
   (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
   return (r, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
 
+--------------------------------------------------------------------------------
+-- query fragments
 
-incompleteFindings :: Q _ _ _ _
-incompleteFindings = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
+allRuns_ :: Q _ _ _ (VerifierRunT (QExpr _ _))
+allRuns_      = all_ (vdiffDb ^. runs)
 
-unsoundFindings :: Q _ _ _ _
-unsoundFindings = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
+allPrograms_ :: Q _ _ _ (ProgramT (QExpr _ _))
+allPrograms_  = all_ (vdiffDb ^. programs)
