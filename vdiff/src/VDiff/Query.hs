@@ -7,15 +7,12 @@
 {-# LANGUAGE TemplateHaskell        #-}
 
 -- | support queries to the database
-module VDiff.Query where
+module VDiff.Query {-# DEPRECATED "use Query2 instead" #-} where
 
 import           VDiff.Prelude              hiding (Disagreement)
 
-import           Control.Lens.TH
-import           Data.List                  (isInfixOf)
 import           Database.SQLite.Simple     (field)
 import qualified Database.SQLite.Simple     as SQL
-import           Safe
 import           Text.PrettyPrint.Tabulate  ()
 
 import           VDiff.Data
@@ -97,14 +94,15 @@ allRunsByHash :: (HasDatabase env) => String -> RIO env [(String, String, Maybe 
 allRunsByHash str = query "SELECT verifier_name,result,time,memory FROM RUNS WHERE code_hash = ? " (SQL.Only str)
 
 -- this folds over the complete database because sqlite does not have string matching
-programByHash :: (HasDatabase env) => String -> RIO env (Maybe CProgram)
-programByHash hsh = do
-  prgs <- fold_ "SELECT * FROM programs" [] f
-  return $ headMay prgs
-  where
-    f ls prg = if hsh `isInfixOf` show (prg ^. hash)
-               then return (prg:ls)
-               else return ls
+programByHash :: (HasDatabase env) => String -> RIO env (Maybe Program)
+programByHash = undefined
+-- programByHash hsh = do
+--   prgs <- fold_ "SELECT * FROM programs" [] f
+--   return $ headMay prgs
+--   where
+--     f ls prg = if hsh `isInfixOf` show (prg ^. hash)
+--                then return (prg:ls)
+--                else return ls
 
 
 updateIndices :: (HasDatabase env, HasLogFunc env) => RIO env ()

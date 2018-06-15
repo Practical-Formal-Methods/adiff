@@ -11,11 +11,7 @@ import           Data.Maybe            (listToMaybe)
 import           VDiff.Verifier.Util
 
 cpaChecker :: Verifier
-cpaChecker = Verifier
-  { verifierName = "cpachecker"
-  , execute = cpaExecute
-  , version = cpaVersion
-  }
+cpaChecker = Verifier "cpachecker" cpaExecute cpaVersion
 
 cpaExecute :: FilePath -> RIO VerifierEnv VerifierResult
 cpaExecute fn = withSpec reachSafety $ \spec -> do

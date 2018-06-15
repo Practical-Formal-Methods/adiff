@@ -8,6 +8,8 @@ import           InstrumentationTest
 import           Lens
 import           TimedTest
 
+import           Persistence
+import           Query
 import           Strategy.Common
 
 
@@ -24,6 +26,8 @@ constructTree = do
     , pure testInstrumentationProperties
     , testLenses
     , pure testCommon
+    , pure testPersistence
+    , pure testQueries
     ]
   return $ testGroup "vdiff" tree
 

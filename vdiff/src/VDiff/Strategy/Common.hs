@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
@@ -22,13 +23,15 @@ import           Safe
 import           System.IO                          (hPutStr)
 import           System.Random
 import           Text.PrettyPrint.HughesPJ          (render)
-
-
+import           Database.Beam.Backend.SQL.BeamExtensions
 import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Instrumentation.Reads
 import           VDiff.Persistence
 import           VDiff.Strategy.Common.ConstantPool
+import Database.Beam
+import qualified VDiff.Query2 as Q2
+
 import VDiff.Strategy.Common.Budget
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
@@ -50,41 +53,42 @@ verify tu = do
     _ -> return ()
   return (res, conclusion)
 
--- | runs the given translation unit against the configured verifiers.
-verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m (CProgram, [VerifierRun])
+verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m (Program, [VerifierRun])
 verify' tu = do
   vs <- view (diffParameters . verifiers)
   time <- view (diffParameters . timelimit)
   env <- ask
   runRIO env $ withSystemTempFile "input.c" $ \fp h -> do
         -- write file
-        originalFileName <- view (diffParameters . program)
+        originalFileName <- view (diffParameters . inputFile)
         let content = render . pretty $ tu
-            program' = CProgram content originalFileName (mkHash content)
-        persist' program'
+            program' = mkProgram content originalFileName
+        Q2.storeProgram program'
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
         runs <- forM vs $ \v -> do
                 vEnv <- mkVerifierEnv time
                 r <- runRIO vEnv $ execute v fp
-                let run = VerifierRun (verifierName v) r (program' ^. hash)
-                persist' run
+                [run] <- runBeam $ runInsertReturningList (vdiffDb ^. runs) $ insertExpressions
+                  [VerifierRun default_ (val_ (v ^. name)) (val_ (primaryKey program')) (val_ r) ]
                 return run
         return (program', runs)
 
-
 conclude :: [VerifierRun] -> Conclusion
 conclude  rs = if
-  | all (\r -> verdict (verifierResult r) == Sat) rs                  -> StrongAgreement Sat
-  | all (\r -> verdict (verifierResult r) == Unsat) rs                -> StrongAgreement Unsat
-  | all (\r -> verdict (verifierResult r) `elem` [Sat, Unknown]) rs   -> WeakAgreement Sat
-  | all (\r -> verdict (verifierResult r) `elem` [Unsat, Unknown]) rs -> WeakAgreement Unsat
+  | all (\r -> r ^. (result . verdict) == Sat) rs                  -> StrongAgreement Sat
+  | all (\r -> r ^. (result . verdict) == Unsat) rs                -> StrongAgreement Unsat
+  | all (\r -> r ^. (result . verdict) `elem` [Sat, Unknown]) rs   -> WeakAgreement Sat
+  | all (\r -> r ^. (result . verdict) `elem` [Unsat, Unknown]) rs -> WeakAgreement Unsat
   | length sats > length unsats && not (null unsats)                  -> Unsoundness unsats
   | length unsats > length sats && not (null sats)                    -> Incompleteness sats
   | otherwise -> Disagreement
   where
-    unsats = [ runVerifierName r | r <- rs, verdict (verifierResult r) == Unsat ]
-    sats =   [ runVerifierName r | r <- rs, verdict (verifierResult r) == Sat ]
+    sats,unsats :: [Text]
+    unsats = [ r ^. verifierName | r <- rs, r ^. (result . verdict) == Unsat ]
+    sats =   [ r ^. verifierName | r <- rs, r ^. (result . verdict) == Sat ]
+
+
 
 mkRandomAssertion :: (MonadRandom m)  => CExpression SemPhase -> m Stmt
 mkRandomAssertion e = do

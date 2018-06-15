@@ -9,10 +9,7 @@ import           VDiff.Verifier.Util
 -- | This is the cbmc verifier. The last line of its output on stdout tells us
 -- the result of the verification.
 cbmc :: Verifier
-cbmc = Verifier { verifierName = "cbmc"
-           , execute = runCbmc
-           , version = cbmcVersion
-           }
+cbmc = Verifier "cbmc" runCbmc cbmcVersion
 
 runCbmc :: FilePath -> RIO VerifierEnv VerifierResult
 runCbmc fn = do
