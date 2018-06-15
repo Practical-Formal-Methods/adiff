@@ -62,7 +62,7 @@ verify' tu = do
         -- write file
         originalFileName <- view (diffParameters . inputFile)
         let content = render . pretty $ tu
-            program' = mkProgram content originalFileName
+            program' = mkProgram originalFileName content
         Q2.storeProgram program'
         liftIO $ hPutStr h content >> hFlush h
         -- run each verifier
