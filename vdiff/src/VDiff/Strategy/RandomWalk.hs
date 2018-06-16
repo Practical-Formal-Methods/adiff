@@ -18,7 +18,7 @@ import           VDiff.Instrumentation
 import           VDiff.Strategy.Common
 
 data RandomState = RandomState
-  { _budget                :: !Int
+  { _iteration :: !Int
   , _stepsWithoutInsertion :: !Int
   , _pool :: ConstantPool
   }
@@ -35,24 +35,24 @@ instance MonadRandom (RandomS env) where
   getRandom     = liftIO getRandom
   getRandoms    = liftIO getRandoms
 
-runRandomS :: IsStrategyEnv env => RandomState -> CTranslationUnit SemPhase -> RIO env (((), RandomState), CTranslationUnit SemPhase)
-runRandomS initState = runBrowserT (runStateT (unRandom randomWalkStrategy') initState)
+runRandomS :: IsStrategyEnv env => Int -> RandomState -> CTranslationUnit SemPhase -> RIO env (((), RandomState), CTranslationUnit SemPhase)
+runRandomS bdg initState = runBrowserT (runStateT (unRandom (randomWalkStrategy' bdg)) initState)
 
 
 randomWalkStrategy :: (IsStrategyEnv env) => RIO env ()
 randomWalkStrategy = do
   tu <- view translationUnit
   b <- view (diffParameters . budget)
-  let initState = RandomState b 0 (findAllConstants tu)
-  void $ runRandomS initState tu
+  let initState = RandomState 0 0 (findAllConstants tu)
+  void $ runRandomS b initState tu
 
 
-randomWalkStrategy' :: (IsStrategyEnv env) => RandomS env ()
-randomWalkStrategy' = do
-  bdg  <- use budget
+randomWalkStrategy' :: (IsStrategyEnv env) => Int -> RandomS env ()
+randomWalkStrategy' bdg = do
+  n <- use iteration
   stps <- use stepsWithoutInsertion
   pool <- use pool
-  when (bdg > 0 && stps < 1000) $ do
+  when (n < bdg && stps < 1000) $ do
     randomStep
     stepsWithoutInsertion += 1
     vars <- currentReads
@@ -63,11 +63,11 @@ randomWalkStrategy' = do
         stepsWithoutInsertion .= 0
         insertBefore asrt
         tu <- buildTranslationUnit
-        budget -= 1
-        (_, conclusion) <- verify tu
+        (_, conclusion) <- verify n tu
+        iteration += 1
         logInfo $ "conclusion : " <> display (tshow conclusion)
     -- iterate
-    randomWalkStrategy'
+    randomWalkStrategy' bdg
 
 
 

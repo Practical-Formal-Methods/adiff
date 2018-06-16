@@ -35,6 +35,7 @@ module VDiff.Data (
   , VerifierRunId
   , program
   , result
+  , iteration
   -- , result -- TODO: Figure out how to get this lens
   , runId
   , verifierName
@@ -151,9 +152,10 @@ data  VerifierRunT f = VerifierRun
   , _verifierName :: C f Text
   , _program      :: PrimaryKey ProgramT f
   , _result       :: VerifierResultMixin f
+  , _iteration    :: C f Int
   } deriving (Generic, Beamable)
 
-VerifierRun (LensFor runId) (LensFor verifierName) (ProgramId (LensFor program)) _ = tableLenses
+VerifierRun (LensFor runId) (LensFor verifierName) (ProgramId (LensFor program)) _ (LensFor iteration) = tableLenses
 
 result = lens _result (\run res -> run { _result = res})
 

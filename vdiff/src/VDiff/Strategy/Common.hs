@@ -37,15 +37,25 @@ import VDiff.Strategy.Common.Budget
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
 
+-- | This verify runs inside a 'MonadBudget' environment and will automatically
+-- decrement its budget. Also, it has access to the iteration count through the
+-- strategy env.
 verifyB :: (IsStrategyEnv env, MonadReader env m, MonadIO m, MonadBudget m)
   => CTranslationUnit SemPhase
   -> m ([VerifierRun], Conclusion)
-verifyB tu = budgeted (verify tu)
+verifyB tu = do
+  completeBudget <- view (diffParameters . budget )
+  currentBudget <- getBudget
+  let n = completeBudget - currentBudget
+  budgeted (verify n tu)
 
 
-verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m ([VerifierRun], Conclusion)
-verify tu = do
-  (prog, res) <- verify' tu
+verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
+  => Int -- ^ iteration count
+  -> CTranslationUnit SemPhase -- ^ translation unit
+  -> m ([VerifierRun], Conclusion)
+verify n tu = do
+  (prog, res) <- verify' n tu
   let conclusion = conclude res
   case conclusion of
     Unsoundness _ -> logInfo $ "found unsoundness with program " <> display (prog ^. hash)
@@ -53,8 +63,11 @@ verify tu = do
     _ -> return ()
   return (res, conclusion)
 
-verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m) => CTranslationUnit SemPhase -> m (Program, [VerifierRun])
-verify' tu = do
+verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
+  => Int -- ^ iteration count
+  -> CTranslationUnit SemPhase -- ^ translation unit
+  -> m (Program, [VerifierRun])
+verify' n tu = do
   vs <- view (diffParameters . verifiers)
   time <- view (diffParameters . timelimit)
   env <- ask
@@ -70,7 +83,7 @@ verify' tu = do
                 vEnv <- mkVerifierEnv time
                 r <- runRIO vEnv $ execute v fp
                 [run] <- runBeam $ runInsertReturningList (vdiffDb ^. runs) $ insertExpressions
-                  [VerifierRun default_ (val_ (v ^. name)) (val_ (primaryKey program')) (val_ r) ]
+                  [VerifierRun default_ (val_ (v ^. name)) (val_ (primaryKey program')) (val_ r) (val_ n)]
                 return run
         return (program', runs)
 

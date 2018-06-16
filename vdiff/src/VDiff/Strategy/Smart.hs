@@ -34,9 +34,10 @@ import           VDiff.Timed
 
 
 data SmartState = SmartState
-  { _budget    :: !Int         -- ^ remaining budget
-  , _averages  :: Averages     -- ^ average runtime for each verifier
-  , _constants :: ConstantPool -- ^ constants in the program
+  { _budget           :: !Int         -- ^ remaining budget
+  , _averages         :: Averages     -- ^ average runtime for each verifier
+  , _constants        :: ConstantPool -- ^ constants in the program
+  , _iterationCounter :: !Int  -- ^ manually counting the iterations -- TODO: This could be solved by using BudgetT
   }
 makeFieldsNoPrefix ''SmartState
 
@@ -62,7 +63,7 @@ smartStrategy = do
       blurred = blurConstants cs
   logDebug $ "constants found : " <> display cs
   logDebug $ "constants blurred: " <> display blurred
-  let initState = SmartState bdgt (emptyAverages n) blurred
+  let initState = SmartState bdgt (emptyAverages n) blurred 0
   (st,_) <- runSmart initState tu
   logDebug "smart strategy terminated"
   logDebug $ "budget: " <> display (st ^. budget)
@@ -185,7 +186,8 @@ exploreStatementHeavy = do
                                          , Just <$> mkRandomAssertion e]
         insertBefore asrt
         budget -= 1
-        buildTranslationUnit >>= verify'
+        n <- use iterationCounter
+        buildTranslationUnit >>= verify' n >> iterationCounter += 1
   -- and loop if the budget is still not depleted
   whenBudget_ (>0) exploreStatementHeavy
 
@@ -202,7 +204,9 @@ exploreStatement = tryout $ do
     else do
     budget -= 1
     insertBefore assertFalse
-    (res,conclusion) <- (buildTranslationUnit >>= verify)
+    n <- use iterationCounter
+    (res,conclusion) <- (buildTranslationUnit >>= verify n)
+    iterationCounter += 1
     -- update moving average
     updateAverages' res
     -- calculate score from conclusion
