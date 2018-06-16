@@ -13,7 +13,7 @@ module VDiff.Strategy.Common
   ) where
 
 import           VDiff.Prelude
-
+import qualified Prelude as P
 import           Control.Lens
 import           Control.Monad.State
 import           Language.C
@@ -126,7 +126,8 @@ mkAssertionFromPool e pool = do
 mkRandomConstant :: (MonadRandom m) => Type -> m (CConstant SemPhase)
 mkRandomConstant ty
   | ty `sameType` integral TyChar = do
-      (c :: Char) <- getRandom
+      (b :: Word8) <- getRandom -- ^ A C 'char' is only a Word8
+      let c = P.toEnum $ P.fromEnum b
       return $ CCharConst (CChar c False) (undefNode, ty)
 
   | ty `sameType` integral TyBool = do
