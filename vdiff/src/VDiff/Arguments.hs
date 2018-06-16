@@ -51,11 +51,21 @@ verifiers = option verifierParser options
 
 diffParameters :: Parser DiffParameters
 diffParameters = DiffParameters
-      <$> VDiff.Arguments.strategy       <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
+      <$> VDiff.Arguments.strategy
+      <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
       <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
       <*> VDiff.Arguments.verifiers
       <*> VDiff.Arguments.searchMode
+      <*> VDiff.Arguments.batchSize
       <*> cFile
+
+batchSize :: Parser Int
+batchSize = option auto options
+  where options = mconcat [ long "batch-size"
+                          , metavar "BATCH-SIZE"
+                          , help "uses a conjunction of BATCH-SIZE inequalities for an assertion."
+                          , value 1
+                          ]
 
 searchMode :: Parser SearchMode
 searchMode =  flag' Subexpressions (long "read-subexpressions")

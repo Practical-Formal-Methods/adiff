@@ -162,13 +162,16 @@ instance Ord Verifier where
 
 
 
-
+-- | This data type contains all the diff parameters that are passed to the
+-- strategy. Note that not all parameters are relevant for all strategies. For
+-- example the "batchSize" parameter is only available in random-uniform.
 data DiffParameters = DiffParameters
   { _strategy   :: Strategy
   , _budget     :: Int
   , _timelimit  :: Int
   , _verifiers  :: [Verifier]
   , _searchMode :: SearchMode
+  , _batchSize  :: Int
   , _inputFile  :: FilePath
   }
 

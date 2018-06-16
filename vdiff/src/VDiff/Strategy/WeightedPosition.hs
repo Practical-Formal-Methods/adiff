@@ -29,7 +29,7 @@ randomUniformStrategy :: (IsStrategyEnv env) => RIO env ()
 randomUniformStrategy = mkStrategy  (const 1.0)
 
 randomUniformBatchStrategy :: (IsStrategyEnv env) => RIO env ()
-randomUniformBatchStrategy = mkConjunctStrategy (const 1.0)
+randomUniformBatchStrategy = mkStrategy (const 1.0)
 
 -- | Priority proportional to depth
 depthFirstStrategy :: (IsStrategyEnv env) => RIO env ()
@@ -46,44 +46,10 @@ breadthFirstStrategy = mkStrategy p
 
 mkStrategy :: (IsStrategyEnv env) => Prioritization -> RIO env ()
 mkStrategy prioritize = do
-  tu <- view translationUnit
-  bdg <- view (diffParameters . budget)
-  sm <- view (diffParameters . searchMode)
-
-  let reads = Raffle.fromList $ zipMap prioritize $ findAllReads sm tu
-  let constantPool = findAllConstants tu
-
-  unless (Raffle.countElements reads == 0) $
-    void $ runBudgetT bdg $ forever $ do
-      r <- Raffle.drawM reads
-      let ty = getType $ r ^. expression
-      let constants = Raffle.fromList1 $ map Just $ lookupPool ty constantPool
-      let constants' = Raffle.insert (Nothing, max 1 $ Raffle.countTickets constants) constants
-      constant <- Raffle.drawM constants' >>= \case
-        Nothing -> mkRandomConstant ty
-        Just c -> return c
-      let asrt = assertUnequal (r ^. expression) constant
-      let tu' = insertAt (r ^. position) asrt tu
-      verifyB tu'
-  where
-    zipMap f l = zip l (map f l)
-
-
-conjunctionSize :: Int
-conjunctionSize =  4
-
-
-
--- | This is similar to the mkStrategy, but samples multiple constants and
--- builds a conjunctions from that. If the conjunction assertion already leads
--- the verifiers to say "unsat", we have covered all single assertions, if a
--- verifier says "sat", we have to perform binary search to find the violated
--- conjunct.
-mkConjunctStrategy :: (IsStrategyEnv env) => Prioritization -> RIO env ()
-mkConjunctStrategy prioritize = do
-  tu <- view translationUnit
-  bdg <- view (diffParameters . budget)
-  sm <- view (diffParameters . searchMode)
+  tu              <- view translationUnit
+  bdg             <- view (diffParameters . budget)
+  sm              <- view (diffParameters . searchMode)
+  conjunctionSize <- view (diffParameters . batchSize)
 
   let (reads :: Raffle.Raffle ExprRead) = Raffle.fromList $ zipMap prioritize $ findAllReads sm tu
   let constantPool = findAllConstants tu
