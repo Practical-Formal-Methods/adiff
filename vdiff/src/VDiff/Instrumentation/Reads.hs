@@ -14,7 +14,7 @@ import           Control.Monad.Writer              hiding ((<>))
 import qualified Data.DList                        as DL
 import           Data.Functor.Identity
 import           Data.Generics.Uniplate.Operations
-import           Data.List                         (intersect)
+import           Data.List                         (intersect, isPrefixOf)
 import           Language.C.Analysis.TypeUtils     (isIntegralType)
 import           VDiff.Instrumentation.Browser
 import qualified VDiff.Instrumentation.Fragments   as Fragments
@@ -93,7 +93,8 @@ findAllReads mode tu = let (l,_) = runBrowser action tu
   where
     action :: Browser (DL.DList ExprRead)
     action = do
-      res <- forM (definedFunctions tu) $ \f -> do
+      let functions = filter (\f -> not ("__" `isPrefixOf` (identToString f))) $ definedFunctions tu
+      res <- forM functions $ \f -> do
         gotoFunction (identToString f)
         traverseStmtM $ do
             stmt <- currentStmt
