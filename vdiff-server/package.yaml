@@ -20,6 +20,9 @@ dependencies:
 - blaze-html
 - sqlite-simple
 - text
+- beam-core
+- beam-sqlite
+
 
 library:
   source-dirs: src

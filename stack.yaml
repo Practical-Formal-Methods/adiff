@@ -15,7 +15,7 @@ extra-deps:
 
 resolver: lts-11.13
 
-docker:
-   enable: true
-   image: vdiff/build
-   set-user: false
+#docker:
+#   enable: true
+#   image: vdiff/build
+#   set-user: false

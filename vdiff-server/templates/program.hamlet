@@ -12,11 +12,11 @@
       <th>memory
 
   <tbody>
-    $forall (verifier,result,time,memory) <- runs
+    $forall r <- runs
       <tr>
-        <td>#{verifier}
-        <td>#{result}
-        <td>#{maybe "-" show time}
-        <td>#{maybe "-" show memory}
+        <td>#{ r ^. verifierName }
+        <td>#{show $ r ^. (result . verdict) }
+        <td>#{maybe "-" show (r ^. (result . wallTime)) }
+        <td>#{maybe "-" show (r ^. (result . memory)) }
 
 

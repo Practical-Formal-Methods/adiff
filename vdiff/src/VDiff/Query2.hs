@@ -44,6 +44,10 @@ allPrograms = runBeam $ runSelectReturningList $ select $ all_ (vdiffDb ^. progr
 programByHash :: (HasDatabase env) => Text -> RIO env (Maybe Program)
 programByHash hsh = runBeam $ (vdiffDb ^. programs) `byPK` toProgramId hsh
 
+
+runsByHash :: Text -> Q _ _ _ _
+runsByHash hsh = filter_ (\r -> (r ^. program) ==. val_ hsh) allRuns_
+
 runById :: (HasDatabase env) => Int -> RIO env (Maybe VerifierRun)
 runById i = runBeam $ (vdiffDb ^. runs) `byPK` toRunId i
 

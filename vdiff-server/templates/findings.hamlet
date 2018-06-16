@@ -4,17 +4,15 @@
   <tr>
     <th>run id 
     <th>verifier name
-    <th>original
     <th>program
-    <th>unsats
     <th>sats
+    <th>unsats
 
 
-  $forall f <- findings 
+  $forall (run,sat,unsat) <- findings 
     <tr>
-      <td>#{ show $ Q.runId f }
-      <td>#{ f ^. Q.verifierName }
-      <td>#{ f ^. Q.originalFn }
-      <td>^{mkProgramLink $ f ^. Q.programHash}
-      <td>#{ f ^. Q.unsats}
-      <td>#{ f ^. Q.sats}
+      <td>#{ run ^. runId }
+      <td>#{ run ^. verifierName }
+      <td>^{mkProgramLink $ run ^. program}
+      <td>#{ sat }
+      <td>#{ unsat }
