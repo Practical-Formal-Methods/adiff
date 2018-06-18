@@ -1,0 +1,55 @@
+
+<!-- page buttons -->
+<ul.pagination>
+  $if showLeftArr
+    <li>
+      <a href="?page=1">
+        <i.material-icons>
+          first_page
+    <li>
+      <a href=?page=#{prevPage}>
+        <i.material-icons>
+          chevron_left
+  $else
+    <li.disabled>
+      <a href="?page=1">
+        <i.material-icons>
+          first_page
+    <li.disabled>
+      <a>
+        <i.material-icons>
+          chevron_left
+      
+  
+  $forall i <- pages
+    $if i == page
+      <li.active>
+        <a.waves-effect href="?page=#{i}">
+          #{ show i }
+    $elseif i == -1
+      <li>
+        <a>
+          &#8230;
+    $else
+      <li>
+        <a.waves-effect href="?page=#{i}">
+          #{ show i }
+      
+  $if showRightArr
+    <li>
+      <a href=?page=#{nextPage}>
+        <i.material-icons>
+          chevron_right
+    <li>
+      <a href="?page=#{numPages}">
+        <i.material-icons>
+          last_page
+  $else
+    <li.disabled>
+      <a>
+        <i.material-icons>
+          chevron_right
+    <li.disabled>
+      <a href="?page=#{numPages}">
+        <i.material-icons>
+          last_page

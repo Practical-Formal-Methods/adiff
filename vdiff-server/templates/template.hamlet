@@ -1,8 +1,11 @@
 $doctype 5
 <head>
   <title>#{title}
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"></link>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css"></link>
+
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"></link>
 
 <body>
   <header class="" style="background-color: rgb(238, 110, 115); color: white; padding: 30px;">
@@ -23,3 +26,9 @@ $doctype 5
       
   <script>
     hljs.initHighlightingOnLoad();
+    /* enable the select form */
+    document.addEventListener('DOMContentLoaded', function() {
+      var elems = document.querySelectorAll('select');
+      var instances = M.FormSelect.init(elems);
+    });
+

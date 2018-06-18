@@ -1,5 +1,20 @@
 <h3>Findings
 
+Query
+<div class="input-field col s12">
+  <select>
+    <option value="" disabled selected>Search for</option>
+    <option value="incomplete">
+      incomplete
+    <option value="unsound">
+      unsound
+<div class="input-field col s12">
+  <select>
+  <option>
+    according to all of
+  <option>
+    according to any of
+
 <table>
   <tr>
     <th>run id 
@@ -8,7 +23,6 @@
     <th>sats
     <th>unsats
 
-
   $forall (run,sat,unsat) <- findings 
     <tr>
       <td>#{ run ^. runId }
@@ -16,3 +30,6 @@
       <td>^{mkProgramLink $ run ^. program}
       <td>#{ sat }
       <td>#{ unsat }
+
+<div.center>
+  ^{pg}
