@@ -102,6 +102,7 @@ dependencies:
   - random
   - safe
   - sqlite-simple
+  - direct-sqlite
   - transformers
   - mtl
   - text
