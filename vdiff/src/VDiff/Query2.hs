@@ -72,6 +72,14 @@ storeRunFreshId r = do
               [VerifierRun default_ (val_ (r ^. verifierName)) (val_ $ toProgramId (r ^. program)) (val_ (r ^. result)) (val_ (r ^. iteration))]
   return run
 
+tagRun :: HasDatabase env => VerifierRunId -> [(TagName, TagValue)] -> RIO env ()
+tagRun rid pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertExpressions $
+                     map (\(k,v) -> Tag default_ (just_ (val_ rid)) nothing_ (val_ k) (val_ v)) pairs
+
+tagProgram :: HasDatabase env => ProgramId -> [(TagName, TagValue)] -> RIO env ()
+tagProgram hsh pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertExpressions $
+                     map (\(k,v) -> Tag default_ nothing_ (just_ (val_ hsh)) (val_ k) (val_ v)) pairs
+
 -- | returns a table with runIds and the count of the given verdict on the
 -- program of the run. 'RunId' that have a count of 0 do not show up here, so make
 -- sure that you use a left join and convert the NULL to a 0 in later steps.

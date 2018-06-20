@@ -1,11 +1,14 @@
 {-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE ImpredicativeTypes        #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE TypeFamilies              #-}
@@ -40,6 +43,12 @@ module VDiff.Data (
   , runId
   , verifierName
   , toRunId
+  -- * Tags
+  , tags
+  , Tag
+  , TagT(..)
+  , TagValue
+  , TagName
   -- * database
   , runs
   , programs
@@ -51,23 +60,24 @@ module VDiff.Data (
   -- * Others
   , VerifierName
   , default_
+  , primaryKey
   ) where
 
 import           RIO
 
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+import qualified Crypto.Hash.SHA1                 as SHA1
+import qualified Data.ByteString.Base16           as Hex
+import qualified Data.ByteString.Char8            as C8
+import qualified Data.Text                        as T
+import qualified Data.Text.Encoding               as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL
 import           Database.Beam.Migrate
+import           Database.Beam.Migrate.Simple
 import           Database.Beam.Sqlite
 import           Database.Beam.Sqlite.Connection
+import           Database.Beam.Sqlite.Migrate
 import           Database.SQLite.Simple.FromField
-import qualified Crypto.Hash.SHA1                   as SHA1
-import qualified Data.ByteString.Base16             as Hex
-import qualified Data.ByteString.Char8              as C8
-import Database.Beam.Migrate.Simple
-import Database.Beam.Sqlite.Migrate
 
 type VerifierName = Text
 
@@ -112,18 +122,18 @@ instance (HasSqlValueSyntax s Text) => HasSqlValueSyntax s Verdict where
   sqlValueSyntax = sqlValueSyntax . verdictToText
     where
       verdictToText :: Verdict -> Text
-      verdictToText Sat = "sat"
-      verdictToText Unsat = "unsat"
+      verdictToText Sat     = "sat"
+      verdictToText Unsat   = "unsat"
       verdictToText Unknown = "unknown"
 
 instance FromField Verdict where
   fromField f =  do
     (t :: Text) <- fromField f
     case t of
-      "sat" -> return Sat
-      "unsat" -> return Unsat
+      "sat"     -> return Sat
+      "unsat"   -> return Unsat
       "unknown" -> return Unknown
-      _ -> fail $ "unrecognized enum element: " ++ T.unpack t
+      _         -> fail $ "unrecognized enum element: " ++ T.unpack t
 
 instance FromBackendRow Database.Beam.Sqlite.Connection.Sqlite Verdict
 
@@ -168,10 +178,30 @@ toRunId = VerifierRunId
 
 instance Table VerifierRunT where
   data PrimaryKey VerifierRunT f = VerifierRunId (C f Int) deriving (Generic, Beamable)
-  primaryKey = VerifierRunId . _runId
+  primaryKey = VerifierRunId . (^. runId)
 
 deriving instance Show (PrimaryKey ProgramT Identity)
 deriving instance Show VerifierRun
+
+--------------------------------------------------------------------------------
+-- tags can be attached to runs and/or programs.
+
+type TagName = Text
+type TagValue = Text
+
+data TagT f = Tag
+  { _tagId        :: C f Int
+  , _tagRunId     :: PrimaryKey VerifierRunT (Nullable f)
+  , _tagProgramId :: PrimaryKey ProgramT (Nullable f)
+  , _tagName      :: C f TagName
+  , _tagValue     :: C f TagValue
+  } deriving (Generic, Beamable)
+
+type Tag = TagT Identity
+
+instance Table TagT where
+  data PrimaryKey TagT f = TagId (C f Int) deriving (Generic, Beamable)
+  primaryKey = TagId . _tagId
 
 --------------------------------------------------------------------------------
 
@@ -183,9 +213,10 @@ deriving instance Show VerifierRun
 data VDiffDb f = VDiffDb
   { _runs     :: f (TableEntity VerifierRunT)
   , _programs :: f (TableEntity ProgramT)
+  , _tags     :: f (TableEntity TagT)
   } deriving Generic
 
-VDiffDb (TableLens runs) (TableLens programs) = dbLenses
+VDiffDb (TableLens runs) (TableLens programs) (TableLens tags) = dbLenses
 
 instance Database be VDiffDb
 

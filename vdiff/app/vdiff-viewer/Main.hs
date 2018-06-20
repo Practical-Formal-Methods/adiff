@@ -10,12 +10,14 @@ import           VDiff.Prelude
 
 import           Control.Lens.Operators                 hiding ((^.))
 import qualified Data.List.Key                          as K
+import qualified Data.Text                              as Text
 import qualified Data.Text.IO                           as Text
 import qualified Database.SQLite.Simple.Extended        as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
 import           RIO.List
+import           System.Directory                       (makeAbsolute)
 import           System.Exit
 import           System.IO
 import qualified Text.PrettyPrint.Tabulate              as T
@@ -94,10 +96,19 @@ executeView (MergeOldList file) =do
   files <- lines <$> liftIO (readFile file)
   mergeFiles files
 
+mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files = do
   -- loop over the given databases
   forM_ files $ \f -> do
     logInfo $ "merging file " <> display (tshow f)
+
+    -- collect some data for the tags
+    absFn <- liftIO $ makeAbsolute f
+    now <- nowISO
+    let tags = [ ("metadata.merge.database",  Text.pack absFn)
+               , ("metadata.merge.date", now)]
+
+
     SQL.withConnection f $ \conn -> do
       logInfo "merging programs"
 
@@ -105,14 +116,16 @@ mergeFiles files = do
         let (hsh, origin, src) = prg :: (Text,Text,Text)
         let p = Program  hsh origin src :: Program
         Q2.storeProgram p
+        Q2.tagProgram (toProgramId hsh) tags
         when (counter `mod` 10 == 0) $ logSticky $ "number of transferred programs: " <> display counter
         return (counter + 1)
 
       logInfo "merging runs"
 
-      SQL.fold_ conn "SELECT run_id,verifier_name,result,time,memory,code_hash FROM runs;" (0::Int) $ \counter run -> do
-        let (_ :: Integer, vn :: Text, vd :: Verdict, time :: Maybe Double, mem :: Maybe Int, hsh :: Text ) = run
-        Q2.storeRunFreshId $ VerifierRun (-1) vn (toProgramId hsh) (VerifierResult time mem vd ) (-1)
+      SQL.fold_ conn "SELECT run_id,verifier_name,result,time,memory,code_hash FROM runs;" (0::Int) $ \counter row -> do
+        let (_ :: Integer, vn :: Text, vd :: Verdict, time :: Maybe Double, mem :: Maybe Int, hsh :: Text ) = row
+        r <- Q2.storeRunFreshId $ VerifierRun (-1) vn (toProgramId hsh) (VerifierResult time mem vd ) (-1)
+        Q2.tagRun (primaryKey r) tags
         when (counter `mod` 10 == 0) $ logSticky $ "number of transferred runs: " <> display counter
         return (counter + 1)
 
