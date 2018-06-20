@@ -10,9 +10,10 @@
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
 
-import           VDiff.Prelude     hiding (Disagreement)
+import           VDiff.Prelude                            hiding (Disagreement)
 
 import           Database.Beam
+import           Database.Beam.Backend.SQL.BeamExtensions
 import           VDiff.Data
 import           VDiff.Persistence
 
@@ -65,6 +66,11 @@ storeProgram p = do
 storeRun :: (HasDatabase env) => VerifierRun -> RIO env ()
 storeRun r = runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [r]
 
+storeRunFreshId :: (HasDatabase env) => VerifierRun -> RIO env VerifierRun
+storeRunFreshId r = do
+  [run] <- runBeam $ runInsertReturningList (vdiffDb ^. runs) $ insertExpressions
+              [VerifierRun default_ (val_ (r ^. verifierName)) (val_ $ toProgramId (r ^. program)) (val_ (r ^. result)) (val_ (r ^. iteration))]
+  return run
 
 -- | returns a table with runIds and the count of the given verdict on the
 -- program of the run. 'RunId' that have a count of 0 do not show up here, so make

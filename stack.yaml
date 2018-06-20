@@ -12,6 +12,7 @@ extra-deps:
 - Chart-1.9
 - Chart-cairo-1.9
 - beam-sqlite-0.3.2.1
+- wai-middleware-static-embedded-0.1.0.0
 
 resolver: lts-11.13
 

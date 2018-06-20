@@ -11,7 +11,7 @@ import           VDiff.Prelude
 import           Control.Lens.Operators                 hiding ((^.))
 import qualified Data.List.Key                          as K
 import qualified Data.Text.IO                           as Text
-import qualified Database.SQLite.Simple                 as SQL
+import qualified Database.SQLite.Simple.Extended        as SQL
 import           Graphics.Rendering.Chart.Backend.Cairo
 import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
@@ -22,7 +22,9 @@ import qualified Text.PrettyPrint.Tabulate              as T
 
 import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
+import           VDiff.Persistence
 import qualified VDiff.Query                            as Q
+import qualified VDiff.Query2                           as Q2
 
 
 data ViewCommand = Stats
@@ -32,7 +34,8 @@ data ViewCommand = Stats
                  | GetProgram String
                  | Runs String
                  | TimeMemoryGraph FilePath
-                 | Merge [FilePath]
+                 | MergeOld [FilePath]
+                 | MergeNew [FilePath]
                  deriving (Show, Eq)
 
 data ViewParameters = ViewParameters
@@ -83,29 +86,27 @@ executeView (Runs hsh) = do
   runs <- Q.allRunsByHash hsh
   liftIO $ T.printTable runs
 
-executeView (Merge files) = do
-  mainConn <- view databaseL
-
+executeView (MergeOld files) = do
   -- loop over the given databases
-  liftIO $
-    forM_ files $ \f -> do
-      putStrLn $ "merging file " ++ f
-      SQL.withConnection f $ \conn -> do
+  forM_ files $ \f -> do
+    logInfo $ "merging file " <> display (tshow f)
+    SQL.withConnection f $ \conn -> do
+      logInfo "merging programs"
 
-        putStrLn "merging programs"
-        SQL.fold_ conn "SELECT code_hash,origin,content FROM programs" () $ \_ prg -> do
-          let _ = prg :: (Text,Text,Text)
-          SQL.execute mainConn "INSERT OR IGNORE INTO programs(code_hash,origin,content) VALUES(?,?,?)" prg
-          putStr "."
-        putStrLn ""
+      SQL.fold_ conn "SELECT code_hash,origin,content FROM programs" (0::Int) $ \counter prg -> do
+        let (hsh, origin, src) = prg :: (Text,Text,Text)
+        let p = Program  hsh origin src :: Program
+        Q2.storeProgram p
+        when (counter `mod` 10 == 0) $ logSticky $ "number of transferred programs: " <> display counter
+        return (counter + 1)
 
-        putStrLn "merging runs"
-        SQL.fold_ conn "SELECT run_id,verifier_name,result,time,memory,code_hash FROM runs;" () $ \_ run -> do
-          let (_ :: Integer, vn :: Text, result :: Text, time :: Maybe Float, mem :: Maybe Integer, hsh :: Text ) = run
-              runWithoutId = (vn, result, time, mem, hsh)
-          SQL.execute mainConn "INSERT OR IGNORE INTO runs(verifier_name,result,time,memory,code_hash) VALUES(?,?,?,?,?)" runWithoutId
-          putStr "."
-        putStrLn ""
+      logInfo "merging runs"
+
+      SQL.fold_ conn "SELECT run_id,verifier_name,result,time,memory,code_hash FROM runs;" (0::Int) $ \counter run -> do
+        let (_ :: Integer, vn :: Text, vd :: Verdict, time :: Maybe Double, mem :: Maybe Int, hsh :: Text ) = run
+        Q2.storeRunFreshId $ VerifierRun (-1) vn (toProgramId hsh) (VerifierResult time mem vd ) (-1)
+        when (counter `mod` 10 == 0) $ logSticky $ "number of transferred runs: " <> display counter
+        return (counter + 1)
 
 
 
@@ -128,13 +129,13 @@ statCmd = switch options $> Stats
                           , help "print basic statistics about this database"
                           ]
 
-listCmd = switch options $> List <*> query
+listCmd = switch options $> List <*> parseQuery
   where options = mconcat [ long "list"
                           , short 'l'
                           , help "prints a list"
                           ]
 
-countCmd = switch options $> Count <*> query
+countCmd = switch options $> Count <*> parseQuery
   where options = mconcat [ long "count"
                           , help "returns the number of findings"
                           ]
@@ -149,8 +150,8 @@ correlationCmd = switch options $> TimeMemoryGraph <*> someFile
   where options = mconcat [ long "correlation"
                           , help "generates a scatter plot of memory consumption and runtime" ]
 
-mergeCmd = switch options $>  Merge <*> many someFile
-  where options = mconcat [ long "merge"
+mergeCmd = switch options $>  MergeOld <*> many someFile
+  where options = mconcat [ long "merge-old"
                           , help "merge database files into one"]
 
 runsCmd = Runs <$> option str options
@@ -159,12 +160,12 @@ runsCmd = Runs <$> option str options
                           , metavar "HASH"
                           ]
 
-distributionCmd = switch options $> DistributionPerFile <*> query
+distributionCmd = switch options $> DistributionPerFile <*> parseQuery
   where options = mconcat [ long "per-file"
                           , help "shows the number of findings per file" ]
 
-query :: Parser Q.Query
-query = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc <|>  unsoundKleeCbmcSmack
+parseQuery :: Parser Q.Query
+parseQuery = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc <|>  unsoundKleeCbmcSmack
   where incmpl = switch (long "incomplete") $> Q.Incomplete
         unsound = switch (long "unsound") $> Q.Unsound
         disagreement = switch (long "disagreement") $> Q.Disagreement
