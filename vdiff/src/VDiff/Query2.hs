@@ -13,7 +13,6 @@ module VDiff.Query2 where
 
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
-import           Database.Beam.Sqlite
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Prelude                            hiding (Disagreement)
@@ -124,7 +123,7 @@ runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
 
 
 
-incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q SqliteSelectSyntax VDiffDb ctx (VerifierRunT _, QExpr _ _ Int, QExpr _ _ Int)
+incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q _ VDiffDb ctx (VerifierRunT _, QExpr _ _ Int, QExpr _ _ Int)
 incompleteFindings   = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
 unsoundFindings      = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
 disagreementFindings = filter_ (\(_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
@@ -142,7 +141,7 @@ allFindings = do
 unsoundKleeCbmc = unsoundAccordingToAnyOf ["klee", "cbmc"]
 unsoundKleeCbmcSmack = unsoundAccordingToAnyOf ["klee", "cbmc", "smack"]
 
-unsoundAccordingToAnyOf :: forall ctx . [Text] -> Q SqliteSelectSyntax VDiffDb ctx _
+unsoundAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
 unsoundAccordingToAnyOf vs = do
   (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Unsat) allFindings
   x <- checkers
@@ -152,7 +151,7 @@ unsoundAccordingToAnyOf vs = do
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Sat) &&.
                              ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
 
-incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q SqliteSelectSyntax VDiffDb ctx _
+incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
 incompleteAccordingToAnyOf vs = do
   (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Sat) allFindings
   x <- checkers
