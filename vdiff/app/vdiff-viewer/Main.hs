@@ -35,6 +35,7 @@ data ViewCommand = Stats
                  | Runs String
                  | TimeMemoryGraph FilePath
                  | MergeOld [FilePath]
+                 | MergeOldList FilePath
                  | MergeNew [FilePath]
                  deriving (Show, Eq)
 
@@ -87,6 +88,13 @@ executeView (Runs hsh) = do
   liftIO $ T.printTable runs
 
 executeView (MergeOld files) = do
+  mergeFiles files
+
+executeView (MergeOldList file) =do
+  files <- lines <$> liftIO (readFile file)
+  mergeFiles files
+
+mergeFiles files = do
   -- loop over the given databases
   forM_ files $ \f -> do
     logInfo $ "merging file " <> display (tshow f)
@@ -117,12 +125,13 @@ viewParameters = ViewParameters <$> viewCommand
                        , countCmd
                        , programCmd
                        , correlationCmd
-                       , mergeCmd
+                       , mergeOldCmd
+                       , mergeOldListCmd
                        , runsCmd
                        , distributionCmd
                        , statCmd ]
 
-statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeCmd,runsCmd :: Parser ViewCommand
+statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeOldCmd, mergeOldListCmd, runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
@@ -150,8 +159,13 @@ correlationCmd = switch options $> TimeMemoryGraph <*> someFile
   where options = mconcat [ long "correlation"
                           , help "generates a scatter plot of memory consumption and runtime" ]
 
-mergeCmd = switch options $>  MergeOld <*> many someFile
+mergeOldCmd = switch options $>  MergeOld <*> many someFile
   where options = mconcat [ long "merge-old"
+                          , help "merge database files into one"]
+
+
+mergeOldListCmd = switch options $>  MergeOldList <*> someFile
+  where options = mconcat [ long "merge-old-list"
                           , help "merge database files into one"]
 
 runsCmd = Runs <$> option str options
