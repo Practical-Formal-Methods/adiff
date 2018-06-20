@@ -14,17 +14,21 @@ module VDiff.Server.Controller where
 import           VDiff.Server.Prelude
 import           VDiff.Server.Widgets
 
-import qualified Data.Text.Lazy       as LT
+import           Data.FileEmbed
+import qualified Data.Text.Lazy                        as LT
 import           Database.Beam
 import           Database.Beam.Sqlite
+import           Network.Wai.Middleware.StaticEmbedded
 import           VDiff.Data
 import           VDiff.Persistence
-import qualified VDiff.Query          as Q
-import qualified VDiff.Query2         as Q2
+import qualified VDiff.Query                           as Q
+import qualified VDiff.Query2                          as Q2
 
 
 endpoints :: (HasDatabase env) => ScottyT SrvError (RIO env) ()
 endpoints = do
+  -- install static middleware
+  middleware (static $(embedDir "static"))
   get "/" getIndex
   get "/program/:hash" getProgram
   get "/query/" getQueries

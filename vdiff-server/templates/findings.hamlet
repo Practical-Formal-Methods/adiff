@@ -1,20 +1,33 @@
 <h3>Findings
 
 Query
-<div class="input-field col s12">
-  <select>
-    <option value="" disabled selected>Search for</option>
-    <option value="incomplete">
-      incomplete
-    <option value="unsound">
-      unsound
-<div class="input-field col s12">
-  <select>
-  <option>
-    according to all of
-  <option>
-    according to any of
+<div class="row">
+  <div class="input-field col s12 m6 l3">
+    <select>
+      <option value="" disabled selected>
+        Search for
+      <option value="incomplete">
+        incomplete
+      <option value="unsound">
+        unsound
+  <div class="input-field col s12 m6 l3">
+    <select value="accordington">
+      <option value="all">
+        according to all of
+      <option value="any">
+        according to any of
+      <option value="majority">
+        according to the majority
+  <div class="col s12 m12 l3">
+     <div id="verifierChips" class="chips">
+        <input class="verifiersChips">
 
+  <div class="col s2 m2 l3">
+     <button id="searchButton" class="btn waves-effect waves-light">
+        Search
+      <i class="material-icons right">
+        search
+        
 <table>
   <tr>
     <th>run id 
@@ -33,3 +46,6 @@ Query
 
 <div.center>
   ^{pg}
+
+<script src="/js/findings.js">
+

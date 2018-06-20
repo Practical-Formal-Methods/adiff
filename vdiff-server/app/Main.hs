@@ -6,14 +6,13 @@
 module Main where
 
 
+import           Network.Wai.Middleware.StaticEmbedded
 import           System.IO
-import           Web.Scotty.Trans
-
-
 import           VDiff.Arguments
 import           VDiff.Data
 import           VDiff.Persistence
-import           VDiff.Query             as Q
+import           VDiff.Query                           as Q
+import           Web.Scotty.Trans
 
 import           VDiff.Server.Controller
 import           VDiff.Server.Prelude
