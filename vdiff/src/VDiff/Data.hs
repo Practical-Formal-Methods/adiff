@@ -226,6 +226,7 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
     modification = dbModification
       { _runs     = modifyCheckedTable (const "runs") mod_runs
       , _programs = modifyCheckedTable (const "programs") mod_programs
+      , _tags     = modifyCheckedTable (const "tags") mod_tags
       }
     mod_runs = checkedTableModification
       { _runId        = "run_id"
@@ -237,6 +238,13 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
       { _hash   = "code_hash"
       , _origin = "origin"
       , _source = "content"
+      }
+    mod_tags = checkedTableModification
+      { _tagId        = "tag_id"
+      , _tagRunId     = VerifierRunId "tagged_run_id"
+      , _tagProgramId = ProgramId "tagged_program_id"
+      , _tagName      = "name"
+      , _tagValue     = "value"
       }
 
 vdiffDb :: DatabaseSettings be VDiffDb
