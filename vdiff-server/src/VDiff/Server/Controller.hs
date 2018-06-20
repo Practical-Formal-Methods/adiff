@@ -31,8 +31,7 @@ endpoints = do
   middleware (static $(embedDir "static"))
   get "/" getIndex
   get "/program/:hash" getProgram
-  get "/query/" getQueries
-  get "/query/:query" getQuery
+  get "/findings/" getFindings
 
 
 
@@ -52,14 +51,14 @@ getProgram = do
   defaultLayout ("program: " <> hash) $(shamletFile "templates/program.hamlet")
 
 
-getQueries :: RioActionM env ()
-getQueries = do
-  defaultLayout "Queries" $(shamletFile "templates/queries.hamlet")
+-- getQueries :: RioActionM env ()
+-- getQueries = do
+--   defaultLayout "Queries" $(shamletFile "templates/queries.hamlet")
 
-getQuery :: (HasDatabase env) => RioActionM env ()
-getQuery = do
-  (q :: Q2.Query) <- param "query"
-  findings <- lift $ Q2.executeQuery Q2.Everything
+getFindings :: (HasDatabase env) => RioActionM env ()
+getFindings = do
+  (q :: Q2.Query) <- param "q"
+  findings <- lift $ Q2.executeQuery q
   let pg = "PG"
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
 

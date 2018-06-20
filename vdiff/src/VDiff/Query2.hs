@@ -11,6 +11,7 @@
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
 
+import qualified Data.Text                                as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
 import           VDiff.Data
@@ -25,18 +26,25 @@ data Query
   = Query Suspicion AccordingTo
   | Disagreement
   | Everything
+  deriving (Show, Read)
 
 data Suspicion
   = SuspicionIncomplete
   | SuspicionUnsound
+  deriving (Show, Read)
 
 data AccordingTo
   = AnyOf [VerifierName]
   | AllOf [VerifierName]
   | Majority
+  deriving (Show, Read)
 
+-- | at the moment, using 'el cheapo' parsing via read
 parseQuery :: Text -> Either Text Query
 parseQuery "everything" = Right Everything
+parseQuery t = case readMay (T.unpack t) of
+                 Nothing -> Left "not parseable"
+                 Just q  -> Right q
 parseQuery _            = Left "not parseable"
 
 executeQuery :: (HasDatabase env) => Query -> RIO env [(VerifierRun, Int, Int)]

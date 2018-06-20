@@ -11,6 +11,8 @@ module VDiff.Prelude
   , runVDiffApp
   -- * small utilities
   , nowISO
+  -- * safe functions
+  , readMay
   ) where
 
 import           Control.Lens
@@ -21,6 +23,7 @@ import           Data.Time.Clock
 import           Data.Time.Format
 import           Options.Applicative
 import           RIO                                hiding (view, (^.))
+import           Safe
 
 
 import           VDiff.Prelude.Internal.Application
