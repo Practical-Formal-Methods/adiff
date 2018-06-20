@@ -1,6 +1,8 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -56,11 +58,21 @@ data VerifierEnv = VerifierEnv
   }
 
 data Verifier = Verifier
-  { _name    :: VerifierName
-  , execute  :: FilePath -> RIO VerifierEnv VerifierResult
-  , _version :: IO (Maybe String)
+  { _name            :: VerifierName
+  , _verifierExecute :: FilePath -> RIO VerifierEnv VerifierResult
+  , _version         :: IO (Maybe String)
   }
 makeFieldsNoPrefix ''Verifier
+
+-- | It is important not to execute a Verifier directly through _verifierExecute
+-- as the verifiers themselves lack proper exception handling. Use 'execute'!
+execute :: Verifier -> FilePath -> RIO VerifierEnv VerifierResult
+execute v fp = try ((v ^. verifierExecute) fp) >>= \case
+  Left (e :: IOException) -> do
+    logWarn $ "verifier " <> display (v ^. name) <> " just caused an IO exception: " <> display (tshow $ displayException e)
+    return $ VerifierResult Nothing Nothing Unknown
+  Right res -> return res
+
 
 
 --------------------------------------------------------------------------------
