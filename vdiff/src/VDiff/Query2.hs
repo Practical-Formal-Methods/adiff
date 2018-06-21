@@ -2,6 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
+{-# LANGUAGE Rank2Types                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {- signatures of beam-related functions are incredibly verbose, so let's settle for partial type signatures.
    Sometimes it is straight up impossible to write the types down because of ambiguous types .-}
@@ -10,16 +11,52 @@
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
 
-import           VDiff.Prelude                            hiding (Disagreement)
-
+import qualified Data.Text                                as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
 import           VDiff.Data
 import           VDiff.Persistence
-
+import           VDiff.Prelude                            hiding (Disagreement)
 
 
 type Statistics = [(Text, Text)]
+
+-- a generalized query interface:
+data Query
+  = Query Suspicion AccordingTo
+  | Disagreement
+  | Everything
+  deriving (Show, Read)
+
+data Suspicion
+  = SuspicionIncomplete
+  | SuspicionUnsound
+  deriving (Show, Read)
+
+data AccordingTo
+  = AnyOf [VerifierName]
+  | AllOf [VerifierName]
+  | Majority
+  deriving (Show, Read)
+
+-- | at the moment, using 'el cheapo' parsing via read
+parseQuery :: Text -> Either Text Query
+parseQuery "everything" = Right Everything
+parseQuery t = case readMay (T.unpack t) of
+                 Nothing -> Left "not parseable"
+                 Just q  -> Right q
+
+executeQuery :: (HasDatabase env) => Query -> RIO env [(VerifierRun, Int, Int)]
+executeQuery Everything                             = runBeam $ runSelectReturningList $ select allFindings
+executeQuery Disagreement                           = runBeam $ runSelectReturningList $ select disagreementFindings
+executeQuery (Query SuspicionIncomplete Majority)   = runBeam $ runSelectReturningList $ select incompleteFindings
+executeQuery (Query SuspicionIncomplete (AnyOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingToAnyOf vs
+-- executeQuery (Query SuspicionIncomplete (AllOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingAllOf vs
+executeQuery (Query SuspicionUnsound  Majority)     = runBeam $ runSelectReturningList $ select unsoundFindings
+executeQuery (Query SuspicionUnsound (AnyOf vs))    = runBeam $ runSelectReturningList $ select $ unsoundAccordingToAnyOf vs
+
+
+
 
 stats :: (HasDatabase env) => RIO env Statistics
 stats = runBeam $ do
@@ -94,10 +131,12 @@ runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
 
 
 
-incompleteFindings, unsoundFindings, disagreementFindings :: Q _ _ _ _
+incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q _ VDiffDb ctx (VerifierRunT _, QExpr _ _ Int, QExpr _ _ Int)
 incompleteFindings   = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
 unsoundFindings      = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
 disagreementFindings = filter_ (\(_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+
+
 
 allFindings :: Q _ _ _ (VerifierRunT (QExpr _ _) , QExpr _ _ Int, QExpr _ _ Int)
 allFindings = do
@@ -105,6 +144,30 @@ allFindings = do
   (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
   (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
   return (r, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
+
+
+unsoundKleeCbmc = unsoundAccordingToAnyOf ["klee", "cbmc"]
+unsoundKleeCbmcSmack = unsoundAccordingToAnyOf ["klee", "cbmc", "smack"]
+
+unsoundAccordingToAnyOf, incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
+unsoundAccordingToAnyOf vs = do
+  (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Unsat) allFindings
+  x <- checkers
+  guard_ ( (r ^. program) ==. (x ^. program))
+  return (r,sats,unsats)
+  where
+    checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Sat) &&.
+                             ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
+
+incompleteAccordingToAnyOf vs = do
+  (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Sat) allFindings
+  x <- checkers
+  guard_ ( (r ^. program) ==. (x ^. program))
+  return (r,sats,unsats)
+  where
+    checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Unsat) &&.
+                             ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
+
 
 --------------------------------------------------------------------------------
 -- query fragments

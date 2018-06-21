@@ -22,6 +22,8 @@ dependencies:
 - text
 - beam-core
 - beam-sqlite
+- wai-middleware-static-embedded
+- file-embed
 
 
 library:
