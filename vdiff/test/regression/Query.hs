@@ -51,6 +51,7 @@ testVerySimple = testCase "simple" $ withTestEnv $ do
 testRunIdWithVerdict :: TestTree
 testRunIdWithVerdict = testCase "testRunIdWithVerdict" $ withTestEnv $ do
   runBeam migrateVdiff
+  runBeam $ runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
   runBeam$ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4,run5]
   sats <- runBeam $ runSelectReturningList $ select $ Q2.runIdWithVerdict Sat
   liftIO $ sats @?= [(1,2),(2,2),(3,2),(4,2),(5,1)]
@@ -59,25 +60,31 @@ testRunIdWithVerdict = testCase "testRunIdWithVerdict" $ withTestEnv $ do
 
 testAllFindings :: TestTree
 testAllFindings = testCase "allFindings" $ withTestEnv $ do
-  runBeam migrateVdiff
-  runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
+  runBeam $ do
+    migrateVdiff
+    runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
+    runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
   fs <- runBeam $ runSelectReturningList $ select Q2.allFindings
-  liftIO $ fs @?= [ (run1, 2, 1)
-                  , (run2, 2, 1)
-                  , (run3, 2, 1)
-                  , (run4, 2, 1)
-                  , (run5, 1, 0) ]
+  liftIO $ fs @?= [ (run1, Just "test.c", 2, 1)
+                  , (run2, Just "test.c", 2, 1)
+                  , (run3, Just "test.c", 2, 1)
+                  , (run4, Just "test.c", 2, 1)
+                  , (run5, Just "test2.c", 1, 0) ]
 
 testIncompleteFindings :: TestTree
 testIncompleteFindings = testCase "incompleteFindings" $ withTestEnv $ do
-  runBeam migrateVdiff
-  runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run5, run6]
+  runBeam $ do
+    migrateVdiff
+    runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
+    runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run5, run6]
   fs <- runBeam $ runSelectReturningList $ select Q2.incompleteFindings
-  liftIO $ fs @?= [(run1, 1, 2)]
+  liftIO $ fs @?= [(run1, Just "test.c", 1, 2)]
 
 testUnsoundFindings :: TestTree
 testUnsoundFindings = testCase "unsoundFindings" $ withTestEnv $ do
-  runBeam migrateVdiff
-  runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
+  runBeam $ do
+    migrateVdiff
+    runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
+    runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
   fs <- runBeam $ runSelectReturningList $ select Q2.unsoundFindings
-  liftIO $ fs @?= [(run2, 2, 1)]
+  liftIO $ fs @?= [(run2, Just "test.c", 2, 1)]

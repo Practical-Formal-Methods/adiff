@@ -52,11 +52,14 @@
     <th>sats
     <th>unsats
 
-  $forall (run,sat,unsat) <- findings 
+  $forall (run,origin, sat,unsat) <- findings 
     <tr>
       <td>#{ run ^. runId }
       <td>#{ run ^. verifierName }
-      <td>^{mkProgramLink $ run ^. program}
+      <td>
+        ^{mkProgramLink $ run ^. program}
+        <span class="filepath">
+          (#{maybe " - " id origin})
       <td>#{ sat }
       <td>#{ unsat }
 

@@ -15,6 +15,10 @@ $doctype 5
       background-color: #e3f2fd;
       padding: 1em;
     }
+    .filepath {
+      font-family: Monospace;
+      font-size: 0.8em;
+    }
 
 <body>
   <header class="" style="background-color:#5397CC; color: white; padding: 30px;">

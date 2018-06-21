@@ -49,7 +49,7 @@ parseQuery t = case readMay (T.unpack t) of
                  Nothing -> Left "not parseable"
                  Just q  -> Right q
 
-executeQuery :: (HasDatabase env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Int, Int)]
+executeQuery :: (HasDatabase env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
 executeQuery limit offset qf q = do
   res <- runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
     Everything                             -> allFindings
@@ -71,7 +71,7 @@ executeQueryCount qf q = do
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
   return n;
 
-execQf (QueryFocus vs) = filter_ (\(r,_,_) -> (r ^. verifierName) `in_` map val_ vs )
+execQf (QueryFocus vs) = filter_ (\(r,_,_,_) -> (r ^. verifierName) `in_` map val_ vs )
 
 
 
@@ -148,39 +148,46 @@ runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
 
 
 
-incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q _ VDiffDb ctx (VerifierRunT _, QExpr _ _ Int, QExpr _ _ Int)
-incompleteFindings   = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
-unsoundFindings      = filter_ (\(r,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
-disagreementFindings = filter_ (\(_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q _ VDiffDb ctx _
+incompleteFindings   = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
+unsoundFindings      = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
+disagreementFindings = filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
 
 
 
-allFindings :: Q _ _ _ (VerifierRunT (QExpr _ _) , QExpr _ _ Int, QExpr _ _ Int)
+-- allFindings :: Q _ _ _ (VerifierRunT (QExpr _ _) , QExpr _ _ Int, QExpr _ _ Int)
+-- allFindings = do
+--   r <- allRuns_
+--   (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
+--   (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
+--   return (r, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
+
+allFindings :: Q _ _ _ _
 allFindings = do
   r <- allRuns_
   (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
   (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
-  return (r, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
-
+  p <- leftJoin_ (all_ $ vdiffDb ^. programs) (\p -> (p ^. hash) ==. (r ^. program) )
+  return (r, p ^. origin, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
 
 unsoundKleeCbmc = unsoundAccordingToAnyOf ["klee", "cbmc"]
 unsoundKleeCbmcSmack = unsoundAccordingToAnyOf ["klee", "cbmc", "smack"]
 
 unsoundAccordingToAnyOf, incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
 unsoundAccordingToAnyOf vs = do
-  (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Unsat) allFindings
+  (r,origin,sats,unsats) <- filter_ (\(r,_,_,_) -> (r ^. (result . verdict))  ==. val_ Unsat) allFindings
   x <- checkers
   guard_ ( (r ^. program) ==. (x ^. program))
-  return (r,sats,unsats)
+  return (r,origin,sats,unsats)
   where
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Sat) &&.
                              ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
 
 incompleteAccordingToAnyOf vs = do
-  (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Sat) allFindings
+  (r,origin,sats,unsats) <- filter_ (\(r,_,_,_) -> (r ^. (result . verdict))  ==. val_ Sat) allFindings
   x <- checkers
   guard_ ( (r ^. program) ==. (x ^. program))
-  return (r,sats,unsats)
+  return (r,origin,sats,unsats)
   where
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Unsat) &&.
                              ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
