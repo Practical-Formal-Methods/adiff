@@ -6,17 +6,25 @@
 <table>
   <thead>
     <tr>
-      <th>verifier
-      <th>result
-      <th>time 
-      <th>memory
+      <th>
+        verifier
+      <th>
+        result
+      <th>
+        time 
+      <th>
+        memory
 
   <tbody>
     $forall r <- runs
       <tr>
-        <td>#{ r ^. verifierName }
-        <td>#{show $ r ^. (result . verdict) }
-        <td>#{maybe "-" show (r ^. (result . wallTime)) }
-        <td>#{maybe "-" show (r ^. (result . memory)) }
+        <td>
+          #{ r ^. verifierName }
+        <td>
+          #{show $ r ^. (result . verdict) }
+        <td>
+          #{maybe "-" show (r ^. (result . wallTime)) }
+        <td>
+          #{maybe "-" show (r ^. (result . memory)) }
 
 

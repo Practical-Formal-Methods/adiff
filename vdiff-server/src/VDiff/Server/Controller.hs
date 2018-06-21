@@ -40,7 +40,6 @@ endpoints = do
 getIndex :: (HasDatabase env) => RioActionM env ()
 getIndex = do
   statistics <- lift $ Q2.stats
-  let queriesSnippet = $(shamletFile "templates/queries.hamlet")
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
 
 -- | shows all runs on one instrumented file
