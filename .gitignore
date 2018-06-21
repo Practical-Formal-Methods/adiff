@@ -9,3 +9,5 @@ _region_.tex
 *.synctex.gz
 vdiff/docs/auto
 vdiff/docs/*.pdf
+.hlint.yaml
+*.el
