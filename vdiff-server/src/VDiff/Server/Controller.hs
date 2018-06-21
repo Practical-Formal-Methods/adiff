@@ -20,6 +20,7 @@ import           Database.Beam
 import           Database.Beam.Sqlite
 import           Network.Wai.Middleware.StaticEmbedded
 import           VDiff.Data
+import           VDiff.Verifier (allVerifiers)
 import           VDiff.Persistence
 import qualified VDiff.Query                           as Q
 import qualified VDiff.Query2                          as Q2
@@ -52,16 +53,19 @@ getProgram = do
 
 
 -- getQueries :: RioActionM env ()
--- getQueries = do
+  -- getQueries = do
 --   defaultLayout "Queries" $(shamletFile "templates/queries.hamlet")
 
 getFindings :: (HasDatabase env) => RioActionM env ()
 getFindings = do
-  (qs :: String) <- param "q"
-  liftIO $ putStrLn $ "query was " ++ qs
+  (qstring :: Text) <- param "q"
   (q :: Q2.Query) <- param "q"
-  findings <- lift $ Q2.executeQuery q
-  let pg = "PG"
+  (page :: Integer) <- param "page" `rescue` (const $ return 1)
+  let pageSize = 30
+  let offset = (page - 1) * 30
+  countFindings <- lift $ Q2.executeQueryCount q
+  findings <- lift $ Q2.executeQuery pageSize offset q
+  pg <- mkPaginationWidget 30 countFindings (fromIntegral page) qstring
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
 
 instance Parsable Q2.Query where

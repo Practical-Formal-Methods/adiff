@@ -3,16 +3,16 @@
 <ul.pagination>
   $if showLeftArr
     <li>
-      <a href="?page=1">
+      <a href="?page=1&q=#{qstring}">
         <i.material-icons>
           first_page
     <li>
-      <a href=?page=#{prevPage}>
+      <a href="?page=#{prevPage}&q=#{qstring}">
         <i.material-icons>
           chevron_left
   $else
     <li.disabled>
-      <a href="?page=1">
+      <a href="?page=1&q=#{qstring}">
         <i.material-icons>
           first_page
     <li.disabled>
@@ -24,7 +24,7 @@
   $forall i <- pages
     $if i == page
       <li.active>
-        <a.waves-effect href="?page=#{i}">
+        <a.waves-effect href="?page=#{i}&q=#{qstring}">
           #{ show i }
     $elseif i == -1
       <li>
@@ -32,12 +32,12 @@
           &#8230;
     $else
       <li>
-        <a.waves-effect href="?page=#{i}">
+        <a.waves-effect href="?page=#{i}&q=#{qstring}">
           #{ show i }
       
   $if showRightArr
     <li>
-      <a href=?page=#{nextPage}>
+      <a href="?page=#{nextPage}&q=#{qstring}">
         <i.material-icons>
           chevron_right
     <li>

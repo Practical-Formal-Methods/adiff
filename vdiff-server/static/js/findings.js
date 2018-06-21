@@ -2,11 +2,20 @@
 $(document).ready(function() {
     $('select').formSelect();
     /* restore UI from query */
-    var query = decodeURIComponent(window.location.search.substr(3));
-    queryObj = adjustControls(query);
+    var urlParams = window.location.search;
+    urlParams.substr(1).split("&").forEach(function (param) {
+        ps = param.split("=");
+        if (ps[0] == "q") {
+            var query = decodeURIComponent(ps[1]);
+            queryObj = adjustControls(query);
+        } else if (ps[0] == "page") {
+            page = ps[1];
+        }
+    });
 
     /* bind search button */
     $('#searchButton').on('click', reloadQuery);
+    $('#suspicion').on('change', suspicionChanged);
     $('#accordingTo').on('change', accordingToChanged);
 
 });
@@ -15,8 +24,8 @@ re_query = /Query (SuspicionIncomplete|SuspicionUnsound) (Majority|\(AnyOf (.*)\
 
 
 function adjustControls(s) {
-    if (s == "everything") {
-        console.log("adjust everything");
+    if (s == "Everything") {
+        setSuspicion("Everything");
     } else {
         var m = s.match(re_query);
         console.log(m);
@@ -46,6 +55,7 @@ function setSuspicion(s) {
     $('#suspicion option[value="' + s + '"]').prop('selected', true);
     /* re-init */
     $('#suspicion').formSelect();
+    suspicionChanged();
 }
 
 function setMode(s) {
@@ -79,20 +89,36 @@ function reloadQuery() {
     var accordingTo = $('#accordingTo').val();
     var q = "";
 
-    if (accordingTo == 'Majority') {
-        q = "Query " + suspicion + " Majority";
+    if (suspicion == "Everything") {
+        q = "Everything";
     } else {
-        /* get instance */
-        var verifiers = $('#verifiers').val();
-        console.log(verifiers);
-        var verifiersL = verifiers.map(function(v) {
-            return '"' + v + '"';
-        }).join(',');
-        console.log(verifiersL);
-        q = "Query " + suspicion + " (" + accordingTo + " [" + verifiersL + "])";
+        if (accordingTo == 'Majority') {
+            q = "Query " + suspicion + " Majority";
+        } else {
+            /* get instance */
+            var verifiers = $('#verifiers').val();
+            console.log(verifiers);
+            var verifiersL = verifiers.map(function(v) {
+                return '"' + v + '"';
+            }).join(',');
+            console.log(verifiersL);
+            q = "Query " + suspicion + " (" + accordingTo + " [" + verifiersL + "])";
+        }
     }
 
     window.location = "?q=" + encodeURIComponent(q);
+}
+
+function suspicionChanged() {
+    var x = $('#suspicion').val();
+    if (x == 'Everything') {
+        console.log("everything -> hide");
+        $('#accordingToBox').hide();
+        $('#verifier-row').hide();
+    } else {
+        $('#accordingToBox').show();
+        $('#accordingTo').trigger("change");
+    }
 }
 
 function accordingToChanged() {
@@ -102,4 +128,7 @@ function accordingToChanged() {
     } else {
         $('#verifier-row').show();
     }
+}
+function gotoPage(n) {
+    console.log("goto page " + n);
 }

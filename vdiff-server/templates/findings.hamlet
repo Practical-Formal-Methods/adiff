@@ -5,27 +5,27 @@ Query
   <div class="input-field col s12 m6 l3">
     <select id="suspicion">
       <option value="" disabled selected>
-        Search for
+        Show
+      <option value="Everything">
+        Everything
       <option value="SuspicionIncomplete">
-        incomplete
+        Incomplete
       <option value="SuspicionUnsound">
-        unsound
+        Unsound
   <div class="input-field col s12 m6 l3">
-    <select id="accordingTo">
-      <option value="AnyOf">
-        according to any of
-      <option value="AllOf" disabled>
-        according to all of
-      <option value="Majority">
-        according to the majority
+    <div id="accordingToBox">
+      <select id="accordingTo">
+        <option value="Majority">
+          according to the majority
+        <option value="AnyOf">
+          according to any of
+        <option value="AllOf" disabled>
+          according to all of
   <div id="verifier-row" class="col s12 m12 l3">
     <select id="verifiers" multiple>
-      <option value="klee">
-        Klee
-      <option value="cbmc">
-        Cbmc
-      <option value="uautomizer">
-         Ultimate Automizer 
+      $forall v <- allVerifiers
+        <option value="#{v ^. name}">
+          #{v ^. name}
         
 
   <div class="col s2 m2 l3">
@@ -34,6 +34,8 @@ Query
       <i class="material-icons right">
         search
         
+<p>
+  total: #{countFindings}
 <table>
   <tr>
     <th>run id 

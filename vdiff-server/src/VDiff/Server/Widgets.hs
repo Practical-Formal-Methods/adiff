@@ -22,12 +22,12 @@ mkProgramWidget hash = do
   return $(shamletFile "templates/widgets/source.hamlet")
 
 
-mkPaginationWidget :: Int -> Int -> Int -> RioActionM env Html
-mkPaginationWidget pageSize totalCount page = do
+mkPaginationWidget :: Int -> Int -> Int -> Text -> RioActionM env Html
+mkPaginationWidget pageSize totalCount page qstring = do
   let numPages = totalCount `div` pageSize
       totalLinks = 10
       pref = [max (page - 5) 1 .. page - 1]
-      pages = pref ++ [page .. min (page + ((totalLinks - 1) - length pref)) numPages]
+      pages = pref ++ [page .. min (page + ((totalLinks - 1) - (length pref))) numPages]
       showLeftArr = page > 1
       showRightArr = page < numPages
       prevPage = page - 1

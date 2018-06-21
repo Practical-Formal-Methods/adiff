@@ -46,15 +46,27 @@ parseQuery t = case readMay (T.unpack t) of
                  Nothing -> Left "not parseable"
                  Just q  -> Right q
 
-executeQuery :: (HasDatabase env) => Query -> RIO env [(VerifierRun, Int, Int)]
-executeQuery Everything                             = runBeam $ runSelectReturningList $ select allFindings
-executeQuery Disagreement                           = runBeam $ runSelectReturningList $ select disagreementFindings
-executeQuery (Query SuspicionIncomplete Majority)   = runBeam $ runSelectReturningList $ select incompleteFindings
-executeQuery (Query SuspicionIncomplete (AnyOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingToAnyOf vs
--- executeQuery (Query SuspicionIncomplete (AllOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingAllOf vs
-executeQuery (Query SuspicionUnsound  Majority)     = runBeam $ runSelectReturningList $ select unsoundFindings
-executeQuery (Query SuspicionUnsound (AnyOf vs))    = runBeam $ runSelectReturningList $ select $ unsoundAccordingToAnyOf vs
+executeQuery :: (HasDatabase env) => Integer -> Integer -> Query -> RIO env [(VerifierRun, Int, Int)]
+executeQuery limit offset q = do
+  res <- runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ case q of
+    Everything                             -> allFindings
+    Disagreement                           -> disagreementFindings
+    (Query SuspicionIncomplete Majority)   -> incompleteFindings
+    (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
+    (Query SuspicionUnsound  Majority)     -> unsoundFindings
+    (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
+  return res;
 
+executeQueryCount :: (HasDatabase env) => Query -> RIO env Int
+executeQueryCount q = do
+  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const (countAll_)) $ case q of
+    Everything                             -> allFindings
+    Disagreement                           -> disagreementFindings
+    (Query SuspicionIncomplete Majority)   -> incompleteFindings
+    (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
+    (Query SuspicionUnsound  Majority)     -> unsoundFindings
+    (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
+  return n;
 
 
 
