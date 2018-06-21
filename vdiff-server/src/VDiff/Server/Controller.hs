@@ -57,6 +57,8 @@ getProgram = do
 
 getFindings :: (HasDatabase env) => RioActionM env ()
 getFindings = do
+  (qs :: String) <- param "q"
+  liftIO $ putStrLn $ "query was " ++ qs
   (q :: Q2.Query) <- param "q"
   findings <- lift $ Q2.executeQuery q
   let pg = "PG"

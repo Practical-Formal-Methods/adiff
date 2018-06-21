@@ -3,24 +3,30 @@
 Query
 <div class="row">
   <div class="input-field col s12 m6 l3">
-    <select>
+    <select id="suspicion">
       <option value="" disabled selected>
         Search for
-      <option value="incomplete">
+      <option value="SuspicionIncomplete">
         incomplete
-      <option value="unsound">
+      <option value="SuspicionUnsound">
         unsound
   <div class="input-field col s12 m6 l3">
-    <select value="accordington">
-      <option value="all">
-        according to all of
-      <option value="any">
+    <select id="accordingTo">
+      <option value="AnyOf">
         according to any of
-      <option value="majority">
+      <option value="AllOf" disabled>
+        according to all of
+      <option value="Majority">
         according to the majority
-  <div class="col s12 m12 l3">
-     <div id="verifierChips" class="chips">
-        <input class="verifiersChips">
+  <div id="verifier-row" class="col s12 m12 l3">
+    <select id="verifiers" multiple>
+      <option value="klee">
+        Klee
+      <option value="cbmc">
+        Cbmc
+      <option value="uautomizer">
+         Ultimate Automizer 
+        
 
   <div class="col s2 m2 l3">
      <button id="searchButton" class="btn waves-effect waves-light">

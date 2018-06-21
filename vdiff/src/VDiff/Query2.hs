@@ -45,15 +45,15 @@ parseQuery "everything" = Right Everything
 parseQuery t = case readMay (T.unpack t) of
                  Nothing -> Left "not parseable"
                  Just q  -> Right q
-parseQuery _            = Left "not parseable"
 
 executeQuery :: (HasDatabase env) => Query -> RIO env [(VerifierRun, Int, Int)]
-executeQuery Everything                           = runBeam $ runSelectReturningList $ select allFindings
-executeQuery Disagreement                         = runBeam $ runSelectReturningList $ select disagreementFindings
-executeQuery (Query SuspicionIncomplete Majority) = runBeam $ runSelectReturningList $ select incompleteFindings
-executeQuery (Query SuspicionUnsound  Majority)   = runBeam $ runSelectReturningList $ select unsoundFindings
-executeQuery (Query SuspicionUnsound (AnyOf vs))  = runBeam $ runSelectReturningList $ select $ unsoundAccordingToAnyOf vs
--- execute (Query SuspicionIncomplete (AnyOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingToAnyOf vs
+executeQuery Everything                             = runBeam $ runSelectReturningList $ select allFindings
+executeQuery Disagreement                           = runBeam $ runSelectReturningList $ select disagreementFindings
+executeQuery (Query SuspicionIncomplete Majority)   = runBeam $ runSelectReturningList $ select incompleteFindings
+executeQuery (Query SuspicionIncomplete (AnyOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingToAnyOf vs
+-- executeQuery (Query SuspicionIncomplete (AllOf vs)) = runBeam $ runSelectReturningList $ select $ incompleteAccordingAllOf vs
+executeQuery (Query SuspicionUnsound  Majority)     = runBeam $ runSelectReturningList $ select unsoundFindings
+executeQuery (Query SuspicionUnsound (AnyOf vs))    = runBeam $ runSelectReturningList $ select $ unsoundAccordingToAnyOf vs
 
 
 
@@ -149,7 +149,7 @@ allFindings = do
 unsoundKleeCbmc = unsoundAccordingToAnyOf ["klee", "cbmc"]
 unsoundKleeCbmcSmack = unsoundAccordingToAnyOf ["klee", "cbmc", "smack"]
 
-unsoundAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
+unsoundAccordingToAnyOf, incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
 unsoundAccordingToAnyOf vs = do
   (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Unsat) allFindings
   x <- checkers
@@ -159,7 +159,6 @@ unsoundAccordingToAnyOf vs = do
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Sat) &&.
                              ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
 
-incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
 incompleteAccordingToAnyOf vs = do
   (r,sats,unsats) <- filter_ (\(r,_,_) -> (r ^. (result . verdict))  ==. val_ Sat) allFindings
   x <- checkers

@@ -8,6 +8,8 @@ $doctype 5
 
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
+  <script src="/js/jquery-3.3.1.min.js">
+
 <body>
   <header class="" style="background-color: rgb(238, 110, 115); color: white; padding: 30px;">
     <a href="/" style="color:white">
@@ -23,7 +25,6 @@ $doctype 5
         <code>
           vdiff-server
 
-  <script src="/js/jquery-3.3.1.min.js">
   <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js">
       
