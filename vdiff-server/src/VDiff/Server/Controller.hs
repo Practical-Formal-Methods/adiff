@@ -15,15 +15,16 @@ import           VDiff.Server.Prelude
 import           VDiff.Server.Widgets
 
 import           Data.FileEmbed
+import           Data.List
+import           Data.Semigroup
 import qualified Data.Text.Lazy                        as LT
 import           Database.Beam
 import           Database.Beam.Sqlite
 import           Network.Wai.Middleware.StaticEmbedded
 import           VDiff.Data
-import           VDiff.Verifier (allVerifiers)
 import           VDiff.Persistence
-import qualified VDiff.Query                           as Q
 import qualified VDiff.Query2                          as Q2
+import           VDiff.Verifier                        (allVerifiers)
 
 
 endpoints :: (HasDatabase env) => ScottyT SrvError (RIO env) ()
@@ -46,9 +47,25 @@ getIndex = do
 getProgram :: (HasDatabase env) => RioActionM env ()
 getProgram = do
   hash <- param "hash"
-  (runs :: [VerifierRun]) <- lift $ runBeam $ runSelectReturningList $ select $ Q2.runsByHash hash
+  (runs_ :: [VerifierRun]) <- lift $ runBeam $ runSelectReturningList $ select $ Q2.runsByHash hash
+  let runs = groupRuns runs_
   program <- mkProgramWidget hash
   defaultLayout ("program: " <> hash) $(shamletFile "templates/program.hamlet")
+
+data VerifierRunAggregate = VerifierRunAggregate
+  { raName       :: Text
+  , raVerdict    :: Verdict
+  , raTime       :: (Double, Double)
+  , raMemory     :: (Int, Int)
+  , raOccurences :: Int
+  }
+
+groupRuns :: [VerifierRun] -> [VerifierRunAggregate]
+groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
+  where
+    sameNameAndVerdict r1 r2 = verdictAndName r1 == verdictAndName r2
+    aggregate l@(r:rs) = VerifierRunAggregate (r ^. verifierName) (r ^. (result . verdict)) (0,0) (0,0) (length l)
+    verdictAndName r = (show (r ^. (result . verdict)), r ^. verifierName)
 
 
 -- getQueries :: RioActionM env ()

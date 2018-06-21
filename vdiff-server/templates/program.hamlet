@@ -19,12 +19,14 @@
     $forall r <- runs
       <tr>
         <td>
-          #{ r ^. verifierName }
+          #{ raName r }
         <td>
-          #{show $ r ^. (result . verdict) }
+          <span class="verdict">
+            #{ show (raVerdict r) }
+          (#{ raOccurences r })
         <td>
-          #{maybe "-" show (r ^. (result . wallTime)) }
+          TODO
         <td>
-          #{maybe "-" show (r ^. (result . memory)) }
+          TODO
 
 
