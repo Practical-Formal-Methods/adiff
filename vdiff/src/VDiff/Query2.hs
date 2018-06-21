@@ -39,6 +39,9 @@ data AccordingTo
   | Majority
   deriving (Show, Read)
 
+newtype QueryFocus = QueryFocus [VerifierName]
+  deriving (Show,Read)
+
 -- | at the moment, using 'el cheapo' parsing via read
 parseQuery :: Text -> Either Text Query
 parseQuery "everything" = Right Everything
@@ -46,9 +49,9 @@ parseQuery t = case readMay (T.unpack t) of
                  Nothing -> Left "not parseable"
                  Just q  -> Right q
 
-executeQuery :: (HasDatabase env) => Integer -> Integer -> Query -> RIO env [(VerifierRun, Int, Int)]
-executeQuery limit offset q = do
-  res <- runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ case q of
+executeQuery :: (HasDatabase env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Int, Int)]
+executeQuery limit offset qf q = do
+  res <- runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
     Everything                             -> allFindings
     Disagreement                           -> disagreementFindings
     (Query SuspicionIncomplete Majority)   -> incompleteFindings
@@ -57,9 +60,9 @@ executeQuery limit offset q = do
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
   return res;
 
-executeQueryCount :: (HasDatabase env) => Query -> RIO env Int
-executeQueryCount q = do
-  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const (countAll_)) $ case q of
+executeQueryCount :: (HasDatabase env) => QueryFocus -> Query -> RIO env Int
+executeQueryCount qf q = do
+  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const (countAll_)) $ execQf qf $ case q of
     Everything                             -> allFindings
     Disagreement                           -> disagreementFindings
     (Query SuspicionIncomplete Majority)   -> incompleteFindings
@@ -67,6 +70,8 @@ executeQueryCount q = do
     (Query SuspicionUnsound  Majority)     -> unsoundFindings
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
   return n;
+
+execQf (QueryFocus vs) = filter_ (\(r,_,_) -> (r ^. verifierName) `in_` map val_ vs )
 
 
 

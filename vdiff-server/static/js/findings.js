@@ -8,6 +8,12 @@ $(document).ready(function() {
         if (ps[0] == "q") {
             var query = decodeURIComponent(ps[1]);
             queryObj = adjustControls(query);
+        } else if (ps[0] == "qf") {
+            var qf = decodeURIComponent(ps[1]);
+            console.log(qf);
+            var vs = qf.substr(1, qf.length - 2).split(",").map(v => v.substr(1, v.length-2));
+            console.log(vs);
+            setFocusedVerifiers(vs);
         } else if (ps[0] == "page") {
             page = ps[1];
         }
@@ -84,11 +90,27 @@ function setVerifiers(vs) {
     $('#verifiers').formSelect();
 }
 
+function setFocusedVerifiers(vs) {
+    console.log("setFocusedVerifiers");
+    console.log(vs);
+
+    $('#focusVerifiers option').each(function(i, elem){
+        var v = $(elem).val();
+        if ($.inArray(v, vs) != -1) {
+            $(elem).prop('selected', true);
+        } else {
+            $(elem).prop('selected', false);
+        }
+    });
+    $('#focusVerifiers').formSelect();
+}
+
 function reloadQuery() {
     var suspicion = $('#suspicion').val();
     var accordingTo = $('#accordingTo').val();
     var q = "";
 
+    /* build the 'q' string */
     if (suspicion == "Everything") {
         q = "Everything";
     } else {
@@ -106,7 +128,12 @@ function reloadQuery() {
         }
     }
 
-    window.location = "?q=" + encodeURIComponent(q);
+    /* build the 'qf' string */
+    var qf = "[";
+    qf += $('#focusVerifiers').val().map(v => '"' + v +'"').join(",");
+    qf += "]";
+
+    window.location = "?q=" + encodeURIComponent(q) + "&qf=" + encodeURIComponent(qf);
 }
 
 function suspicionChanged() {

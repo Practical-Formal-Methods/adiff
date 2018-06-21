@@ -17,6 +17,7 @@ import           VDiff.Server.Widgets
 import           Data.FileEmbed
 import           Data.List
 import           Data.Semigroup
+import qualified Data.Text                             as T
 import qualified Data.Text.Lazy                        as LT
 import           Database.Beam
 import           Database.Beam.Sqlite
@@ -77,12 +78,20 @@ getFindings = do
   (qstring :: Text) <- param "q"
   (q :: Q2.Query) <- param "q"
   (page :: Integer) <- param "page" `rescue` (const $ return 1)
+  (qf :: Q2.QueryFocus) <- param "qf" `rescue` (const $ return $ Q2.QueryFocus verifierNames)
   let pageSize = 30
   let offset = (page - 1) * 30
-  countFindings <- lift $ Q2.executeQueryCount q
-  findings <- lift $ Q2.executeQuery pageSize offset q
+  countFindings <- lift $ Q2.executeQueryCount qf q
+  findings <- lift $ Q2.executeQuery pageSize offset qf q
   pg <- mkPaginationWidget 30 countFindings (fromIntegral page) qstring
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
 
 instance Parsable Q2.Query where
     parseParam = mapLeft LT.fromStrict . Q2.parseQuery . LT.toStrict
+
+instance Parsable Q2.QueryFocus where
+ parseParam p = case readMay (LT.unpack p) of
+                  Nothing -> Left "xx"
+                  Just vs -> Right $ Q2.QueryFocus vs
+
+verifierNames = map (^. name) allVerifiers

@@ -1,35 +1,46 @@
-<div class="row">
-  <div class="input-field col s12 m6 l3">
-    <select id="suspicion">
-      <option value="" disabled selected>
-        Show
-      <option value="Everything">
-        Everything
-      <option value="SuspicionIncomplete">
-        Incomplete
-      <option value="SuspicionUnsound">
-        Unsound
-  <div class="input-field col s12 m6 l3">
-    <div id="accordingToBox">
-      <select id="accordingTo">
-        <option value="Majority">
-          according to the majority
-        <option value="AnyOf">
-          according to any of
-        <option value="AllOf" disabled>
-          according to all of
-  <div id="verifier-row" class="col s12 m12 l3">
-    <select id="verifiers" multiple>
-      $forall v <- allVerifiers
-        <option value="#{v ^. name}">
-          #{v ^. name}
-        
+<div class="configuration">
+  <div class="row">
+    <h4>
+      Discrepancies
+    <div class="input-field col s12 m4 l4">
+      <select id="suspicion">
+        <option value="" disabled selected>
+          Show
+        <option value="Everything">
+          Everything
+        <option value="SuspicionIncomplete">
+          Incomplete
+        <option value="SuspicionUnsound">
+          Unsound
+    <div class="input-field col s12 m4 l4">
+      <div id="accordingToBox">
+        <select id="accordingTo">
+          <option value="Majority">
+            according to the majority
+          <option value="AnyOf">
+            according to any of
+          <option value="AllOf" disabled>
+            according to all of
+    <div id="verifier-row" class="input-field col s12 m4 l4">
+      <select id="verifiers" multiple>
+        $forall v <- allVerifiers
+          <option value="#{v ^. name}">
+            #{v ^. name}
 
-  <div class="col s2 m2 l3">
-     <button id="searchButton" class="btn waves-effect waves-light">
+  <h4>
+      Focus
+  <div class="row">
+    <div class="input-field col s12 m8 l8">
+      <select id="focusVerifiers" multiple>
+        $forall v <- allVerifiers
+          <option value="#{v ^. name}">
+            #{v ^. name}
+
+  <div class="row">
+      <button id="searchButton" class="btn waves-effect waves-light">
         Search
-      <i class="material-icons right">
-        search
+        <i class="material-icons right">
+          search
         
 <p>
   total: #{countFindings}
