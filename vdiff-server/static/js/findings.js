@@ -42,6 +42,8 @@ function adjustControls(s) {
             var mode = m[2];
 
             if (mode.startsWith("(AnyOf") || mode.startsWith("(AllOf")) {
+                mode = mode.substr(1, mode.indexOf('[') - 2);
+                setMode(mode);
                 var vl = m[3];
                 var verifiers = vl.substr(1, vl.length -2).split(",").map(x => x.substr(1, x.length-2));
                 setVerifiers(verifiers);
@@ -66,12 +68,21 @@ function setSuspicion(s) {
 
 function setMode(s) {
     console.log("setting mode to " + s);
-    if (s == 'Majority') {
-        $('#accordingTo option').prop('selected', false);
-        $('#accordingTo option[value="' + s + '"]').prop('selected', true);
-        $('#accordingTo').formSelect();
-        $('#verifier-row').hide();
+    $('#accordingTo option').each(function(i,elem) {
+        if ($(elem).val() == s) {
+            console.log("x");
+            $(elem).prop('selected', true);
+        } else {
+            console.log("y");
+            $(elem).prop('selected', false);
+        }
+    });
+    $('#accordingTo').formSelect();
 
+    if (s == 'Majority') {
+        $('#verifier-row').hide();
+    } else {
+        $('#verifier-row').show();
     }
 }
 
