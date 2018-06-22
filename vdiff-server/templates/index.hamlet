@@ -1,4 +1,4 @@
-  <a href="/findings?q=Everything">
+  <a href="/findings?q=Everything&qf=#{tshow verifierNames}">
     <h3>
       Go to Findings
 
