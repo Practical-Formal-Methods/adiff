@@ -22,8 +22,8 @@ mkProgramWidget hash = do
   return $(shamletFile "templates/widgets/source.hamlet")
 
 
-mkPaginationWidget :: Int -> Int -> Int -> Text -> RioActionM env Html
-mkPaginationWidget pageSize totalCount page qstring = do
+mkPaginationWidget :: Int -> Int -> Int -> Text -> Text -> RioActionM env Html
+mkPaginationWidget pageSize totalCount page qstring qfstring = do
   let numPages = totalCount `div` pageSize
       totalLinks = 10
       pref = [max (page - 5) 1 .. page - 1]

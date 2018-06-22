@@ -79,11 +79,12 @@ getFindings = do
   (q :: Q2.Query) <- param "q"
   (page :: Integer) <- param "page" `rescue` (const $ return 1)
   (qf :: Q2.QueryFocus) <- param "qf" `rescue` (const $ return $ Q2.QueryFocus verifierNames)
+  (qfstring :: Text) <- param "qf"
   let pageSize = 30
   let offset = (page - 1) * 30
   countFindings <- lift $ Q2.executeQueryCount qf q
   findings <- lift $ Q2.executeQuery pageSize offset qf q
-  pg <- mkPaginationWidget 30 countFindings (fromIntegral page) qstring
+  pg <- mkPaginationWidget 30 countFindings (fromIntegral page) qstring qfstring
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
 
 instance Parsable Q2.Query where
