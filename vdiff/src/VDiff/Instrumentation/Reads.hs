@@ -20,14 +20,7 @@ import           VDiff.Instrumentation.Browser
 import qualified VDiff.Instrumentation.Fragments   as Fragments
 
 
--- | A "read expression" is a subexpression that contains read variables and
--- that looks (at least syntactically) side-effect free. E.g. a function call is
--- not a read expression, but an array or field access is.
-data ExprRead = ExprRead
-  { _position   :: AstPosition
-  , _expression :: CExpression SemPhase
-  } deriving (Show, Eq)
-makeFieldsNoPrefix ''ExprRead
+
 
 
 -- | find all (sub-expressions) of a statement that

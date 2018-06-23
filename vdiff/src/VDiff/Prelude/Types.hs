@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
@@ -22,21 +23,21 @@ import           RIO
 
 import           Control.Lens.TH
 import           Control.Monad.Random
-import           Data.List                        (intersperse, (!!))
-import           Data.List.Key                    (nub)
-import           Data.Text                        (pack)
-import qualified Database.SQLite.Simple           as SQL
-import           Language.C                       hiding (LevelError, LevelWarn,
-                                                   execParser)
+import           Data.List                           (intersperse, (!!))
+import           Data.List.Key                       (nub)
+import           Data.Text                           (pack)
+import qualified Database.SQLite.Simple              as SQL
+import           Language.C                          hiding (LevelError,
+                                                      LevelWarn, execParser)
 import           Language.C.Analysis.AstAnalysis2
-import           Language.C.Analysis.SemRep       hiding (Stmt)
-import           Language.C.Analysis.TypeUtils    (voidType)
+import           Language.C.Analysis.SemRep          hiding (Stmt)
+import           Language.C.Analysis.TypeUtils       (voidType)
 import           Language.C.Data.Lens
 import           Safe
-import           System.IO                        (FilePath)
-import           Text.PrettyPrint                 (render)
-
+import           System.IO                           (FilePath)
+import           Text.PrettyPrint                    (render)
 import           VDiff.Data
+import           VDiff.Instrumentation.Browser.Types
 
 
 data Strategy = RandomWalkStrategy
@@ -62,14 +63,13 @@ data Verifier = Verifier
   , _verifierExecute :: FilePath -> RIO VerifierEnv VerifierResult
   , _version         :: IO (Maybe String)
   }
-makeFieldsNoPrefix ''Verifier
 
 -- | It is important not to execute a Verifier directly through _verifierExecute
 -- as the verifiers themselves lack proper exception handling. Use 'execute'!
 execute :: Verifier -> FilePath -> RIO VerifierEnv VerifierResult
-execute v fp = try ((v ^. verifierExecute) fp) >>= \case
+execute v fp = try (_verifierExecute v fp) >>= \case
   Left (e :: IOException) -> do
-    logWarn $ "verifier " <> display (v ^. name) <> " just caused an IO exception: " <> display (tshow $ displayException e)
+    logWarn $ "verifier " <> display (_name v) <> " just caused an IO exception: " <> display (tshow $ displayException e)
     return $ VerifierResult Nothing Nothing Unknown
   Right res -> return res
 
@@ -118,11 +118,15 @@ mkVerifierEnv timeLimit = do
 class HasTranslationUnit env where
   translationUnit :: Lens' env (CTranslationUnit SemPhase)
 
+class HasInitialBudget env where
+  initialBudget :: Lens' env Int
+
 data StrategyEnv = StrategyEnv
   { _strategyLogFunc         :: !LogFunc
   , _strategyTranslationUnit :: !(CTranslationUnit SemPhase)
   , _strategyDiffParameters  :: !DiffParameters
   , _strategyDatabase        :: !SQL.Connection
+  , _strategyInitialBudget   :: !Int
   }
 
 instance HasTranslationUnit StrategyEnv where
@@ -137,16 +141,14 @@ instance HasDiffParameters StrategyEnv where
 instance HasDatabase StrategyEnv where
   databaseL = lens _strategyDatabase (\e d -> e {_strategyDatabase = d})
 
+instance HasInitialBudget StrategyEnv where
+  initialBudget = lens _strategyInitialBudget (\e b -> e {_strategyInitialBudget = b})
+
 instance IsStrategyEnv StrategyEnv
 
-class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env, HasDatabase env) => IsStrategyEnv env
+class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env, HasDatabase env, HasInitialBudget env) => IsStrategyEnv env
 
 
-mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
-mkStrategyEnv tu dp = do
-  lg <- view logFuncL
-  db <- view databaseL
-  return $ StrategyEnv  lg tu dp db
 
 data Conclusion
   = StrongAgreement !Verdict       -- ^ all verifiers agree on an outcome
@@ -166,25 +168,26 @@ isDisagreement = \case
 
 
 
-instance Eq Verifier where
-  v1 == v2 = (v1 ^. name) == (v2 ^. name)
-
-instance Ord Verifier where
-  v1 <= v2 = (v1 ^. name) <= (v2 ^. name)
-
+-- | A "read expression" is a subexpression that contains read variables and
+-- that looks (at least syntactically) side-effect free. E.g. a function call is
+-- not a read expression, but an array or field access is.
+data ExprRead = ExprRead
+  { _position   :: AstPosition
+  , _expression :: CExpression SemPhase
+  } deriving (Show, Eq)
 
 
 -- | This data type contains all the diff parameters that are passed to the
 -- strategy. Note that not all parameters are relevant for all strategies. For
 -- example the "batchSize" parameter is only available in random-uniform.
 data DiffParameters = DiffParameters
-  { _strategy   :: Strategy
-  , _budget     :: Int
-  , _timelimit  :: Int
-  , _verifiers  :: [Verifier]
-  , _searchMode :: SearchMode
-  , _batchSize  :: Int
-  , _inputFile  :: FilePath
+  { _strategy            :: Strategy
+  , _budgetSpecification :: Text
+  , _timelimit           :: Int
+  , _verifiers           :: [Verifier]
+  , _searchMode          :: SearchMode
+  , _batchSize           :: Int
+  , _inputFile           :: FilePath
   }
 
 makeFieldsNoPrefix ''DiffParameters
@@ -208,7 +211,11 @@ prettyp = render . pretty
 --------------------------------------------------------------------------------
 -- Utilities regarding random decisions
 
-deriving instance MonadRandom (RIO env)
+instance MonadRandom (RIO env) where
+  getRandomR  = liftIO . getRandomR
+  getRandomRs = liftIO . getRandomRs
+  getRandom   = liftIO getRandom
+  getRandoms  = liftIO getRandoms
 
 chooseOneOf :: (MonadRandom m) => [a] ->  m (Maybe a)
 chooseOneOf options = do
@@ -259,3 +266,13 @@ instance HasLogFunc NoLogging where
 isCompound ::Stmt -> Bool
 isCompound (CCompound _ _ _ ) = True
 isCompound _                  = False
+
+
+makeFieldsNoPrefix ''Verifier
+makeFieldsNoPrefix ''ExprRead
+
+instance Eq Verifier where
+  v1 == v2 = (v1 ^. name) == (v2 ^. name)
+
+instance Ord Verifier where
+  v1 <= v2 = (v1 ^. name) <= (v2 ^. name)

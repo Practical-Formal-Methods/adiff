@@ -56,6 +56,7 @@ import           Control.Monad.State.Strict
 import           Control.Monad.Writer          hiding ((<>))
 import           Data.Generics.Uniplate.Data   ()
 import qualified Data.Generics.Uniplate.Zipper as Z
+import VDiff.Instrumentation.Browser.Types
 
 type StmtZipper= Z.Zipper Stmt Stmt
 
@@ -144,20 +145,6 @@ go_ :: (MonadBrowser m) => Direction -> m ()
 go_ d = do
   m <- go d
   unless m $ error ("cannot go " ++ show d)
-
--- | Describes the position of a statement in the translation unit by encoding a "path" through the abstract syntax tree.
-data AstPosition = AstPosition
-  { functionName :: String
-  , indices      :: [Int]
-  } deriving (Eq, Ord, Show)
-
-astDepth :: AstPosition -> Int
-astDepth (AstPosition _ is) = length is
-
-
-instance Display AstPosition where
- display (AstPosition fn xs) = display (tshow fn) <> "/" <> foldl' f "" xs
-  where f b x = display b <> "/" <> display x
 
 -- Important note: a position contains the indices ordered from top to bottom
 -- whereas the stmtPosition in the BrowserState is from bottom to top.

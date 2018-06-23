@@ -47,7 +47,7 @@ breadthFirstStrategy = mkStrategy p
 mkStrategy :: (IsStrategyEnv env) => Prioritization -> RIO env ()
 mkStrategy prioritize = do
   tu              <- view translationUnit
-  bdg             <- view (diffParameters . budget)
+  bdg             <- view initialBudget
   sm              <- view (diffParameters . searchMode)
   conjunctionSize <- view (diffParameters . batchSize)
 

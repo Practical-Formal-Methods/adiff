@@ -52,12 +52,17 @@ verifiers = option verifierParser options
 diffParameters :: Parser DiffParameters
 diffParameters = DiffParameters
       <$> VDiff.Arguments.strategy
-      <*> option auto ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value 1)
+      <*> VDiff.Arguments.budget
       <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
       <*> VDiff.Arguments.verifiers
       <*> VDiff.Arguments.searchMode
       <*> VDiff.Arguments.batchSize
       <*> cFile
+
+budget :: Parser Text
+budget = option str ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value "1")
+  where
+    -- str' = str >>= \body -> return ("λ(e:{reads:Natural,positions:Natural}) → (" <> body <> ")")
 
 batchSize :: Parser Int
 batchSize = option auto options

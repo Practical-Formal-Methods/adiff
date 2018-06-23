@@ -42,7 +42,7 @@ runRandomS bdg initState = runBrowserT (runStateT (unRandom (randomWalkStrategy'
 randomWalkStrategy :: (IsStrategyEnv env) => RIO env ()
 randomWalkStrategy = do
   tu <- view translationUnit
-  b <- view (diffParameters . budget)
+  b <- view initialBudget
   let initState = RandomState 0 0 (findAllConstants tu)
   void $ runRandomS b initState tu
 

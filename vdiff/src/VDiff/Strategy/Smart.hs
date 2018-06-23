@@ -58,7 +58,7 @@ smartStrategy = do
   logInfo "starting with smartStrategy"
   tu <- view translationUnit
   n <- length <$> view (diffParameters . verifiers)
-  bdgt <- view (diffParameters . budget)
+  bdgt <- view initialBudget
   let cs = findAllConstants tu
       blurred = blurConstants cs
   logDebug $ "constants found : " <> display cs

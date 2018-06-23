@@ -9,14 +9,17 @@ module VDiff.Diff where
 import           VDiff.Prelude
 
 import           Data.List             (sortBy)
+import qualified Data.List             as L
+import qualified Data.Map              as Map
 import           Data.Ord              (comparing)
 import qualified Data.Text.IO          as T
+import qualified Data.Text.Lazy        as LT
 import           Language.C
-import           Text.PrettyPrint      (render)
-
+import qualified Language.Doll         as Doll
 import           System.Directory
 import           System.Exit
 import           System.IO
+import           Text.PrettyPrint      (render)
 
 import           VDiff.Instrumentation
 import           VDiff.Strategy
@@ -70,3 +73,21 @@ cmdRunVerifiers dp = do
     liftIO $ print (v ^. name)
     res <- runRIO verifierEnv $ execute v fn'
     liftIO $ print res
+
+mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
+mkStrategyEnv tu dp = do
+  lg <- view logFuncL
+  db <- view databaseL
+  let searchMode_ =  dp ^. searchMode
+      budgetSpecification_ = dp ^. budgetSpecification
+  -- interpret the budget specification
+  let reads     = findAllReads searchMode_ tu
+      positions = L.nub [r ^. position | r <- reads]
+      dollEnv = Map.fromList [ ("reads", fromIntegral $ length reads)
+                             , ("positions", fromIntegral $ length positions)
+                             ]
+  case Doll.evalDoll dollEnv (dp ^. budgetSpecification) of
+    Left err -> error err
+    Right bdg -> do
+      logDebug $ "evaluated Doll expression '" <> display (dp ^. budgetSpecification) <> "' to " <> display (tshow bdg)
+      return $ StrategyEnv  lg tu dp db (round bdg)

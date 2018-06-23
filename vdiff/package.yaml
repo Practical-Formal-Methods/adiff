@@ -122,5 +122,6 @@ dependencies:
   - beam-core
   - beam-sqlite
   - beam-migrate
-  - time 
+  - language-doll
+  - time
   

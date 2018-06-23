@@ -44,7 +44,7 @@ verifyB :: (IsStrategyEnv env, MonadReader env m, MonadIO m, MonadBudget m)
   => CTranslationUnit SemPhase
   -> m ([VerifierRun], Conclusion)
 verifyB tu = do
-  completeBudget <- view (diffParameters . budget )
+  completeBudget <- view initialBudget
   currentBudget <- getBudget
   let n = completeBudget - currentBudget
   budgeted (verify n tu)

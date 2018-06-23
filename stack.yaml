@@ -2,6 +2,7 @@ flags: {}
 packages:
 - ./vdiff
 - ./vdiff-server
+- ./language-doll
 - location: ./language-c-extensible
   extra-dep: true
 

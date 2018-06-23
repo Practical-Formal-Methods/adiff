@@ -1,0 +1,25 @@
+name:                language-doll
+version:             0.1.0.0
+github:              "chkl/vdiff/"
+license:             BSD3
+author:              "Christian Klinger"
+maintainer:          "io@klinch.de"
+copyright:           "2018 Christian Klinger"
+
+extra-source-files:
+- README.md
+
+description:         Please see the README on GitHub
+
+dependencies:
+- base >= 4.7 && < 5
+- containers
+- megaparsec
+- mtl
+- text
+- transformers
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Language.Doll
