@@ -33,10 +33,9 @@ infos = (progDesc "viewer for vdiff")
 main :: IO ()
 main = runVDiffApp parseServerParameters infos $ \sp -> do
   env <- ask
-  -- update the temporary table
-  logInfo "updating counts table"
-  runBeam Q2.updateCountsTable
-  logInfo "done"
+  whenM Q2.updateCountsTableNecessary $ do
+    logInfo "update necessary"
+    Q2.updateCountsTableProgressive
   scottyT (port sp) (runRIO env) $ endpoints
 
 

@@ -194,7 +194,7 @@ incompleteAccordingToAnyOf vs = do
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Unsat) &&.
                              ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
 
--- update counts table
+-- | This is quite memory-intensive, don't use on big tables.
 updateCountsTable :: SqliteM ()
 updateCountsTable = do
   -- delete all rows
@@ -205,6 +205,32 @@ updateCountsTable = do
     (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
     (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
     return $ Counts default_ (pk r) (maybe_ (val_ 0) id sats) (maybe_(val_ 0) id unsats)
+
+
+updateCountsTableProgressive :: (HasDatabase env, HasLogFunc env) => RIO env ()
+updateCountsTableProgressive = do
+  let bs = 100000 :: Int
+  logInfo $ "updating counts table (using batches of size " <> display bs <> ")"
+  -- delete
+  runBeam $ runDelete $ delete (vdiffDb ^. tmpCounts) (const $ val_ True)
+  -- find highest id
+  (Just maxRunId) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. runs)
+  logInfo $ "total number of runs in db: " <> display maxRunId
+  -- insert counts in batches
+  forM_ [0.. ((maxRunId `div` bs)) + 1] $ \i -> do
+    logSticky $ "calculating batch #" <> display i <> " of " <> display (maxRunId `div` bs + 1)
+    runBeam $ runInsert $ insert (vdiffDb ^. tmpCounts) $ insertFrom $ do
+      r <- filter_ (\r -> (between_ (r ^. runId) (val_ $ i * bs) (val_ $ (i+1) * bs - 1))) $ all_ (vdiffDb ^. runs)
+      (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
+      (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
+      return $ Counts default_ (pk r) (maybe_ (val_ 0) id sats) (maybe_(val_ 0) id unsats)
+  logStickyDone "updating counts table completed"
+
+updateCountsTableNecessary :: (HasDatabase env) => RIO env Bool
+updateCountsTableNecessary = do
+  (Just runsN) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. runs)
+  (Just countsN) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. tmpCounts)
+  return $ runsN /= countsN
 
 
 
