@@ -14,6 +14,7 @@ module VDiff.Query2 where
 import qualified Data.Text                                as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
+import           Database.Beam.Sqlite                     hiding (runInsertReturningList)
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Prelude                            hiding (Disagreement)
@@ -165,10 +166,11 @@ disagreementFindings = filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) a
 allFindings :: Q _ _ _ _
 allFindings = do
   r <- allRuns_
-  (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
-  (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
+  cts <- filter_ (\c -> (r ^. runId) ==. (c ^. countedRunId)) $ all_ (vdiffDb ^. tmpCounts)
+  -- (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
+  -- (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
   p <- leftJoin_ (all_ $ vdiffDb ^. programs) (\p -> (p ^. hash) ==. (r ^. program) )
-  return (r, p ^. origin, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
+  return (r, p ^. origin, cts ^. countedSats, cts ^. countedUnsats)
 
 unsoundKleeCbmc = unsoundAccordingToAnyOf ["klee", "cbmc"]
 unsoundKleeCbmcSmack = unsoundAccordingToAnyOf ["klee", "cbmc", "smack"]
@@ -191,6 +193,19 @@ incompleteAccordingToAnyOf vs = do
   where
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Unsat) &&.
                              ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
+
+-- update counts table
+updateCountsTable :: SqliteM ()
+updateCountsTable = do
+  -- delete all rows
+  runDelete $ delete (vdiffDb ^. tmpCounts) (const $ val_ True)
+  -- insert new counts
+  runInsert $ insert (vdiffDb ^. tmpCounts) $ insertFrom $ do
+    r <- all_ (vdiffDb ^. runs)
+    (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
+    (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
+    return $ Counts default_ (pk r) (maybe_ (val_ 0) id sats) (maybe_(val_ 0) id unsats)
+
 
 
 --------------------------------------------------------------------------------

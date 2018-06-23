@@ -43,6 +43,12 @@ module VDiff.Data (
   , runId
   , verifierName
   , toRunId
+  -- * Counts
+  , tmpCounts
+  , CountsT(Counts)
+  , countedRunId
+  , countedSats
+  , countedUnsats
   -- * Tags
   , tags
   , Tag
@@ -206,17 +212,30 @@ instance Table TagT where
 --------------------------------------------------------------------------------
 
 
+data CountsT f = Counts
+  { _countId     :: C f Int
+  , _countedRunId :: PrimaryKey VerifierRunT f
+  , _sats         :: C f Int
+  , _unsats       :: C f Int
+  } deriving (Generic, Beamable)
+
+Counts _ (VerifierRunId (LensFor countedRunId)) (LensFor countedSats) (LensFor countedUnsats) = tableLenses
+
+instance Table CountsT where
+  data PrimaryKey CountsT f = CountsId (C f Int) deriving (Generic, Beamable)
+  primaryKey = CountsId . _countId
 
 
 
 --- and now we define the database
 data VDiffDb f = VDiffDb
-  { _runs     :: f (TableEntity VerifierRunT)
-  , _programs :: f (TableEntity ProgramT)
-  , _tags     :: f (TableEntity TagT)
+  { _runs      :: f (TableEntity VerifierRunT)
+  , _programs  :: f (TableEntity ProgramT)
+  , _tags      :: f (TableEntity TagT)
+  , _tmpCounts :: f (TableEntity CountsT)
   } deriving Generic
 
-VDiffDb (TableLens runs) (TableLens programs) (TableLens tags) = dbLenses
+VDiffDb (TableLens runs) (TableLens programs) (TableLens tags) (TableLens tmpCounts)= dbLenses
 
 instance Database be VDiffDb
 
@@ -227,6 +246,7 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
       { _runs     = modifyCheckedTable (const "runs") mod_runs
       , _programs = modifyCheckedTable (const "programs") mod_programs
       , _tags     = modifyCheckedTable (const "tags") mod_tags
+      , _tmpCounts = modifyCheckedTable (const "tmp_counts") mod_counts
       }
     mod_runs = checkedTableModification
       { _runId        = "run_id"
@@ -246,12 +266,24 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
       , _tagName      = "name"
       , _tagValue     = "value"
       }
+    mod_counts = checkedTableModification
+      { _countedRunId = VerifierRunId "run_id"
+      , _sats         = "sats"
+      , _unsats       = "unsats"
+      }
 
 vdiffDb :: DatabaseSettings be VDiffDb
 vdiffDb = unCheckDatabase vdiffDbChecked
 
 migrateVdiff :: SqliteM ()
 migrateVdiff = autoMigrate migrationBackend vdiffDbChecked
+
+
+
+--------------------------------------------------------------------------------
+-- SomeDatabasePredicate <- sth. like "HasTmpCountTables"
+-- PotentialAction <- sth. like CREATE TEMP TABLE tmp_counts AS ...
+-- ActionProvider
 
 --------------------------------------------------------------------------------
 -- Some useful instances

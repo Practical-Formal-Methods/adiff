@@ -42,7 +42,8 @@ unknownResult = VerifierResult Nothing Nothing Unknown
 testVerySimple :: TestTree
 testVerySimple = testCase "simple" $ withTestEnv $ do
   runBeam migrateVdiff
-  runBeam$ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3]
+  runBeam Q2.updateCountsTable
+  runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3]
   someRuns <- runBeam $ runSelectReturningList $ select q
   liftIO $ someRuns @?= [run1]
   where
@@ -51,6 +52,7 @@ testVerySimple = testCase "simple" $ withTestEnv $ do
 testRunIdWithVerdict :: TestTree
 testRunIdWithVerdict = testCase "testRunIdWithVerdict" $ withTestEnv $ do
   runBeam migrateVdiff
+  runBeam Q2.updateCountsTable
   runBeam $ runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
   runBeam$ runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4,run5]
   sats <- runBeam $ runSelectReturningList $ select $ Q2.runIdWithVerdict Sat
@@ -64,6 +66,7 @@ testAllFindings = testCase "allFindings" $ withTestEnv $ do
     migrateVdiff
     runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
     runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
+    Q2.updateCountsTable
   fs <- runBeam $ runSelectReturningList $ select Q2.allFindings
   liftIO $ fs @?= [ (run1, Just "test.c", 2, 1)
                   , (run2, Just "test.c", 2, 1)
@@ -77,6 +80,7 @@ testIncompleteFindings = testCase "incompleteFindings" $ withTestEnv $ do
     migrateVdiff
     runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
     runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run5, run6]
+    Q2.updateCountsTable
   fs <- runBeam $ runSelectReturningList $ select Q2.incompleteFindings
   liftIO $ fs @?= [(run1, Just "test.c", 1, 2)]
 
@@ -86,5 +90,6 @@ testUnsoundFindings = testCase "unsoundFindings" $ withTestEnv $ do
     migrateVdiff
     runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
     runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
+    Q2.updateCountsTable
   fs <- runBeam $ runSelectReturningList $ select Q2.unsoundFindings
   liftIO $ fs @?= [(run2, Just "test.c", 2, 1)]
