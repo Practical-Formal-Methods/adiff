@@ -33,6 +33,16 @@ $doctype 5
       }
     }
 
+    body {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    main {
+      flex: 1 0 auto;
+    }
+
 <body>
   <header class="" style="background-color:#5397CC; color: white; padding: 30px;">
     <a href="/" style="color:white">
@@ -42,11 +52,8 @@ $doctype 5
   <main class="xcontainer" style="min-height:80%">
     #{content}
 
-  <footer class="page-footer" style="background-color: #5397CC; color:white">
-    <div class="container center">
-      pages served with 
-        <code>
-          vdiff-server
+  <footer class="page-footer center" style="background-color: #5397CC; color:white">
+      pages served with vdiff-server
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js">
