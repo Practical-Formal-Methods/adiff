@@ -38,9 +38,9 @@ module VDiff.Instrumentation
  , findAllReads
  ) where
 
-import           VDiff.Prelude
 import           RIO.FilePath
 import           Safe
+import           VDiff.Prelude
 
 import           Control.Lens.Operators
 import           Data.Generics.Uniplate.Data       ()
@@ -85,7 +85,8 @@ openCFile fn = do
 -- * mask asserts
 -- * declare __VERIFIER_error (if not declared)
 -- * define __VERIFIER_assert (if not defined)
-preprocess = defineAssert . declareError . maskAsserts
+preprocess :: TU -> TU
+preprocess = defineAssert . declareError . maskGotoError. maskAsserts
 
 
 -- | Returns the name of a function if that function is called at the current statement
@@ -100,7 +101,14 @@ findCalledFunction = do
             ]
   return $ headMay fns
 
-
+-- | replaces all @goto ERROR@ statements with the empty statement
+maskGotoError = transformBi maskGotoStmt
+  where
+    maskGotoStmt :: Stmt -> Stmt
+    maskGotoStmt stmt@(CGoto n ann)
+      | identToString n == "ERROR" = CExpr Nothing ann
+      | otherwise = stmt
+    maskGotoStmt stmt = stmt
 
 --------------------------------------------------------------------------------
 -- | * Masking

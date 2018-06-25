@@ -34,6 +34,7 @@ testZipping = do
     -- , testAllFinds
     , pure testPreprocessor
     , pure testEditingOtherFunction
+    , testPreprocess
     ]
   return $ testGroup "zipping" tests
 
@@ -147,5 +148,10 @@ testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-fu
           gotoFunction "main"
           buildTranslationUnit
 
-
-
+testPreprocess :: IO TestTree
+testPreprocess = do
+  cFiles <- findByExtension [".c"] "assets/test/preprocess"
+  return $ testGroup "preprocess golden tests" $ map runTest cFiles
+  where
+    runTest cf = vsGoldenFile cf "preprocess"  $ \tu ->
+        return $ LC8.pack .  render . pretty . preprocess $ tu
