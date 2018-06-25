@@ -213,7 +213,7 @@ instance Table TagT where
 
 
 data CountsT f = Counts
-  { _countId     :: C f Int
+  { _countId      :: C f Int
   , _countedRunId :: PrimaryKey VerifierRunT f
   , _sats         :: C f Int
   , _unsats       :: C f Int
@@ -292,3 +292,6 @@ deriving instance Eq VerifierRunId
 deriving instance Eq ProgramId
 deriving instance Eq VerifierResult
 deriving instance Eq VerifierRun
+deriving instance Ord ProgramId
+deriving instance Ord VerifierRun
+deriving instance Ord VerifierResult

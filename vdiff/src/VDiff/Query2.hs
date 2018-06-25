@@ -138,14 +138,24 @@ tagProgram hsh pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertEx
 -- | returns a table with runIds and the count of the given verdict on the
 -- program of the run. 'RunId' that have a count of 0 do not show up here, so make
 -- sure that you use a left join and convert the NULL to a 0 in later steps.
+-- runIdWithVerdict :: Verdict -> Q _ _ _ _
+-- runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
+--   r <- allRuns_
+--   r' <- leftJoin_ allRuns_ (\r' -> (r' ^. program) ==. r ^. program)
+--   return (r,r')
+--   where
+--     aggregateGroupLeft  = aggregate_ (\(r,_) -> (group_ (r ^. runId), countAll_))
+--     filterRightVerdict  = filter_ (\(_, r) -> ((r ^. (result . verdict)) ==. val_ (Just v)))
+
+
 runIdWithVerdict :: Verdict -> Q _ _ _ _
-runIdWithVerdict v = aggregateGroupLeft $ filterRightVerdict $ do
+runIdWithVerdict v = aggreg $ do
   r <- allRuns_
-  r' <- leftJoin_ allRuns_ (\r' -> (r' ^. program) ==. r ^. program)
-  return (r,r')
+  r' <- leftJoin_ (filter_ (\r -> r ^. (result . verdict) ==. val_ v) allRuns_) (\r' -> (r' ^. program) ==. r ^. program)
+  return (r ^. runId, r' ^. verifierName)
   where
-    aggregateGroupLeft  = aggregate_ (\(r,_) -> (group_ (r ^. runId), countAll_))
-    filterRightVerdict  = filter_ (\(_, r) -> ((r ^. (result . verdict)) ==. val_ (Just v)))
+    aggreg = aggregate_ (\(rid,vn) -> (group_ rid, countOver_ distinctInGroup_ vn))
+
 
 
 
