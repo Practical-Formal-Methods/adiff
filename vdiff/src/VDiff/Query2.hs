@@ -243,6 +243,14 @@ updateCountsTableNecessary = do
   return $ runsN /= countsN
 
 
+tagsForProgram :: (HasDatabase env) => Text -> RIO env _
+tagsForProgram hsh = runBeam $ runSelectReturningList $ select $ project <$> relevantTags
+  where
+    project r = (r ^. tagName, r ^. tagValue)
+    relevantTags = filter_ (\t -> (t ^. taggedProgramId) ==. val_ (Just hsh)) $ all_ (vdiffDb ^. tags)
+
+tagsForRun :: VerifierRunId -> RIO env [(Text,Text)]
+tagsForRun = undefined
 
 --------------------------------------------------------------------------------
 -- query fragments

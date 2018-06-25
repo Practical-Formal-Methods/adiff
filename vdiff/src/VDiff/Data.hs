@@ -55,6 +55,10 @@ module VDiff.Data (
   , TagT(..)
   , TagValue
   , TagName
+  , taggedProgramId
+  , taggedRunId
+  , tagName
+  , tagValue
   -- * database
   , runs
   , programs
@@ -208,6 +212,9 @@ type Tag = TagT Identity
 instance Table TagT where
   data PrimaryKey TagT f = TagId (C f Int) deriving (Generic, Beamable)
   primaryKey = TagId . _tagId
+
+
+Tag (LensFor tagId) (VerifierRunId (LensFor taggedRunId)) (ProgramId (LensFor taggedProgramId)) (LensFor tagName) (LensFor tagValue) = tableLenses
 
 --------------------------------------------------------------------------------
 

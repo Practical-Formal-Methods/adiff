@@ -1,12 +1,13 @@
+<div class="container">
   <a href="/findings?q=Everything&qf=#{tshow verifierNames}">
     <h3>
       Go to Findings
 
-<h4 class="section">Statistics
+  <h4 class="section">Statistics
 
-<table>
-  $forall (s,t) <- statistics
-    <tr>
-      <td>#{s}
-      <td>#{t}
+  <table>
+    $forall (s,t) <- statistics
+      <tr>
+        <td>#{s}
+        <td>#{t}
 

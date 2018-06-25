@@ -50,7 +50,8 @@ getProgram = do
   hash <- param "hash"
   (runs_ :: [VerifierRun]) <- lift $ runBeam $ runSelectReturningList $ select $ Q2.runsByHash hash
   let runs = groupRuns runs_
-  program <- mkProgramWidget hash
+  (Just program) <- lift $ Q2.programByHash hash
+  tags <- lift $ Q2.tagsForProgram hash
   defaultLayout ("program: " <> hash) $(shamletFile "templates/program.hamlet")
 
 data VerifierRunAggregate = VerifierRunAggregate

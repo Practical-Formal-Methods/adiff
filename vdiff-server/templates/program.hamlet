@@ -1,32 +1,56 @@
 
-<h4>Instrumented Program
-^{program}
-
-<h4>Runs
-<table>
-  <thead>
-    <tr>
-      <th>
-        verifier
-      <th>
-        result
-      <th>
-        time 
-      <th>
-        memory
-
-  <tbody>
-    $forall r <- runs
+<div class="row">
+  <div class="col s12 m12 l12 xl6">
+    <h4>Instrumented Program
+    <table class="responsive-table">
       <tr>
+        <td>original filename
+        <td>#{ program  ^. origin }
+      <tr>
+        <td>hash
         <td>
-          #{ raName r }
-        <td>
-          <span class="verdict">
-            #{ show (raVerdict r) }
-          (#{ raOccurences r })
-        <td>
-          TODO
-        <td>
-          TODO
+          <code.hash> #{ hash }
+      $forall (k,v) <- tags
+        <tr>
+          <td>#{k}
+          <td>#{v}
 
+    <h4>Runs
+    <table>
+      <thead>
+        <tr>
+          <th>
+            verifier
+          <th>
+            result
+          <th>
+            time 
+          <th>
+            memory
 
+      <tbody>
+        $forall r <- runs
+          <tr>
+            <td>
+              #{ raName r }
+            <td>
+              <span class="verdict">
+                #{ show (raVerdict r) }
+              (#{ raOccurences r })
+            <td>
+              TODO
+            <td>
+              TODO
+
+  <div class="col s12 m12 l12 xl6">
+    <div id="sourcebox">
+      <pre class="source">
+        <code class="c">
+          #{ program ^. source }
+      <!-- <div style="margin-top:-15px"> -->
+      <!--   <button id="btnCopy" class="btn-small waves-effect"> -->
+      <!--     Copy to clipboard -->
+      <!--     <i class="material-icons left">content_copy -->
+      <!--   <a class="btn-small waves-effect" href="/download/program/#{hash}" target="_blank"> -->
+      <!--     Download as file -->
+      <!--     <i class="material-icons left">file_download -->

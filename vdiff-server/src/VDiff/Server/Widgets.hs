@@ -15,12 +15,6 @@ mkProgramLink hsh =
   in [shamlet| <a href="/program/#{hsh}">#{trunc}|]
 
 
--- | creates a program "widget"
-mkProgramWidget :: (HasDatabase env) => Text -> RioActionM env Html
-mkProgramWidget hash = do
-  (Just program) <- lift $ Q2.programByHash hash
-  return $(shamletFile "templates/widgets/source.hamlet")
-
 
 mkPaginationWidget :: Int -> Int -> Int -> Text -> Text -> RioActionM env Html
 mkPaginationWidget pageSize totalCount page qstring qfstring = do
