@@ -15,7 +15,7 @@ cpaChecker = Verifier "cpachecker" cpaExecute cpaVersion
 
 cpaExecute :: FilePath -> RIO VerifierEnv VerifierResult
 cpaExecute fn = withSpec reachSafety $ \spec -> do
-  let cmd = shell $ "cpa.sh -default -nolog -noout -spec " ++ spec ++ " " ++ fn
+  let cmd = shell $ "cpa.sh -32 -default -nolog -noout -spec " ++ spec ++ " " ++ fn
   withTiming cmd "" $ \_ out _ -> do
       let out' = filter ("Verification result" `BS.isPrefixOf`) $ C8.lines out
       let verdict = case out' of
