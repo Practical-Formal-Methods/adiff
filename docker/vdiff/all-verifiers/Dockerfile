@@ -138,6 +138,7 @@ RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 # Smack (this is not a very clean installation)
 RUN cd /tmp && git clone https://github.com/smackers/smack.git && \
     cd /tmp/smack && git checkout v1.9.0 && \
+    sed -i 's/TEST_SMACK=1/TEST_SMACK=0/' bin/build.sh && \
     ./bin/build.sh
 
 # CPAchecker (latest stable release 1.7)
