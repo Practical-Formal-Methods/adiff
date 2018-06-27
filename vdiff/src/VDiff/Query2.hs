@@ -135,6 +135,12 @@ tagProgram :: HasDatabase env => ProgramId -> [(TagName, TagValue)] -> RIO env (
 tagProgram hsh pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertExpressions $
                      map (\(k,v) -> Tag default_ nothing_ (just_ (val_ hsh)) (val_ k) (val_ v)) pairs
 
+
+lookupRun :: (HasDatabase env) => Text -> Text -> RIO env (Maybe VerifierRun)
+lookupRun vn hs = runBeam $ runSelectReturningOne $ select s
+  where
+    s = filter_ (\r -> r ^. program ==. val_ hs &&. r ^. verifierName ==. val_ vn) $ all_ (vdiffDb ^. runs)
+
 -- | returns a table with runIds and the count of the given verdict on the
 -- program of the run. 'RunId' that have a count of 0 do not show up here, so make
 -- sure that you use a left join and convert the NULL to a 0 in later steps.

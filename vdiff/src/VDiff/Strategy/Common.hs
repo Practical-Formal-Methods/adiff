@@ -70,22 +70,28 @@ verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
 verify' n tu = do
   vs <- view (diffParameters . verifiers)
   time <- view (diffParameters . timelimit)
+  originalFileName <- view (diffParameters . inputFile)
   env <- ask
-  runRIO env $ withSystemTempFile "input.c" $ \fp h -> do
-        -- write file
-        originalFileName <- view (diffParameters . inputFile)
-        let content = render . pretty $ tu
-            program' = mkProgram originalFileName content
-        Q2.storeProgram program'
-        liftIO $ hPutStr h content >> hFlush h
-        -- run each verifier
-        runs <- forM vs $ \v -> do
-                vEnv <- mkVerifierEnv time
-                r <- runRIO vEnv $ execute v fp
-                [run] <- runBeam $ runInsertReturningList (vdiffDb ^. runs) $ insertExpressions
-                  [VerifierRun default_ (val_ (v ^. name)) (val_ (primaryKey program')) (val_ r) (val_ n)]
-                return run
-        return (program', runs)
+  let content = render . pretty $ tu
+      program' = mkProgram originalFileName content
+  runRIO env $ Q2.storeProgram program'
+
+  -- run each verifier
+  runs <- forM vs $ \v -> runRIO env $ do
+    -- check if we have already some result for this
+    Q2.lookupRun (v ^. name) (program' ^. hash) >>= \case
+      Just r -> do
+        logInfo "using cached verifier result"
+        return r
+      Nothing -> do
+        -- Okay, we actually have to run the verifier
+        withSystemTempFile "input.c" $ \fp h -> do
+          -- write file
+          liftIO $ hPutStr h content >> hFlush h
+          vEnv <- mkVerifierEnv time
+          res <- runRIO vEnv $ execute v fp
+          Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
+  return (program', runs)
 
 conclude :: [VerifierRun] -> Conclusion
 conclude  rs = if
