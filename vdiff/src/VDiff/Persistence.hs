@@ -22,14 +22,15 @@ import           VDiff.Timed
 runBeam :: (HasDatabase env) => Sqlite.SqliteM a -> RIO env a
 runBeam act = do
   env <- ask
-  liftIO $ Sqlite.runBeamSqlite (env ^. databaseL) act
+  liftIO $ retryOnBusy $ Sqlite.runBeamSqlite (env ^. databaseL) act
 
-runBeamDebug :: (HasDatabase env) => Sqlite.SqliteM a -> RIO env a
-runBeamDebug act = do
-  env <- ask
-  liftIO $ Sqlite.runBeamSqliteDebug putStrLn (env ^. databaseL) act
-
-
+retryOnBusy :: IO a -> IO a
+retryOnBusy action = catch action $ \(e :: SQL.SQLError) -> do
+  case e of
+    SQL.SQLError SQL.ErrorBusy _ _ -> do
+      putStrLn "okay, let me just try again"
+      retryOnBusy action
+    _ -> throwIO e
 
 query_ :: (SQL.FromRow r, HasDatabase env) => SQL.Query -> RIO env [r]
 query_ q = do
