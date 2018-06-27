@@ -81,12 +81,6 @@ RUN cd /tmp && \
 
 
 
-# CPAchecker
-RUN cd /tmp && \
-  wget "https://cpachecker.sosy-lab.org/CPAchecker-1.7-unix.tar.bz2" && \
-  tar -xf CPAchecker-1.7-unix.tar.bz2 --directory /verifiers && \
-  ln -s /verifiers/CPAchecker-1.7-unix/scripts/cpa.sh ~/.local/bin && \
-  rm CPAchecker-1.7-unix.tar.bz2
 
 # Seahorn
 RUN cd /tmp && \
@@ -145,3 +139,19 @@ RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 RUN cd /tmp && git clone https://github.com/smackers/smack.git && \
     cd /tmp/smack && git checkout v1.9.0 && \
     ./bin/build.sh
+
+# CPAchecker (latest stable release 1.7)
+RUN cd /tmp && \
+  wget "https://cpachecker.sosy-lab.org/CPAchecker-1.7-unix.tar.bz2" && \
+  tar -xf CPAchecker-1.7-unix.tar.bz2 --directory /verifiers && \
+#  ln -s /verifiers/CPAchecker-1.7-unix/scripts/cpa.sh ~/.local/bin && \
+  rm CPAchecker-1.7-unix.tar.bz2
+
+# CPAchecker (using trunk)
+RUN cd /tmp && \
+wget "https://vcloud.sosy-lab.org/cpachecker/webclient/tool/" -O cpachecker.zip && \
+mkdir /verifiers/cpachecker && \
+unzip cpachecker.zip -d /verifiers/cpachecker && \
+ln -s /verifiers/cpachecker/scripts/cpa.sh ~/.local/bin && \
+chmod +x /verifiers/cpachecker/scripts/cpa.sh && \
+rm cpachecker.zip
