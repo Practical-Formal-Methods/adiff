@@ -7,8 +7,6 @@ module VDiff.Prelude
   , module VDiff.Prelude.Types
   , (^.)
   , view
-  -- * building blocks for every application
-  , runVDiffApp
   -- * small utilities
   , nowISO
   -- * safe functions
@@ -26,7 +24,6 @@ import           RIO                                hiding (view, (^.))
 import           Safe
 
 
-import           VDiff.Prelude.Internal.Application
 import           VDiff.Prelude.Types
 
 

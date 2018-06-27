@@ -24,12 +24,16 @@ runBeam act = do
   env <- ask
   liftIO $ retryOnBusy $ Sqlite.runBeamSqlite (env ^. databaseL) act
 
-retryOnBusy :: IO a -> IO a
-retryOnBusy action = catch action $ \(e :: SQL.SQLError) -> do
+retryOnBusy = retryOnBusy' 0
+
+retryOnBusy' :: Int -> IO a -> IO a
+retryOnBusy' i action = catch action $ \(e :: SQL.SQLError) -> do
   case e of
     SQL.SQLError SQL.ErrorBusy _ _ -> do
-      putStrLn "okay, let me just try again"
-      retryOnBusy action
+      let wait = round (1.2^i)
+      putStrLn $ "busy, waiting " ++ show wait  ++ " s"
+      threadDelay (wait * 1000 * 1000)
+      retryOnBusy' (i+1) action
     _ -> throwIO e
 
 query_ :: (SQL.FromRow r, HasDatabase env) => SQL.Query -> RIO env [r]

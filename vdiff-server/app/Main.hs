@@ -13,6 +13,7 @@ import           VDiff.Data
 import           VDiff.Persistence
 import           Web.Scotty.Trans
 
+import           VDiff.Prelude.Internal.Application
 import           VDiff.Server.Controller
 import           VDiff.Server.Prelude
 

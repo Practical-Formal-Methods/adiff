@@ -1,12 +1,13 @@
 
 module Main where
 
-import           VDiff.Arguments      as Args
+import           VDiff.Arguments                    as Args
 import           VDiff.Diff
 import           VDiff.Persistence
 import           VDiff.Prelude
+import           VDiff.Prelude.Internal.Application
 
-import           Control.Applicative  (optional)
+import           Control.Applicative                (optional)
 import           Control.Monad.Random
 
 infos :: InfoMod a
@@ -40,8 +41,8 @@ runCommands param = case cmd param of
 --------------------------------------------------------------------------------
 
 data MainParameters = MainParameters
-  { seed       :: Maybe Int
-  , cmd        :: Cmd
+  { seed :: Maybe Int
+  , cmd  :: Cmd
   }
 
 

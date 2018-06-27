@@ -12,8 +12,10 @@ import qualified Database.SQLite.Simple as SQL
 import qualified Database.SQLite3       as Sqlite3
 import           Options.Applicative
 import           RIO
+import           System.IO              (putStrLn)
 import           VDiff.Data
 
+import VDiff.Persistence (runBeam, retryOnBusy)
 import           VDiff.Prelude.Types
 
 runVDiffApp :: (Parser p) -> (forall b. InfoMod b) -> (p -> RIO MainEnv a) -> IO a
@@ -85,7 +87,7 @@ withDiffDB :: FilePath -> (SQL.Connection -> IO a) -> IO a
 withDiffDB fn act = do
   conn <- liftIO $ SQL.open fn
   -- migrate / create schema
-  runBeamSqlite conn migrateVdiff
+  retryOnBusy $ runBeamSqlite conn migrateVdiff
   x <- act conn
   SQL.close conn
   return x

@@ -25,6 +25,7 @@ import qualified Text.PrettyPrint.Tabulate              as T
 import           VDiff.Arguments                        hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence
+import           VDiff.Prelude.Internal.Application
 import qualified VDiff.Query                            as Q
 import qualified VDiff.Query2                           as Q2
 
@@ -59,7 +60,7 @@ instance T.CellValueFormatter Text
 
 executeView :: (HasMainEnv env) => ViewCommand -> RIO env ()
 executeView Stats = do
-  stats <- Q.stats
+  stats <- Q2.stats
   liftIO $  T.printTable stats
   return ()
 executeView (List q) = do
