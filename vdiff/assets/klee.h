@@ -164,6 +164,7 @@ extern "C" {
   /* handle SV-COMP conventions */
   int __VERIFIER_nondet_int() { int v; klee_make_symbolic(&v, 4, "unnamed"); return v; }
   int __VERIFIER_nondet_uint() { int v; klee_make_symbolic(&v, 4, "unnamed"); return v; }
+  short __VERIFIER_nondet_ushort() { short v; klee_make_symbolic(&v, 2, "unnamed"); return v; }
   int __VERIFIER_nondet_pointer() { int v; klee_make_symbolic(&v, 4, "unnamed"); return v; }
   void __VERIFIER_assume(int x) { klee_assume(x == 0); }
 
