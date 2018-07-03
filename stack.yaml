@@ -1,6 +1,7 @@
 flags: {}
 packages:
 - ./vdiff
+- ./vdiff-docker
 - ./vdiff-server
 - ./language-doll
 - location: ./language-c-extensible
