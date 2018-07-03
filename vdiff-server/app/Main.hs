@@ -30,7 +30,7 @@ data ServerParameters = ServerParameters
 parseServerParameters :: Parser ServerParameters
 parseServerParameters = ServerParameters <$> port <*> switchForceRecount <*> maxConcurrent
   where
-    port = option auto (long "port" <> value 8080)
+    port = option auto (short 'p' <> long "port" <> value 8080)
     switchForceRecount = switch (long "force-recount" <> help "re-calculates the temporary table that contains all counts of sats/unsats")
     maxConcurrent = option auto (short 'n' <> long "max-concurrent-verifiers" <> value 1)
 

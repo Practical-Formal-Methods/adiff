@@ -1,9 +1,16 @@
-#!/usr/bin/env stack
--- stack --resolver lts-11.3 script --package optparse-applicative --package process
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 
+module Main where
+
+import           Data.Int
+import           Data.Text           (splitOn)
+import qualified Data.Text           as T
 import           Options.Applicative
+import           Prelude
+import           Safe                (readMay)
 import           System.Environment
+import           System.IO
 import           System.Process
 
 description :: String
@@ -16,14 +23,16 @@ description =
 
 
 data Parameters = Parameters
-  { cpus       :: Int
-  , cpusetCpus :: Maybe String
-  , memory     :: String
+  { cpus        :: Int
+  , cpusetCpus  :: Maybe String
+  , memory      :: String
+  , portMapping :: [(Int16,Int16)]
+  , exec        :: Bool
   } deriving Show
 
 
 parameterParser :: Parser Parameters
-parameterParser =  Parameters <$> parseCpus <*> parseCPUSet <*> parseMemory
+parameterParser =  Parameters <$> parseCpus <*> parseCPUSet <*> parseMemory <*> parsePortMappings <*> parseExec
   where
     parseCpus = option auto $ mconcat
       [ long "cpus" , help "limit the number of used cpus"
@@ -40,22 +49,39 @@ parameterParser =  Parameters <$> parseCpus <*> parseCPUSet <*> parseMemory
       , help "limit the process to the comma separated list of cpus"
       , metavar "CPUSET"
       ]
+    parsePortMappings = many $ option parsePair $ mconcat [short 'p', help "port mapping a la docker"]
+    parseExec = flag False True $ mconcat [long "exec",  help "execute a command"]
+    parsePair = str >>= \s -> do
+      case splitOn ":" s of
+        [x,y] -> case (readMay (T.unpack x), readMay (T.unpack y)) of
+                   (Just x', Just y') -> return (x',y')
+                   _                  -> readerError "wrong format"
+        _     -> readerError "wrong format"
+
 
 opts :: ParserInfo Parameters
 opts = info (parameterParser <**> helper) (progDesc description)
 
 main :: IO ()
 main = do
-  Parameters{..} <- execParser opts
+  allArgs <- getArgs
+  let regular = takeWhile (/= "--") allArgs
+      passthrough = drop 1 $ dropWhile (/= "--") allArgs
+
+  Parameters{..} <- handleParseResult $ execParserPure defaultPrefs opts regular
+
   prepareEnv
   let
     limits = [ "--cpus=" ++ show cpus
-             , "--memory=" ++ memory
-             , maybe "" ("--cpuset-cpus="++) cpusetCpus
-             , "--memory-swap=0"
-             ]
-    cmd = concat' $ ["docker run -it"] ++ mounts ++ limits ++ ["vdiff/vdiff:latest", "/bin/bash"]
-  callCommand cmd
+            , "--memory=" ++ memory
+            , maybe "" ("--cpuset-cpus="++) cpusetCpus
+            , "--memory-swap=0"
+            ]
+    other = map (\(x,y) -> "-p="++ show x ++ ":" ++ show y) portMapping
+    cmd = concat' $ ["docker run -it"] ++ mounts ++ limits ++ other ++ ["vdiff/vdiff:latest"]
+  if exec
+    then callCommand $ cmd ++ " /bin/bash -c '" ++ concat' passthrough ++ "'"
+    else callCommand $ cmd ++ " /bin/bash"
 
 mounts :: [String]
 mounts = map (\(a,b) -> "-v " ++ a ++ ":" ++ b)
