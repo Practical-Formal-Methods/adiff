@@ -1,0 +1,49 @@
+<h3> Scratchpad
+
+<p>
+
+<div class="row">
+  <div class="input-field col s12 m12 12">
+    <div class="input-field">
+      <textarea id="code" class="materialize-textarea">
+        #{code}
+      <label for="code">
+        Source Code
+
+<h4> Run Verifiers
+
+<form>
+  <div class="input-field">
+    <select id="timeout" name="timeout">
+      <option value="30">30
+      <option value="60">60
+      <option value="120">120
+      <option value="300">300
+    <label>
+      Timeout (in seconds)
+
+<table>
+  <tr>
+    <th> Verifier
+    <th> Result
+    <th> 
+  $forall v <- allVerifiers
+    <tr>
+      <td>
+        #{v ^. name}
+      <td id="result-for-#{v ^. name}">
+        <div class="preloader-wrapper small spinner">
+          <div class="spinner-layer spinner-blue-only">
+            <div class="circle-clipper left">
+              <div class="circle">
+            <div class="gap-patch">
+              <div class="circle">
+            <div class="circle-clipper right">
+              <div class="circle">
+        
+
+      <td>
+        <button id="button-for-#{v ^. name}" onclick="runVerifier('#{v ^. name}');" class="btn-small">
+          Run Verifier
+
+<script src="/js/scratchpad.js">

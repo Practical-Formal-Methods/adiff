@@ -11,6 +11,7 @@ module VDiff.Prelude
   , nowISO
   -- * safe functions
   , readMay
+  , headMay
   ) where
 
 import           Control.Lens

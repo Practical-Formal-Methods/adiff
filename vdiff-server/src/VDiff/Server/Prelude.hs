@@ -29,3 +29,4 @@ defaultTemplate title content = $(shamletFile "templates/template.hamlet")
 
 defaultLayout title content = raw $ renderHtml $ defaultTemplate title content
 
+paramMay n = (Just <$> param n) `rescue` const (return Nothing)

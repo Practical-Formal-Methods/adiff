@@ -18,6 +18,7 @@ import           Data.FileEmbed
 import           Data.List
 import           Data.Semigroup
 import qualified Data.Text                             as T
+import qualified Data.Text.IO                          as T
 import qualified Data.Text.Lazy                        as LT
 import           Database.Beam
 import           Database.Beam.Sqlite
@@ -25,16 +26,20 @@ import           Network.Wai.Middleware.StaticEmbedded
 import           VDiff.Data
 import           VDiff.Persistence
 import qualified VDiff.Query2                          as Q2
-import           VDiff.Verifier                        (allVerifiers)
+import           VDiff.Verifier                        (allVerifiers,
+                                                        lookupVerifier)
 
 
-endpoints :: (HasDatabase env) => ScottyT SrvError (RIO env) ()
+endpoints :: (HasDatabase env, HasLogFunc env) => ScottyT SrvError (RIO env) ()
 endpoints = do
-  -- install static middleware
-  middleware (static $(embedDir "static"))
   get "/" getIndex
   get "/program/:hash" getProgram
   get "/findings/" getFindings
+  get "/scratchpad" getScratch
+  post "/run-verifier" postRunVerifier
+
+  -- install static middleware
+  middleware (static $(embedDir "static"))
 
 
 
@@ -97,3 +102,29 @@ instance Parsable Q2.QueryFocus where
                   Just vs -> Right $ Q2.QueryFocus vs
 
 verifierNames = map (^. name) allVerifiers
+
+
+getScratch ::  (HasDatabase env) => RioActionM env ()
+getScratch = do
+  -- if this param is set, load the source from the database
+  pid <- paramMay "program"
+  code <- case pid of
+    Nothing -> return "int main(){...}" -- TODO add default stuff
+    Just pid -> do
+      (Just p) <- lift $ Q2.programByHash pid
+      return $ p ^. source
+
+  defaultLayout "Scratchpad" $(shamletFile "templates/scratchpad.hamlet")
+
+postRunVerifier :: (HasLogFunc env) => RioActionM env ()
+postRunVerifier = do
+  source <- param "source"
+  timeout <- (*1000000) . read <$> param "timeout"
+  (Just v) <- lookupVerifier <$> param "verifier"
+  -- execute verifier here
+  res <- lift $ withSystemTempFile "program.c" $ \fp h -> do
+    liftIO $ T.hPutStr h source >> hFlush h
+    venv <- mkVerifierEnv timeout
+    runRIO venv $ execute v fp
+
+  html $ LT.fromStrict $ tshow (res ^. verdict)
