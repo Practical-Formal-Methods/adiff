@@ -25,6 +25,7 @@ dependencies:
 - wai-middleware-static-embedded
 - file-embed
 - safe
+- SafeSemaphore
 
 
 library:

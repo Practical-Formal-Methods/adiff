@@ -11,6 +11,7 @@ module VDiff.Server.Prelude
   ) where
 
 
+import           Control.Concurrent.MSemN
 import qualified Data.Text.Lazy                as LT
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import           Text.Hamlet
@@ -22,6 +23,28 @@ type SrvError = LT.Text
 type RioScottyM env = ScottyT SrvError (RIO env)
 type RioActionM env = ActionT SrvError (RIO env)
 
+data ServerEnv = ServerEnv
+  { _serverMainEnv                :: MainEnv
+  , _semaphoreConcurrentVerifiers :: MSemN Int
+  }
+serverMainEnv :: Lens' ServerEnv MainEnv
+serverMainEnv = lens _serverMainEnv (\e s -> e { _serverMainEnv = s})
+
+class HasSemaphore env where
+  semaphore :: Lens' env (MSemN Int)
+
+class (HasMainEnv env, HasSemaphore env) => HasServerEnv env
+
+instance HasSemaphore ServerEnv where
+  semaphore = lens _semaphoreConcurrentVerifiers (\e s -> e {_semaphoreConcurrentVerifiers = s})
+
+instance HasDatabase ServerEnv where
+  databaseL = serverMainEnv . databaseL
+
+instance HasLogFunc ServerEnv where
+  logFuncL  = serverMainEnv . logFuncL
+
+instance HasMainEnv ServerEnv
 --------------------------------------------------------------------------------
 
 defaultTemplate :: Text -> Html -> Html

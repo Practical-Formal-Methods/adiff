@@ -12,7 +12,7 @@
 
 <h4> Run Verifiers
 
-<form>
+<div class="row s6 m6 l6">
   <div class="input-field">
     <select id="timeout" name="timeout">
       <option value="30">30
@@ -21,6 +21,9 @@
       <option value="300">300
     <label>
       Timeout (in seconds)
+<div class="row s6 m6 l6">
+  <button id="runAll" class="btn" onclick="runAll();">
+    Run All
 
 <table>
   <tr>
@@ -43,7 +46,7 @@
         
 
       <td>
-        <button id="button-for-#{v ^. name}" onclick="runVerifier('#{v ^. name}');" class="btn-small">
+        <button id="button-for-#{v ^. name}" onclick="runVerifier('#{v ^. name}');" class="btn-small run-button">
           Run Verifier
 
 <script src="/js/scratchpad.js">

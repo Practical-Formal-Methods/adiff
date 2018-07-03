@@ -1,3 +1,7 @@
+$(document).ready(function() {
+    $('select').formSelect();
+    $('#timeout').on('change', function() { $('#runAll').removeClass("disabled");});
+});
 
 function runVerifier(v) {
 
@@ -18,9 +22,10 @@ function runVerifier(v) {
         $(button).removeClass("disabled");
         $(resultField).find(".spinner").removeClass("active");
     });
-
 }
 
-$(document).ready(function() {
-    $('select').formSelect();
-});
+function runAll() {
+    $('.run-button').trigger('click');
+    $('#runAll').addClass("disabled");
+}
+

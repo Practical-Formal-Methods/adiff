@@ -14,6 +14,7 @@ module VDiff.Server.Controller where
 import           VDiff.Server.Prelude
 import           VDiff.Server.Widgets
 
+import qualified Control.Concurrent.MSemN              as Sema
 import           Data.FileEmbed
 import           Data.List
 import           Data.Semigroup
@@ -30,7 +31,7 @@ import           VDiff.Verifier                        (allVerifiers,
                                                         lookupVerifier)
 
 
-endpoints :: (HasDatabase env, HasLogFunc env) => ScottyT SrvError (RIO env) ()
+endpoints :: (HasLogFunc env, HasSemaphore env, HasDatabase env) => ScottyT SrvError (RIO env) ()
 endpoints = do
   get "/" getIndex
   get "/program/:hash" getProgram
@@ -116,15 +117,22 @@ getScratch = do
 
   defaultLayout "Scratchpad" $(shamletFile "templates/scratchpad.hamlet")
 
-postRunVerifier :: (HasLogFunc env) => RioActionM env ()
+postRunVerifier :: (HasLogFunc env, HasSemaphore env) => RioActionM env ()
 postRunVerifier = do
   source <- param "source"
   timeout <- (*1000000) . read <$> param "timeout"
   (Just v) <- lookupVerifier <$> param "verifier"
-  -- execute verifier here
-  res <- lift $ withSystemTempFile "program.c" $ \fp h -> do
+
+  sema <- lift $ view semaphore
+  -- execute verifier here inside a semaphore-protected area
+  res <- lift $ with' sema 1 $ withSystemTempFile "program.c" $ \fp h -> do
     liftIO $ T.hPutStr h source >> hFlush h
     venv <- mkVerifierEnv timeout
     runRIO venv $ execute v fp
 
   html $ LT.fromStrict $ tshow (res ^. verdict)
+
+with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a
+with' sem i a = do
+  env <- askUnliftIO
+  liftIO $ Sema.with sem i $ unliftIO env a

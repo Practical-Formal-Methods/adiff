@@ -73,8 +73,6 @@ execute v fp = try (_verifierExecute v fp) >>= \case
     return $ VerifierResult Nothing Nothing Unknown
   Right res -> return res
 
-
-
 --------------------------------------------------------------------------------
 -- | * RIO
 -- | type classes for usage with RIO instances
