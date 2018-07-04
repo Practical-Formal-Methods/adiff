@@ -67,7 +67,7 @@ mkStrategy prioritize = do
       let compoundAssertion = assertUnequals (r ^. expression) conjuncts
       let tu' = insertAt (r ^. position) compoundAssertion tu
       (_,c) <- verifyB tu'
-      when (isDisagreement c) $ void $ do
+      when (isDisagreement c) $ void $
         binaryIntervalSearch (V.fromList conjuncts) $ \cs -> do
           let compoundAssertion = assertUnequals (r ^. expression) (V.toList cs)
           let tu' = insertAt (r ^. position) compoundAssertion tu
@@ -82,7 +82,7 @@ mkStrategy prioritize = do
 -- | A test t should have the following property: t({x}) -> t({x} u X)
 binaryIntervalSearch :: (Monad m) => Vector a -> (Vector a -> m Bool) -> m (Maybe a)
 binaryIntervalSearch v test
-  | length v == 0 = return Nothing
+  | null v = return Nothing
   | length v == 1 = return $ Just (V.head v)
   | otherwise = do
       let pivot = V.length v `div` 2

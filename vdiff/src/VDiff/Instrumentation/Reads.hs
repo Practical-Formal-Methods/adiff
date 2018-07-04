@@ -1,8 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields  #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TemplateHaskell        #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
@@ -41,7 +39,7 @@ readStatement mode = \case
             reads2 = concat $ catMaybes $ (fmap.fmap $ readExpression) [me2, me3]
             declared = identifiers $ mapMaybe (\(x,_,_) -> x) ds
 
-          in [ r | r <-  (reads1 ++ reads2), null (identifiers r `intersect` declared) ]
+          in [ r | r <- reads1 ++ reads2, null (identifiers r `intersect` declared) ]
   _                   -> []
   where
     readExpression :: CExpression SemPhase-> [CExpression SemPhase]
@@ -82,11 +80,11 @@ readStatement mode = \case
 
 findAllReads :: SearchMode -> TU -> [ExprRead]
 findAllReads mode tu = let (l,_) = runBrowser action tu
-                      in (DL.toList l)
+                       in DL.toList l
   where
     action :: Browser (DL.DList ExprRead)
     action = do
-      let functions = filter (\f -> not ("__" `isPrefixOf` (identToString f))) $ definedFunctions tu
+      let functions = filter (\f -> not ("__" `isPrefixOf` identToString f)) $ definedFunctions tu
       res <- forM functions $ \f -> do
         gotoFunction (identToString f)
         traverseStmtM $ do

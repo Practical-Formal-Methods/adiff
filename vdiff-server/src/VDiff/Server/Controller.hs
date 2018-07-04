@@ -47,7 +47,7 @@ endpoints = do
 
 getIndex :: (HasDatabase env) => RioActionM env ()
 getIndex = do
-  statistics <- lift $ Q2.stats
+  statistics <- lift Q2.stats
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
 
 -- | shows all runs on one instrumented file
@@ -84,9 +84,9 @@ getFindings :: (HasDatabase env) => RioActionM env ()
 getFindings = do
   (qstring :: Text) <- param "q"
   (q :: Q2.Query) <- param "q"
-  (page :: Integer) <- param "page" `rescue` (const $ return 1)
-  (qf :: Q2.QueryFocus) <- param "qf" `rescue` (const $ return $ Q2.QueryFocus verifierNames)
-  (qfstring :: Text) <- param "qf" `rescue` (const $ return $ tshow $ verifierNames)
+  (page :: Integer) <- param "page" `rescue` const (return 1)
+  (qf :: Q2.QueryFocus) <- param "qf" `rescue` const (return $ Q2.QueryFocus verifierNames)
+  (qfstring :: Text) <- param "qf" `rescue` const (return $ tshow verifierNames)
   let pageSize = 30
   let offset = (page - 1) * 30
   countFindings <- lift $ Q2.executeQueryCount qf q

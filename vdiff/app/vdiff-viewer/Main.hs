@@ -48,10 +48,10 @@ data ViewParameters = ViewParameters
 makeFieldsNoPrefix ''ViewParameters
 
 
-infos = (progDesc "viewer for vdiff")
+infos = progDesc "viewer for vdiff"
 
 main :: IO ()
-main = do
+main =
   runVDiffApp viewParameters infos $ \vp -> do
     Q.updateIndices
     executeView (vp ^. command)
@@ -71,7 +71,7 @@ executeView (Count q) = do
   liftIO $ print $ length rs
 executeView (DistributionPerFile q) = do
   rs <- Q.executeQuery q
-  let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn $ rs
+  let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn rs
   let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
   liftIO $ T.printTable counts
 
@@ -90,19 +90,17 @@ executeView (Runs hsh) = do
   runs <- Q.allRunsByHash hsh
   liftIO $ T.printTable runs
 
-executeView (MergeOld files) = do
-  mergeFiles files
+executeView (MergeOld files) = mergeFiles files
 
 executeView (MergeOldList file) =do
   files <- lines <$> liftIO (readFile file)
   mergeFiles files
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
-mergeFiles files = do
+mergeFiles files =
   -- loop over the given databases
   forM_ files $ \f -> do
     logInfo $ "merging file " <> display (tshow f)
-
     -- collect some data for the tags
     absFn <- liftIO $ makeAbsolute f
     now <- nowISO

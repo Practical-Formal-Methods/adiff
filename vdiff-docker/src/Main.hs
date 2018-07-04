@@ -51,12 +51,12 @@ parameterParser =  Parameters <$> parseCpus <*> parseCPUSet <*> parseMemory <*> 
       ]
     parsePortMappings = many $ option parsePair $ mconcat [short 'p', help "port mapping a la docker"]
     parseExec = flag False True $ mconcat [long "exec",  help "execute a command"]
-    parsePair = str >>= \s -> do
+    parsePair = str >>= \s ->
       case splitOn ":" s of
         [x,y] -> case (readMay (T.unpack x), readMay (T.unpack y)) of
                    (Just x', Just y') -> return (x',y')
-                   _                  -> readerError "wrong format"
-        _     -> readerError "wrong format"
+                   _                  -> readerError "cannot parse as port number"
+        _     -> readerError "expecting a pair of port numbers separated by ':'"
 
 
 opts :: ParserInfo Parameters

@@ -61,8 +61,6 @@ diffParameters = DiffParameters
 
 budget :: Parser Text
 budget = option str ( long "budget" <> short 'n' <> help "number runs the strategy is allowed to use" <> value "1")
-  where
-    -- str' = str >>= \body -> return ("λ(e:{reads:Natural,positions:Natural}) → (" <> body <> ")")
 
 batchSize :: Parser Int
 batchSize = option auto options

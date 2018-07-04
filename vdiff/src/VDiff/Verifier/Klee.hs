@@ -15,9 +15,7 @@ klee :: Verifier
 klee = Verifier "klee" kleeRun kleeVersion
 
 kleeVersion :: IO (Maybe String)
-kleeVersion = do
-  out <- readCreateProcess (shell "klee --version") ""
-  return $ (headMay . lines) out
+kleeVersion = headMay . lines <$> readCreateProcess (shell "klee --version") ""
 
 kleeRun :: FilePath -> RIO VerifierEnv VerifierResult
 kleeRun fn = withSystemTempDirectory "kleedir" $ \dir -> do

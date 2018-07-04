@@ -51,19 +51,18 @@ parseQuery t = case readMay (T.unpack t) of
                  Just q  -> Right q
 
 executeQuery :: (HasDatabase env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
-executeQuery limit offset qf q = do
-  res <- runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
+executeQuery limit offset qf q =
+  runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
     Everything                             -> allFindings
     Disagreement                           -> disagreementFindings
     (Query SuspicionIncomplete Majority)   -> incompleteFindings
     (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
     (Query SuspicionUnsound  Majority)     -> unsoundFindings
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
-  return res;
 
 executeQueryCount :: (HasDatabase env) => QueryFocus -> Query -> RIO env Int
 executeQueryCount qf q = do
-  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const (countAll_)) $ execQf qf $ case q of
+  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ execQf qf $ case q of
     Everything                             -> allFindings
     Disagreement                           -> disagreementFindings
     (Query SuspicionIncomplete Majority)   -> incompleteFindings
@@ -139,7 +138,7 @@ tagProgram hsh pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertEx
 lookupRun :: (HasDatabase env) => Text -> Text -> RIO env (Maybe VerifierRun)
 lookupRun vn hs = runBeam $ runSelectReturningOne $ select s
   where
-    s = filter_ (\r -> r ^. program ==. val_ hs &&. r ^. verifierName ==. val_ vn) $ all_ (vdiffDb ^. runs)
+    s = filter_ (\r -> (r ^. program) ==. val_ hs &&. r ^. verifierName ==. val_ vn) $ all_ (vdiffDb ^. runs)
 
 -- | returns a table with runIds and the count of the given verdict on the
 -- program of the run. 'RunId' that have a count of 0 do not show up here, so make
@@ -192,7 +191,7 @@ unsoundAccordingToAnyOf vs = do
   return (r,origin,sats,unsats)
   where
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Sat) &&.
-                             ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
+                             ( (r ^. verifierName) `in_` map val_ vs)) allRuns_
 
 incompleteAccordingToAnyOf vs = do
   (r,origin,sats,unsats) <- filter_ (\(r,_,_,_) -> (r ^. (result . verdict))  ==. val_ Sat) allFindings
@@ -201,9 +200,9 @@ incompleteAccordingToAnyOf vs = do
   return (r,origin,sats,unsats)
   where
     checkers = filter_ (\r -> ((r ^. (result . verdict)) ==. val_ Unsat) &&.
-                             ( (r ^. verifierName) `in_` (map val_ vs))) allRuns_
+                             ( (r ^. verifierName) `in_` map val_ vs)) allRuns_
 
--- | This is quite memory-intensive, don't use on big tables.
+--- | This is quite memory-intensive, don't use on big tables.
 updateCountsTable :: SqliteM ()
 updateCountsTable = do
   -- delete all rows
@@ -226,10 +225,10 @@ updateCountsTableProgressive = do
   (Just maxRunId) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. runs)
   logInfo $ "total number of runs in db: " <> display maxRunId
   -- insert counts in batches
-  forM_ [0.. ((maxRunId `div` bs)) + 1] $ \i -> do
+  forM_ [0.. (maxRunId `div` bs) + 1] $ \i -> do
     logSticky $ "calculating batch #" <> display i <> " of " <> display (maxRunId `div` bs + 1)
     runBeam $ runInsert $ insert (vdiffDb ^. tmpCounts) $ insertFrom $ do
-      r <- filter_ (\r -> (between_ (r ^. runId) (val_ $ i * bs) (val_ $ (i+1) * bs - 1))) $ all_ (vdiffDb ^. runs)
+      r <- filter_ (\r -> between_ (r ^. runId) (val_ $ i * bs) (val_ $ (i+1) * bs - 1)) $ all_ (vdiffDb ^. runs)
       (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
       (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
       return $ Counts default_ (pk r) (maybe_ (val_ 0) id sats) (maybe_(val_ 0) id unsats)

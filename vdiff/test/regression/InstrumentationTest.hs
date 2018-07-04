@@ -12,20 +12,15 @@ import           VDiff.Instrumentation
 
 
 testInstrumentation :: IO TestTree
-testInstrumentation = do
-  tests <- sequence [testZipping]
-  return $ testGroup "instrumentation" tests
+testInstrumentation = testGroup "instrumentation" <$> sequence [testZipping]
 
 
-currentIdentifiers = do
-  s <- currentStmt
-  return $ readStatement IdentOnly s
+currentIdentifiers = readStatement IdentOnly <$> currentStmt
 
 
 --------------------------------------------------------------------------------
 testZipping :: IO TestTree
-testZipping = do
-  tests <- sequence
+testZipping = testGroup "zipping" <$> sequence
     [ pure testWalk
     , pure testInsertions
     , pure testInsertBefore
@@ -36,7 +31,6 @@ testZipping = do
     , pure testEditingOtherFunction
     , testPreprocess
     ]
-  return $ testGroup "zipping" tests
 
 
 testWalk :: TestTree
@@ -108,18 +102,14 @@ testInsertBefore = testGroup "insertBefore" [one]
 
 
 testMarkAllReads :: IO TestTree
-testMarkAllReads = do
-  cFiles <- findByExtension [".c"] "assets/test/reads"
-  return $ testGroup "markAllReads golden tests" $ map runTest cFiles
+testMarkAllReads = testGroup "markAllReads golden tests" . map runTest <$> findByExtension [".c"] "assets/test/reads"
   where
     runTest cf = vsGoldenFile cf "all-reads"  $ \tu -> do
         let bs = render . pretty . markAllReads IdentOnly $ tu
         return $ LC8.pack bs
 
 testMarkAllExprReads :: IO TestTree
-testMarkAllExprReads = do
-  cFiles <- findByExtension [".c"] "assets/test/reads"
-  return $ testGroup "markAllExprReads golden tests" $ map runTest cFiles
+testMarkAllExprReads = testGroup "markAllExprReads golden tests" . map runTest <$> findByExtension [".c"] "assets/test/reads"
   where
     runTest cf = vsGoldenFile cf "all-expr-reads"  $ \tu -> do
         let bs = render . pretty . markAllReads Subexpressions $ tu
@@ -149,9 +139,7 @@ testEditingOtherFunction = vsGoldenFile "assets/test/instrumentation/multiple-fu
           buildTranslationUnit
 
 testPreprocess :: IO TestTree
-testPreprocess = do
-  cFiles <- findByExtension [".c"] "assets/test/preprocess"
-  return $ testGroup "preprocess golden tests" $ map runTest cFiles
+testPreprocess = testGroup "preprocess golden tests" . map runTest <$> findByExtension [".c"] "assets/test/preprocess"
   where
     runTest cf = vsGoldenFile cf "preprocess"  $ \tu ->
         return $ LC8.pack .  render . pretty . preprocess $ tu
