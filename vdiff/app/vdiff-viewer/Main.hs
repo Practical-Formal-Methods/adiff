@@ -13,8 +13,6 @@ import qualified Data.List.Key                          as K
 import qualified Data.Text                              as Text
 import qualified Data.Text.IO                           as Text
 import qualified Database.SQLite.Simple.Extended        as SQL
-import           Graphics.Rendering.Chart.Backend.Cairo
-import qualified Graphics.Rendering.Chart.Easy          as Chart
 import qualified Prelude                                as P
 import           RIO.List
 import           System.Directory                       (makeAbsolute)
@@ -36,7 +34,6 @@ data ViewCommand = Stats
                  | DistributionPerFile Q.Query -- ^ show the distribution
                  | GetProgram String
                  | Runs String
-                 | TimeMemoryGraph FilePath
                  | MergeOld [FilePath]
                  | MergeOldList FilePath
                  | MergeNew [FilePath]
@@ -82,9 +79,6 @@ executeView (GetProgram hsh) = do
     Nothing -> do
       hPutStrLn stderr $ "could not find program with hash: " <> hsh
       exitFailure
-executeView (TimeMemoryGraph outp) = do
-  d <- Q.allRuns
-  liftIO $ renderPoints (cleanData d) outp
 
 executeView (Runs hsh) = do
   runs <- Q.allRunsByHash hsh
@@ -136,14 +130,13 @@ viewParameters = ViewParameters <$> viewCommand
     viewCommand = asum [ listCmd
                        , countCmd
                        , programCmd
-                       , correlationCmd
                        , mergeOldCmd
                        , mergeOldListCmd
                        , runsCmd
                        , distributionCmd
                        , statCmd ]
 
-statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeOldCmd, mergeOldListCmd, runsCmd :: Parser ViewCommand
+statCmd, listCmd, countCmd, programCmd, mergeOldCmd, mergeOldListCmd, runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
@@ -166,10 +159,6 @@ programCmd = GetProgram <$> option str options
                           , help "returns the source code of a program with the given hash"
                           , metavar "HASH"
                           ]
-
-correlationCmd = switch options $> TimeMemoryGraph <*> someFile
-  where options = mconcat [ long "correlation"
-                          , help "generates a scatter plot of memory consumption and runtime" ]
 
 mergeOldCmd = switch options $>  MergeOld <*> many someFile
   where options = mconcat [ long "merge-old"
@@ -197,44 +186,3 @@ parseQuery = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc <|>  unsoun
         disagreement = switch (long "disagreement") $> Q.Disagreement
         unsoundKleeCbmc = switch (long "unsound-klee-cbmc") $> Q.UnsoundAccordingToKleeOrCbmc
         unsoundKleeCbmcSmack = switch (long "unsound-klee-cbmc-smack") $> Q.UnsoundAccordingToKleeOrCbmcOrSmack
-
-
-
---------------------------------------------------------------------------------
--- for the time / memory chart
---------------------------------------------------------------------------------
-
-data DataLine = DataLine
-  { verifier    :: String
-  , proportions :: [(Double, Int)]
-  }
-
-cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
-cleanData runs =
-  let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
-      grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
-      tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
-  in tagged
-  where
-    e23 g = [(y,z) | (_,y,z) <- g]
-
-fst3 (x,_,_) = x
-
-clrs :: [Chart.AlphaColour Double]
-clrs = map Chart.opaque [ Chart.red
-                        , Chart.blue
-                        , Chart.green
-                        , Chart.yellow
-                        , Chart.black
-                        , Chart.brown
-                        , Chart.coral
-                        ]
-
-renderPoints :: [DataLine] -> FilePath -> IO ()
-renderPoints lns outp = do
-  let fileOptions = (fo_format .~ SVG) Chart.def
-  toFile fileOptions outp $ do
-    Chart.layout_title .= "resident memory (MiB) / Time (s)"
-    forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
-      Chart.setColors [c]
-      Chart.plot (Chart.points (verifier ln) (proportions ln))
