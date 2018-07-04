@@ -168,23 +168,16 @@ runIdWithVerdict v = aggreg $ do
 incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q _ VDiffDb ctx _
 incompleteFindings   = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
 unsoundFindings      = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
-disagreementFindings = filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+disagreementFindings = orderBy_ (desc_.diffSats) $ filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+  where
+    diffSats (_,_,sat,unsat) =  abs (sat - unsat)
 
 
-
--- allFindings :: Q _ _ _ (VerifierRunT (QExpr _ _) , QExpr _ _ Int, QExpr _ _ Int)
--- allFindings = do
---   r <- allRuns_
---   (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
---   (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
---   return (r, maybe_ (val_ 0) id sats, maybe_ (val_ 0) id unsats)
 
 allFindings :: Q _ _ _ _
 allFindings = do
   r <- allRuns_
   cts <- filter_ (\c -> (r ^. runId) ==. (c ^. countedRunId)) $ all_ (vdiffDb ^. tmpCounts)
-  -- (_,sats) <- leftJoin_ (runIdWithVerdict Sat) (\(x,_) -> x ==. (r ^. runId))
-  -- (_,unsats) <- leftJoin_ (runIdWithVerdict Unsat) (\(x,_) -> x ==. (r ^. runId))
   p <- leftJoin_ (all_ $ vdiffDb ^. programs) (\p -> (p ^. hash) ==. (r ^. program) )
   return (r, p ^. origin, cts ^. countedSats, cts ^. countedUnsats)
 

@@ -8,6 +8,8 @@
           Show
         <option value="Everything">
           Everything
+        <option value="Disagreement">
+          Disagreement
         <option value="SuspicionIncomplete">
           Incomplete
         <option value="SuspicionUnsound">
