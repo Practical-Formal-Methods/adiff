@@ -42,6 +42,10 @@ $doctype 5
     main {
       flex: 1 0 auto;
     }
+    #editor { 
+      width: 100%;
+      min-height: 400px;
+    }
 
 <body>
   <header class="" style="background-color:#5397CC; color: white; padding: 30px;">
