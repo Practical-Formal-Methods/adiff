@@ -40,7 +40,9 @@ data AccordingTo
   | Majority
   deriving (Show, Read)
 
-newtype QueryFocus = QueryFocus [VerifierName]
+data QueryFocus
+  = QueryFocus [VerifierName]
+  | QueryFocusEverything
   deriving (Show,Read)
 
 -- | at the moment, using 'el cheapo' parsing via read
@@ -60,6 +62,10 @@ executeQuery limit offset qf q =
     (Query SuspicionUnsound  Majority)     -> unsoundFindings
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
 
+-- | like 'executeQuery', but without pagination and focusing on everything
+executeQuerySimple :: (HasDatabase env) => Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
+executeQuerySimple = executeQuery 10000000000 0 QueryFocusEverything
+
 executeQueryCount :: (HasDatabase env) => QueryFocus -> Query -> RIO env Int
 executeQueryCount qf q = do
   (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ execQf qf $ case q of
@@ -71,6 +77,7 @@ executeQueryCount qf q = do
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
   return n;
 
+execQf QueryFocusEverything = filter_ (const $ val_ True)
 execQf (QueryFocus vs) = filter_ (\(r,_,_,_) -> (r ^. verifierName) `in_` map val_ vs )
 
 
@@ -102,6 +109,9 @@ programByHash hsh = runBeam $ (vdiffDb ^. programs) `byPK` toProgramId hsh
 
 runsByHash :: Text -> Q _ _ _ _
 runsByHash hsh = filter_ (\r -> (r ^. program) ==. val_ hsh) allRuns_
+
+runsByHashR :: (HasDatabase env) => Text -> RIO env [VerifierRun]
+runsByHashR hsh = runBeam $ runSelectReturningList $ select $ runsByHash hsh
 
 runById :: (HasDatabase env) => Int -> RIO env (Maybe VerifierRun)
 runById i = runBeam $ (vdiffDb ^. runs) `byPK` toRunId i

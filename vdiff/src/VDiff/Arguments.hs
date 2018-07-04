@@ -33,20 +33,21 @@ someFile =  argument str options
                           ]
 
 verifiers :: Parser [Verifier]
-verifiers = option verifierParser options
+verifiers = option verifierList options
   where options = mconcat [ long "verifiers"
                           , help ("the compared verifiers (available: " <> show (map (^. name) (allVerifiers ++ debuggingVerifiers)) <> ")"  )
                           , value allVerifiers
                           ]
-        verifierParser = str >>= \s ->
-          if s == ""
-            then pure []
-            else do
-              let reqVer = T.words s
-              let unavailable = reqVer L.\\ map (^. name) (allVerifiers ++ debuggingVerifiers)
-              if null unavailable
-                then pure $ filter (\v -> (v ^. name) `elem` reqVer) (allVerifiers ++ debuggingVerifiers)
-                else readerError $ "unknown verifier(s): " ++ unwords (map T.unpack unavailable)
+
+verifierList = str >>= \s ->
+  if s == ""
+    then pure []
+    else do
+      let reqVer = T.words s
+      let unavailable = reqVer L.\\ map (^. name) (allVerifiers ++ debuggingVerifiers)
+      if null unavailable
+        then pure $ filter (\v -> (v ^. name) `elem` reqVer) (allVerifiers ++ debuggingVerifiers)
+        else readerError $ "unknown verifier(s): " ++ unwords (map T.unpack unavailable)
 
 
 diffParameters :: Parser DiffParameters
