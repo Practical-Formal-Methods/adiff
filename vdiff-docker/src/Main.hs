@@ -4,6 +4,7 @@
 module Main where
 
 import           Data.Int
+import           Data.Maybe          (catMaybes)
 import           Data.Text           (splitOn)
 import qualified Data.Text           as T
 import           Options.Applicative
@@ -23,9 +24,9 @@ description =
 
 
 data Parameters = Parameters
-  { cpus        :: Int
+  { cpus        :: Maybe Int
   , cpusetCpus  :: Maybe String
-  , memory      :: String
+  , memory      :: Maybe String
   , portMapping :: [(Int16,Int16)]
   , exec        :: Bool
   } deriving Show
@@ -34,14 +35,13 @@ data Parameters = Parameters
 parameterParser :: Parser Parameters
 parameterParser =  Parameters <$> parseCpus <*> parseCPUSet <*> parseMemory <*> parsePortMappings <*> parseExec
   where
-    parseCpus = option auto $ mconcat
+    parseCpus = optional $ option auto $ mconcat
       [ long "cpus" , help "limit the number of used cpus"
-      , value 1, metavar "CPUS"
+      , metavar "CPUS"
       ]
-    parseMemory = option str $ mconcat
+    parseMemory = optional $ option str $ mconcat
       [ long "memory"
       , help "limit the number of used memory"
-      , value "8G"
       , metavar "MEM"
       ]
     parseCPUSet = optional $ option str $ mconcat
@@ -72,11 +72,12 @@ main = do
 
   prepareEnv
   let
-    limits = [ "--cpus=" ++ show cpus
-            , "--memory=" ++ memory
-            , maybe "" ("--cpuset-cpus="++) cpusetCpus
-            , "--memory-swap=0"
-            ]
+    limits = catMaybes
+      [ (\cpus -> "--cpus=" ++ show cpus) <$> cpus
+      , (\m -> "--memory=" ++ m) <$>  memory
+      , (\cs -> "--cpuset-cpus="++ cs) <$> cpusetCpus
+      , Just "--memory-swap=0"
+      ]
     other = map (\(x,y) -> "-p="++ show x ++ ":" ++ show y) portMapping
     cmd = concat' $ ["docker run -it"] ++ mounts ++ limits ++ other ++ ["vdiff/vdiff:latest"]
   if exec
