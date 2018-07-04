@@ -11,7 +11,6 @@ clean:
 	stack clean
 
 install: img-run
-	cp -r scripts/* $(HOME)/.local/bin
 	stack build --copy-bins --no-docker
 
 # regression tests
