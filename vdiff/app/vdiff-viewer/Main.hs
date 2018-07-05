@@ -1,28 +1,28 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# OPTIONS_GHC -fno-warn-orphans   #-}
 
 module Main where
 
 import           VDiff.Prelude
 
-import           Control.Lens.Operators             hiding ((^.))
-import qualified Data.List.Key                      as K
-import qualified Data.Text                          as T
-import qualified Data.Text.IO                       as T
-import qualified Database.SQLite.Simple.Extended    as SQL
-import qualified Prelude                            as P
+import           Control.Lens.Operators          hiding ((^.))
+import qualified Data.List.Key                   as K
+import qualified Data.Text                       as T
+import qualified Data.Text.IO                    as T
+import qualified Database.SQLite.Simple.Extended as SQL
+import qualified Prelude                         as P
 import           RIO.List
-import           System.Directory                   (makeAbsolute)
+import           System.Directory                (makeAbsolute)
 import           System.Exit
 import           System.IO
-import qualified Text.PrettyPrint.Tabulate          as Tab
+import qualified Text.PrettyPrint.Tabulate       as Tab
 
-import           VDiff.Arguments                    hiding (command)
+import           VDiff.Application
+import           VDiff.Arguments                 hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence
-import           VDiff.Prelude.Internal.Application
-import qualified VDiff.Query2                       as Q2
+import qualified VDiff.Query2                    as Q2
 
 
 data ViewCommand

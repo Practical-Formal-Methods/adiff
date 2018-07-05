@@ -1,13 +1,12 @@
-
 module Main where
 
-import           VDiff.Arguments                    as Args
+import           VDiff.Application
+import           VDiff.Arguments      as Args
 import           VDiff.Diff
 import           VDiff.Persistence
 import           VDiff.Prelude
-import           VDiff.Prelude.Internal.Application
 
-import           Control.Applicative                (optional)
+import           Control.Applicative  (optional)
 import           Control.Monad.Random
 
 infos :: InfoMod a

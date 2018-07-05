@@ -3,15 +3,15 @@
 module Main where
 
 
+import qualified Control.Concurrent.MSemN              as Sema
 import           Network.Wai.Middleware.StaticEmbedded
 import           System.IO
 import           VDiff.Arguments
 import           VDiff.Data
 import           VDiff.Persistence
 import           Web.Scotty.Trans
-import qualified Control.Concurrent.MSemN as Sema
 
-import           VDiff.Prelude.Internal.Application
+import           VDiff.Application
 import           VDiff.Server.Controller
 import           VDiff.Server.Prelude
 

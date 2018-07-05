@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 {- Building blocks for applications -}
-module VDiff.Prelude.Internal.Application where
+module VDiff.Application where
 
 import qualified Data.List              as L
 import qualified Data.Text              as T
