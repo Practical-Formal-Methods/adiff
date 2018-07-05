@@ -18,7 +18,7 @@ import           VDiff.Data
 import VDiff.Persistence (runBeam, retryOnBusy)
 import           VDiff.Prelude.Types
 
-runVDiffApp :: (Parser p) -> (forall b. InfoMod b) -> (p -> RIO MainEnv a) -> IO a
+runVDiffApp :: Parser p -> (forall b. InfoMod b) -> (p -> RIO MainEnv a) -> IO a
 runVDiffApp parser infoMod app = do
   -- parse arguments
   let combinedParser = (,) <$> parseMainArguments <*> parser
@@ -33,7 +33,7 @@ runVDiffApp parser infoMod app = do
     withDiffDB dbPath $ \database -> do
       let env = MainEnv logger database
       runRIO env $ do
-        x <- (app customParams)
+        x <- app customParams
         -- run backup if requested
         case bkpPath of
           Nothing  -> return ()
@@ -56,7 +56,7 @@ level = option levelP options
                       , completeWith values
                       ]
     values = ["debug", "info", "warning", "error"]
-    helpText = "Allowed values: " ++ concat (L.intersperse ", " values)
+    helpText = "Allowed values: " ++ L.intercalate ", " values
     levelP = (str :: ReadM Text ) >>= \case
       "debug"   -> return LevelDebug
       "info"    -> return LevelInfo

@@ -27,7 +27,7 @@ runBeam act = do
 retryOnBusy = retryOnBusy' 0
 
 retryOnBusy' :: Int -> IO a -> IO a
-retryOnBusy' i action = catch action $ \(e :: SQL.SQLError) -> do
+retryOnBusy' i action = catch action $ \(e :: SQL.SQLError) ->
   case e of
     SQL.SQLError SQL.ErrorBusy _ _ -> do
       let wait = round (1.2^i)

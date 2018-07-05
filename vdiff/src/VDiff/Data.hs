@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass            #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -302,3 +303,7 @@ deriving instance Eq VerifierRun
 deriving instance Ord ProgramId
 deriving instance Ord VerifierRun
 deriving instance Ord VerifierResult
+deriving instance Data ProgramId
+deriving instance Data Verdict
+deriving instance Data VerifierResult
+deriving instance Data VerifierRun

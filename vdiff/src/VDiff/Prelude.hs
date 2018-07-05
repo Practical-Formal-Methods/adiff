@@ -30,6 +30,6 @@ import           VDiff.Prelude.Types
 
 nowISO :: (MonadIO m) => m Text
 nowISO =  do
-  utc <- liftIO $ getCurrentTime
+  utc <- liftIO getCurrentTime
   let x = formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S")) utc
   return $ T.pack x

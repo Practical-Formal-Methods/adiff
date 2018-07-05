@@ -10,11 +10,9 @@ import           Language.C.Data.Lens
 import           VDiff.Instrumentation
 
 testLenses :: IO TestTree
-testLenses = do
-  children <- sequence [ pure testIndex
-                 , testDefinedFunctions
-                 ]
-  return $ testGroup "lenses" children
+testLenses = testGroup "lenses" <$> sequence [ pure testIndex
+                                             , testDefinedFunctions
+                                             ]
 
 testIndex :: TestTree
 testIndex = goldenVsString "index main" "assets/test/lenses/functions.c.golden" act
@@ -25,10 +23,7 @@ testIndex = goldenVsString "index main" "assets/test/lenses/functions.c.golden" 
           return $ LC8.pack $ prettyp ast'
 
 testDefinedFunctions :: IO TestTree
-testDefinedFunctions = do
-  cFiles <- findByExtension [".c"] "assets/test/reads"
-  return $ testGroup "defined functions" $ map runTest cFiles
-  where runTest cf = vsGoldenFile cf "defined-functions" $ \ast -> do
-              let names =  map identToString $ definedFunctions ast
-              return $ LC8.pack $ show names
+testDefinedFunctions = testGroup "defined functions" . map runTest <$> findByExtension [".c"] "assets/test/reads"
+  where
+    runTest cf = vsGoldenFile cf "defined-functions" $ return . LC8.pack . show . map identToString . definedFunctions
 

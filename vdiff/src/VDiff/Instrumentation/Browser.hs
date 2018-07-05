@@ -186,7 +186,7 @@ gotoFunction fn = do
                       & (stmtPosition .~ [0])
         putBrowserState st'
         return True
-      Nothing -> do return False
+      Nothing -> return False
 
 
 -- | Move to the nth sibling. Be careful!
@@ -257,7 +257,7 @@ buildTranslationUnit = do
 -- traversal functions
 
 -- | traverses all statements of a translation unit
-traverseStmtsOfTU :: (MonadBrowser m, Semigroup w, Monoid w) => TU -> (m w) -> m w
+traverseStmtsOfTU :: (MonadBrowser m, Semigroup w, Monoid w) => TU -> m w -> m w
 traverseStmtsOfTU tu action = do
   let fnames = map identToString (definedFunctions tu)
   x <- forM fnames $ \fname -> do
@@ -266,7 +266,7 @@ traverseStmtsOfTU tu action = do
   return $ mconcat x
 
 -- | traverses the stmt, calling action at every stmt and collecting the results as a monoidal sum
-traverseStmtM :: (MonadBrowser m, Semigroup w, Monoid w) => (m w) -> m w
+traverseStmtM :: (MonadBrowser m, Semigroup w, Monoid w) => m w -> m w
 traverseStmtM f = traverseAST' [0]
   where
   traverseAST' st = do
@@ -298,7 +298,7 @@ traverseStmtM f = traverseAST' [0]
 modifyCurrentStmt :: (MonadBrowser m) => (Stmt -> Stmt) -> m ()
 modifyCurrentStmt f = do
   stmt <- currentStmt
-  modifyBrowserState $ stmtZipper %~ (Z.replaceHole (f stmt))
+  modifyBrowserState $ stmtZipper %~ Z.replaceHole (f stmt)
 
 --------------------------------------------------------------------------------
 -- simple utilities

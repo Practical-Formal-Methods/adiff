@@ -106,9 +106,7 @@ programByHash = undefined
 
 
 updateIndices :: (HasDatabase env, HasLogFunc env) => RIO env ()
-updateIndices = do
-  -- logDebug "updating indices"
-  execute_ $(embedQuery "update-indices.sql")
+updateIndices = execute_ $(embedQuery "update-indices.sql")
 
 executeQuery q = case q of
   Incomplete                          -> allIncomplete

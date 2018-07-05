@@ -1,112 +1,115 @@
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TemplateHaskell        #-}
 {-# OPTIONS_GHC -fno-warn-orphans   #-}
 
 module Main where
 
 import           VDiff.Prelude
 
-import           Control.Lens.Operators                 hiding ((^.))
-import qualified Data.List.Key                          as K
-import qualified Data.Text                              as Text
-import qualified Data.Text.IO                           as Text
-import qualified Database.SQLite.Simple.Extended        as SQL
-import           Graphics.Rendering.Chart.Backend.Cairo
-import qualified Graphics.Rendering.Chart.Easy          as Chart
-import qualified Prelude                                as P
+import           Control.Lens.Operators             hiding ((^.))
+import qualified Data.List.Key                      as K
+import qualified Data.Text                          as T
+import qualified Data.Text.IO                       as T
+import qualified Database.SQLite.Simple.Extended    as SQL
+import qualified Prelude                            as P
 import           RIO.List
-import           System.Directory                       (makeAbsolute)
+import           System.Directory                   (makeAbsolute)
 import           System.Exit
 import           System.IO
-import qualified Text.PrettyPrint.Tabulate              as T
+import qualified Text.PrettyPrint.Tabulate          as Tab
 
-import           VDiff.Arguments                        hiding (command)
+import           VDiff.Arguments                    hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Prelude.Internal.Application
-import qualified VDiff.Query                            as Q
-import qualified VDiff.Query2                           as Q2
+import qualified VDiff.Query2                       as Q2
 
 
-data ViewCommand = Stats
-                 | List Q.Query -- ^ list all findings
-                 | Count Q.Query -- ^ count findings
-                 | DistributionPerFile Q.Query -- ^ show the distribution
-                 | GetProgram String
-                 | Runs String
-                 | TimeMemoryGraph FilePath
-                 | MergeOld [FilePath]
-                 | MergeOldList FilePath
-                 | MergeNew [FilePath]
-                 deriving (Show, Eq)
+data ViewCommand
+  = Stats
+  | List Q2.Query -- ^ list all findings
+  | Count Q2.Query -- ^ count findings
+  | DistributionPerFile Q2.Query -- ^ show the distribution
+  | GetProgram Text
+  | Runs Text
+  | MergeOld [FilePath]
+  | MergeOldList FilePath
+  | MergeNew [FilePath]
+  deriving Show
 
-data ViewParameters = ViewParameters
-  { _command    :: ViewCommand
-  }
-makeFieldsNoPrefix ''ViewParameters
+newtype ViewParameters
+  = ViewParameters { command :: ViewCommand }
 
 
-infos = (progDesc "viewer for vdiff")
+infos = progDesc "viewer for vdiff"
 
 main :: IO ()
-main = do
-  runVDiffApp viewParameters infos $ \vp -> do
-    Q.updateIndices
-    executeView (vp ^. command)
+main = runVDiffApp viewParameters infos $ \vp -> executeView (command vp)
 
-instance T.CellValueFormatter Text
+instance Tab.CellValueFormatter Text
+instance Tab.CellValueFormatter ProgramId
+instance Tab.CellValueFormatter Verdict
+instance Tab.CellValueFormatter VerifierResult
+instance Tab.CellValueFormatter VerifierRun
+
+instance Tab.Tabulate VerifierResult Tab.ExpandWhenNested
+instance Tab.Tabulate VerifierRun Tab.ExpandWhenNested
 
 executeView :: (HasMainEnv env) => ViewCommand -> RIO env ()
 executeView Stats = do
   stats <- Q2.stats
-  liftIO $  T.printTable stats
-  return ()
+  liftIO $  Tab.printTable stats
 executeView (List q) = do
-  rs <- Q.executeQuery q
-  liftIO $ T.printTable rs
+  rs <- Q2.executeQuerySimple q
+  printFindingsTable rs
+
 executeView (Count q) = do
-  rs <- Q.executeQuery q
-  liftIO $ print $ length rs
+  n <- Q2.executeQueryCount Q2.QueryFocusEverything q
+  liftIO $ print n
 executeView (DistributionPerFile q) = do
-  rs <- Q.executeQuery q
-  let grouped = reverse $ sortOn length $ K.group Q._originalFn $ sortOn Q._originalFn $ rs
-  let counts = map (\fs -> (Q._originalFn (P.head fs), length fs )) grouped
-  liftIO $ T.printTable counts
+  rs <- Q2.executeQuerySimple q
+  let grouped = reverse $ sortOn length $ K.group snd4 $ sortOn snd4  rs
+  let counts = map (\fs -> (snd4  (P.head fs), length fs )) grouped
+  liftIO $ Tab.printTableWithFlds flds counts
+  where
+    snd4 (_,p,_,_) = p
+    flds = [ Tab.DFld $ maybe "<unknown>" T.unpack . fst
+           , Tab.DFld snd
+           ]
 
 executeView (GetProgram hsh) = do
-  p <- Q.programByHash hsh
+  p <- Q2.programByHash hsh
   liftIO $ case p of
-    Just p' -> Text.putStr (p' ^. source)
+    Just p' -> T.putStr (p' ^. source)
     Nothing -> do
-      hPutStrLn stderr $ "could not find program with hash: " <> hsh
+      T.hPutStrLn stderr $ "could not find program with hash: " <> hsh
       exitFailure
-executeView (TimeMemoryGraph outp) = do
-  d <- Q.allRuns
-  liftIO $ renderPoints (cleanData d) outp
 
 executeView (Runs hsh) = do
-  runs <- Q.allRunsByHash hsh
-  liftIO $ T.printTable runs
+  runs <- Q2.runsByHashR hsh
+  liftIO $ Tab.printTableWithFlds flds runs
+  where
+   flds = [ Tab.DFld (^. runId)
+          , Tab.DFld $ T.unpack . (^. verifierName)
+          , Tab.DFld (^. (result . verdict))
+          , Tab.DFld (^. iteration)
+          ]
 
-executeView (MergeOld files) = do
-  mergeFiles files
+executeView (MergeOld files) = mergeFiles files
 
 executeView (MergeOldList file) =do
   files <- lines <$> liftIO (readFile file)
   mergeFiles files
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
-mergeFiles files = do
+mergeFiles files =
   -- loop over the given databases
   forM_ files $ \f -> do
     logInfo $ "merging file " <> display (tshow f)
-
     -- collect some data for the tags
     absFn <- liftIO $ makeAbsolute f
     now <- nowISO
-    let tags = [ ("metadata.merge.database",  Text.pack absFn)
+    let tags = [ ("metadata.merge.database",  T.pack absFn)
                , ("metadata.merge.date", now)]
 
 
@@ -138,27 +141,26 @@ viewParameters = ViewParameters <$> viewCommand
     viewCommand = asum [ listCmd
                        , countCmd
                        , programCmd
-                       , correlationCmd
                        , mergeOldCmd
                        , mergeOldListCmd
                        , runsCmd
                        , distributionCmd
                        , statCmd ]
 
-statCmd,listCmd,countCmd,programCmd,correlationCmd,mergeOldCmd, mergeOldListCmd, runsCmd :: Parser ViewCommand
+statCmd, listCmd, countCmd, programCmd, mergeOldCmd, mergeOldListCmd, runsCmd :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
                           , help "print basic statistics about this database"
                           ]
 
-listCmd = switch options $> List <*> parseQuery
+listCmd = switch options $> List <*> parseQuery2
   where options = mconcat [ long "list"
                           , short 'l'
                           , help "prints a list"
                           ]
 
-countCmd = switch options $> Count <*> parseQuery
+countCmd = switch options $> Count <*> parseQuery2
   where options = mconcat [ long "count"
                           , help "returns the number of findings"
                           ]
@@ -168,10 +170,6 @@ programCmd = GetProgram <$> option str options
                           , help "returns the source code of a program with the given hash"
                           , metavar "HASH"
                           ]
-
-correlationCmd = switch options $> TimeMemoryGraph <*> someFile
-  where options = mconcat [ long "correlation"
-                          , help "generates a scatter plot of memory consumption and runtime" ]
 
 mergeOldCmd = switch options $>  MergeOld <*> many someFile
   where options = mconcat [ long "merge-old"
@@ -188,55 +186,31 @@ runsCmd = Runs <$> option str options
                           , metavar "HASH"
                           ]
 
-distributionCmd = switch options $> DistributionPerFile <*> parseQuery
+distributionCmd = switch options $> DistributionPerFile <*> parseQuery2
   where options = mconcat [ long "per-file"
                           , help "shows the number of findings per file" ]
 
-parseQuery :: Parser Q.Query
-parseQuery = incmpl <|> unsound <|> disagreement <|> unsoundKleeCbmc <|>  unsoundKleeCbmcSmack
-  where incmpl = switch (long "incomplete") $> Q.Incomplete
-        unsound = switch (long "unsound") $> Q.Unsound
-        disagreement = switch (long "disagreement") $> Q.Disagreement
-        unsoundKleeCbmc = switch (long "unsound-klee-cbmc") $> Q.UnsoundAccordingToKleeOrCbmc
-        unsoundKleeCbmcSmack = switch (long "unsound-klee-cbmc-smack") $> Q.UnsoundAccordingToKleeOrCbmcOrSmack
 
-
-
---------------------------------------------------------------------------------
--- for the time / memory chart
---------------------------------------------------------------------------------
-
-data DataLine = DataLine
-  { verifier    :: String
-  , proportions :: [(Double, Int)]
-  }
-
-cleanData :: [(String, String, Maybe Double, Maybe Int)] -> [DataLine]
-cleanData runs =
-  let terminated = [(s,t, m `div` 1024 ) | (s, _, Just t, Just m) <- runs] -- memory in MiB
-      grouped = groupBy (\(x,_,_) (x',_,_) -> x == x') (sortOn fst3 terminated)
-      tagged = [DataLine (fst3 (P.head g)) (e23 g) | g <- grouped]
-  in tagged
+parseQuery2 :: Parser Q2.Query
+parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete
   where
-    e23 g = [(y,z) | (_,y,z) <- g]
+    disagreement = switch (long "disagreement") $> Q2.Disagreement
+    everything = switch (long "everything") $> Q2.Everything
+    unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  <*> parseAccordingTo
+    incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete <*> parseAccordingTo
+    parseAccordingTo =  asum [ Q2.AnyOf <$> option listOfVerifierNames (long "according-to-any-of")
+                             , Q2.AllOf <$> option listOfVerifierNames (long "according-to-all-of")
+                             , pure Q2.Majority
+                             ]
+    listOfVerifierNames = map T.strip . T.splitOn "," <$>  str
 
-fst3 (x,_,_) = x
 
-clrs :: [Chart.AlphaColour Double]
-clrs = map Chart.opaque [ Chart.red
-                        , Chart.blue
-                        , Chart.green
-                        , Chart.yellow
-                        , Chart.black
-                        , Chart.brown
-                        , Chart.coral
-                        ]
-
-renderPoints :: [DataLine] -> FilePath -> IO ()
-renderPoints lns outp = do
-  let fileOptions = (fo_format .~ SVG) Chart.def
-  toFile fileOptions outp $ do
-    Chart.layout_title .= "resident memory (MiB) / Time (s)"
-    forM_ (zip lns (cycle clrs)) $ \(ln, c) -> do
-      Chart.setColors [c]
-      Chart.plot (Chart.points (verifier ln) (proportions ln))
+printFindingsTable rs = liftIO $ Tab.printTableWithFlds dspls rs
+  where
+    dspls = [ Tab.DFld (\(r,_,_,_) -> (r ^. runId))
+            , Tab.DFld (\(r,_,_,_) -> T.unpack (r ^. verifierName))
+            , Tab.DFld (\(_,p,_,_) -> maybe " - " T.unpack p)
+            , Tab.DFld (\(r,_,_,_) -> T.unpack (r ^. program))
+            , Tab.DFld (\(_,_,sats,_) -> sats)
+            , Tab.DFld (\(_,_,_,unsats) -> unsats)
+            ]

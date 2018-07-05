@@ -38,7 +38,7 @@ insert (e, tickets) r@(Raffle l t n)
   | otherwise = r
 
 fromList :: [(a, Double)] -> Raffle a
-fromList l = foldr insert emptyRaffle l
+fromList = foldr insert emptyRaffle
 
 -- | giving every element exactly one ticket
 fromList1 :: [a] -> Raffle a

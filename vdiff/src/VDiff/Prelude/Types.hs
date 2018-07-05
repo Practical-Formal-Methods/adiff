@@ -248,7 +248,7 @@ randomlyBranchTrue options = isJust <$> randomlyBranchMay options'
 
 -- | Partial function
 deleteIndex 0 (x:xs) = xs
-deleteIndex n (x:xs) = x : (deleteIndex (n-1) xs)
+deleteIndex n (x:xs) = x : deleteIndex (n-1) xs
 deleteIndex _ _      = error "illegal usage of deleteIndex"
 
 --------------------------------------------------------------------------------

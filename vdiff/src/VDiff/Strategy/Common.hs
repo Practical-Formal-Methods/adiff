@@ -77,13 +77,13 @@ verify' n tu = do
   runRIO env $ Q2.storeProgram program'
 
   -- run each verifier
-  runs <- forM vs $ \v -> runRIO env $ do
+  runs <- forM vs $ \v -> runRIO env $
     -- check if we have already some result for this
     Q2.lookupRun (v ^. name) (program' ^. hash) >>= \case
       Just r -> do
         logInfo "using cached verifier result"
         return r
-      Nothing -> do
+      Nothing ->
         -- Okay, we actually have to run the verifier
         withSystemTempFile "input.c" $ \fp h -> do
           -- write file
@@ -168,16 +168,16 @@ assertStmt expr = CExpr (Just $ CCall identifier [expr] (undefNode, voidType)) (
 
 -- | assertUnequal e c results in an AST fragment with the assertion @e != c@
 assertUnequal :: CExpression SemPhase -> CConstant SemPhase -> CStatement SemPhase
-assertUnequal expr c = assertStmt $ expr `unequalC`  (CConst c)
+assertUnequal expr c = assertStmt $ expr `unequalC` CConst c
 
 
 -- | assertUnequals e c1, c2,.. results in an AST fragment with the assertion @e
 -- != c1 && e != c2 ...@
 assertUnequals :: CExpression SemPhase -> [CConstant SemPhase] -> CStatement SemPhase
 assertUnequals expr []     = assertStmt constantTrue
-assertUnequals expr (c:cs) = assertStmt $ foldl' f (expr `unequalC` (CConst c)) cs
+assertUnequals expr (c:cs) = assertStmt $ foldl' f (expr `unequalC` CConst c) cs
   where
-    f e c            = e `andC` (CBinary CNeqOp expr (CConst c) (undefNode, boolType))
+    f e c            = e `andC` CBinary CNeqOp expr (CConst c) (undefNode, boolType)
 
 
 

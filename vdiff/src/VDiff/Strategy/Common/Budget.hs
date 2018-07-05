@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
@@ -50,7 +49,7 @@ instance (Monad m) => MonadBudget (BudgetT m) where
   budgetError     = BudgetT $ lift $ throwE ()
 
 -- | Performs action only if the budget is at least 1.
-budgeted :: (MonadBudget m) => (m a) -> m a
+budgeted :: (MonadBudget m) => m a -> m a
 budgeted act = do
   b <- getBudget
   if b > 0

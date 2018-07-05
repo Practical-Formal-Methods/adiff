@@ -1,7 +1,4 @@
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
-{-# LANGUAGE TemplateHaskell   #-}
 
 module Main where
 
@@ -35,7 +32,7 @@ parseServerParameters = ServerParameters <$> port <*> switchForceRecount <*> max
     maxConcurrent = option auto (short 'n' <> long "max-concurrent-verifiers" <> value 1)
 
 
-infos = (progDesc "viewer for vdiff")
+infos = progDesc "runs a webserver to inspect vdiff results"
 
 main :: IO ()
 main = runVDiffApp parseServerParameters infos $ \sp -> do
@@ -43,12 +40,10 @@ main = runVDiffApp parseServerParameters infos $ \sp -> do
   sema <- liftIO $ Sema.new (maxConcurrentVerifiers sp)
   env <- mkServerEnv sema
 
-  updateTable <- do
-    if forceRecount sp
-      then return True
-      else Q2.updateCountsTableNecessary
-  when updateTable $ do
-    Q2.updateCountsTableProgressive
+  updateTable <- if forceRecount sp
+                 then return True
+                 else Q2.updateCountsTableNecessary
+  when updateTable Q2.updateCountsTableProgressive
   scottyT (port sp) (runRIO env) endpoints
 
 mkServerEnv :: Sema.MSemN Int -> RIO MainEnv ServerEnv

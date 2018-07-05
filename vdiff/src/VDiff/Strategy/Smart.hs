@@ -134,9 +134,7 @@ whenBudget f act = do
   bdg <- use budget
   logDebug $ "current budget is " <> display bdg
   if f bdg
-    then do
-      x <- act
-      return $ Just x
+    then Just <$> act
     else return Nothing
 
 whenBudget_ :: (IsStrategyEnv env) => (Int -> Bool) -> Smart env a -> Smart env ()
@@ -205,7 +203,7 @@ exploreStatement = tryout $ do
     budget -= 1
     insertBefore assertFalse
     n <- use iterationCounter
-    (res,conclusion) <- (buildTranslationUnit >>= verify n)
+    (res, conclusion) <- buildTranslationUnit >>= verify n
     iterationCounter += 1
     -- update moving average
     updateAverages' res

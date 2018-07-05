@@ -1,7 +1,5 @@
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ParallelListComp       #-}
-{-# LANGUAGE TemplateHaskell        #-}
 
 -- | handles all things regarding the computation of moving averages
 
@@ -34,4 +32,4 @@ updateAverages vals (Averages prevs n) =
   in Averages averages' (n + 1)
 
 updateAverage ::  Int -> Double -> Double -> Double
-updateAverage n newTime old = ((fromIntegral n) * old + newTime ) /  fromIntegral (n + 1)
+updateAverage n newTime old = (fromIntegral n * old + newTime ) /  fromIntegral (n + 1)

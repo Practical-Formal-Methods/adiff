@@ -74,7 +74,7 @@ randomWalkStrategy' bdg = do
 
 -- | walks a random step in the ast
 randomStep :: (MonadRandom m, MonadBrowser m) => m ()
-randomStep = do
+randomStep =
   findCalledFunction >>= \case
           Nothing -> oneStep
           Just fn -> void $ randomlyBranchTrue [gotoFunction fn, oneStep >> return True]

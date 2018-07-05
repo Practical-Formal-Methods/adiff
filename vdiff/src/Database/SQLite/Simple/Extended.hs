@@ -15,8 +15,7 @@ import           RIO
 withConnection :: (MonadIO m, MonadUnliftIO m) => String -> (Connection -> m a) -> m a
 withConnection fn act = do
   env <- askUnliftIO
-  liftIO $ SQL.withConnection fn $ \conn ->  do
-    unliftIO env $ act conn
+  liftIO $ SQL.withConnection fn $ \conn -> unliftIO env $ act conn
 
 fold_ :: (FromRow row, MonadIO m, MonadUnliftIO m)
       => Connection -> Query -> a -> ( a -> row -> m a) -> m a
@@ -28,7 +27,7 @@ fold_ conn q z f = do
 foldBufferedIO_ :: (FromRow row)
       => Int -> Connection -> Query -> a -> ( a -> [row] -> IO a) -> IO a
 foldBufferedIO_ bufSize conn q z f = do
-  (acc, buf) <- SQL.fold_ conn q (z,[]) (innerF)
+  (acc, buf) <- SQL.fold_ conn q (z,[]) innerF
    -- empty the buffer
   f acc buf
   where

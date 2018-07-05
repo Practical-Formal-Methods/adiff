@@ -38,9 +38,7 @@ runVim fn = do
               ExitFailure _ -> return $ VerifierResult (Just 1.0) (Just 100) Sat
 
 vimVersion :: IO (Maybe String)
-vimVersion = do
-  s <- readCreateProcess (shell "vim --version") ""
-  return $ headMay $ lines s
+vimVersion = headMay . lines <$> readCreateProcess (shell "vim --version") ""
 
 alwaysSat, alwaysUnsat :: Verifier
 alwaysSat  = always Sat
