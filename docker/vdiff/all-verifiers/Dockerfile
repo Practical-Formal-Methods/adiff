@@ -4,6 +4,7 @@
 # * Ultimate Taipan
 # * CPAchecker
 # * Seahorn / Seacrab
+# * crab-llvm
 # * KLEE
 
 FROM ubuntu:16.04
@@ -25,7 +26,6 @@ RUN apt-get update && \
     java-common \
     libasound2 \
     libboost-system-dev \
-    libcairo2-dev \
     libfontconfig1 \
     libfreetype6 \
     libgmp-dev \
@@ -86,25 +86,31 @@ RUN cd /tmp && \
 RUN cd /tmp && \
     git clone "https://github.com/seahorn/seahorn.git" && \
     cd seahorn && \
-    git checkout 9c4a917a595e11d673eed216701df106b73fdbda
-
-
-RUN cd /tmp/seahorn && \
-    mkdir build; cd build && \
+    git checkout 9c4a917a595e11d673eed216701df106b73fdbda && \
+    mkdir build && cd build && \
     cmake -DCMAKE_INSTALL_PREFIX="/verifiers/seahorn" ../ && \
-    cmake --build .
+    cmake --build . && \
+    cmake --build . --target extra && cmake .. && \
+    cmake --build . --target crab && cmake .. && \
+    cmake --build . --target install && \
+    rm -rf /tmp/seahorn && \
+    ln -s /verifiers/seahorn/bin/sea ~/.local/bin/sea
 
-RUN cd /tmp/seahorn/build && \
-    cmake --build . --target extra && cmake ..
+RUN apt-get install -y libmpfr-dev
 
-RUN cd /tmp/seahorn/build && \
-    cmake --build . --target crab && cmake ..
+# crab-llvm
+RUN cd tmp && \
+    git clone https://github.com/seahorn/crab-llvm.git && \
+    cd crab-llvm && mkdir build && cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX="/verifiers/crab-llvm" -DUSE_LDD=ON -DUSE_APRON=ON ../ && \
+    # cmake --build . --target extra && \\
+    cmake --build . --target crab && cmake .. && \
+    cmake --build . --target ldd && cmake .. && \
+    cmake --build . --target apron && cmake .. && \
+    cmake --build . --target llvm && cmake .. && \
+    cmake --build . --target install && \
+    rm -rf /tmp/crab-llvm
 
-RUN cd /tmp/seahorn/build && \
-    cmake --build . --target install
-
-RUN rm -rf /tmp/seahorn
-RUN ln -s /verifiers/seahorn/bin/sea ~/.local/bin/sea
 
 # KLEE
 RUN git config --global user.email "x@y.com"  &&\
@@ -150,9 +156,9 @@ RUN cd /tmp && \
 
 # CPAchecker (using trunk)
 RUN cd /tmp && \
-wget "https://vcloud.sosy-lab.org/cpachecker/webclient/tool/" -O cpachecker.zip && \
-mkdir /verifiers/cpachecker && \
-unzip cpachecker.zip -d /verifiers/cpachecker && \
-ln -s /verifiers/cpachecker/scripts/cpa.sh ~/.local/bin && \
-chmod +x /verifiers/cpachecker/scripts/cpa.sh && \
-rm cpachecker.zip
+    wget "https://vcloud.sosy-lab.org/cpachecker/webclient/tool/" -O cpachecker.zip && \
+    mkdir /verifiers/cpachecker && \
+    unzip cpachecker.zip -d /verifiers/cpachecker && \
+    ln -s /verifiers/cpachecker/scripts/cpa.sh ~/.local/bin && \
+    chmod +x /verifiers/cpachecker/scripts/cpa.sh && \
+    rm cpachecker.zip
