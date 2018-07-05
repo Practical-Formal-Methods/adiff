@@ -120,6 +120,6 @@ dependencies:
   - beam-core
   - beam-sqlite
   - beam-migrate
-  - language-doll
   - time
+  - megaparsec
   

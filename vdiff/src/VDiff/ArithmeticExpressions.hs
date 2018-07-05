@@ -1,13 +1,10 @@
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE PartialTypeSignatures #-}
-
-module Language.Doll.Parser where
+module VDiff.ArithmeticExpressions where
 
 import qualified Control.Applicative        as A
 import           Control.Monad.Reader
 import           Data.Text
 import qualified Data.Text                  as T
+import           Prelude
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -36,7 +33,7 @@ symbol = L.symbol sc
 
 
 constant :: Parser Double
-constant = lexeme $ (try L.float <|> (fromIntegral <$> L.decimal))
+constant = lexeme $ try L.float <|> (fromIntegral <$> L.decimal)
 
 
 parens :: Parser a -> Parser a
@@ -49,14 +46,11 @@ identifier :: Parser Text
 identifier = T.pack <$> identifierString
 
 
-evalDoll :: DollEnv -> Text -> Either String Double
-evalDoll m inp = case (runReader (runParserT expr "input" inp) m) of
+evalExpr :: DollEnv -> Text -> Either String Double
+evalExpr m inp = case runReader (runParserT expr "input" inp) m of
   Right n  -> Right n
   Left err -> Left (parseErrorPretty err)
 
-evalDollTest :: Text -> Either String Double
-evalDollTest = evalDoll defMap
-  where defMap = Map.fromList [("pi", 3), ("zero", 0)]
 
 expr :: Parser Double
 expr = makeExprParser term table <?> "expression"

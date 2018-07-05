@@ -8,19 +8,19 @@ module VDiff.Diff where
 
 import           VDiff.Prelude
 
-import           Data.List             (sortBy)
-import qualified Data.List             as L
-import qualified Data.Map              as Map
-import           Data.Ord              (comparing)
-import qualified Data.Text.IO          as T
-import qualified Data.Text.Lazy        as LT
+import           Data.List                   (sortBy)
+import qualified Data.List                   as L
+import qualified Data.Map                    as Map
+import           Data.Ord                    (comparing)
+import qualified Data.Text.IO                as T
+import qualified Data.Text.Lazy              as LT
 import           Language.C
-import qualified Language.Doll         as Doll
 import           System.Directory
 import           System.Exit
 import           System.IO
-import           Text.PrettyPrint      (render)
+import           Text.PrettyPrint            (render)
 
+import           VDiff.ArithmeticExpressions (evalExpr)
 import           VDiff.Instrumentation
 import           VDiff.Strategy
 import           VDiff.Verifier
@@ -83,10 +83,10 @@ mkStrategyEnv tu dp = do
   -- interpret the budget specification
   let reads     = findAllReads searchMode_ tu
       positions = L.nub [r ^. position | r <- reads]
-      dollEnv = Map.fromList [ ("reads", fromIntegral $ length reads)
+      exprEnv = Map.fromList [ ("reads", fromIntegral $ length reads)
                              , ("positions", fromIntegral $ length positions)
                              ]
-  case Doll.evalDoll dollEnv (dp ^. budgetSpecification) of
+  case evalExpr exprEnv (dp ^. budgetSpecification) of
     Left err -> error err
     Right bdg -> do
       logDebug $ "evaluated Doll expression '" <> display (dp ^. budgetSpecification) <> "' to " <> display (tshow bdg)
