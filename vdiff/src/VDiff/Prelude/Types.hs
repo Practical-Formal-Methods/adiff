@@ -17,6 +17,7 @@ module VDiff.Prelude.Types
   , nub
   , MonadRandom(..)
   , voidType
+  , VerifierName
   ) where
 
 import           RIO
@@ -56,7 +57,9 @@ type Microseconds = Int
 data VerifierEnv = VerifierEnv
   { _verifierEnvLogger :: !LogFunc
   , _timeLimit         :: !Microseconds
+  , _verifierEnvFlags  :: [Text]
   }
+
 
 data Verifier = Verifier
   { _name            :: VerifierName
@@ -84,6 +87,9 @@ class (HasLogFunc a, HasDatabase a) => HasMainEnv a
 class HasTimeLimit a where
   timeLimitL :: Lens' a Microseconds
 
+class HasExtraFlags a where
+  extraFlags :: Lens' a [Text]
+
 class HasDiffParameters env where
   diffParameters :: Lens' env DiffParameters
 
@@ -107,11 +113,14 @@ instance HasLogFunc VerifierEnv where
 instance HasTimeLimit VerifierEnv where
   timeLimitL = lens _timeLimit (\e l -> e { _timeLimit = l})
 
+instance HasExtraFlags VerifierEnv where
+  extraFlags =lens _verifierEnvFlags (\e f -> e { _verifierEnvFlags = f})
+
 -- | creates a verifier environment given a time limit.
-mkVerifierEnv :: (HasLogFunc env ) => Microseconds -> RIO env VerifierEnv
-mkVerifierEnv timeLimit = do
+mkVerifierEnv :: (HasLogFunc env ) => Microseconds -> [Text] -> RIO env VerifierEnv
+mkVerifierEnv timeLimit flags = do
   lg <- view logFuncL
-  return $ VerifierEnv lg timeLimit
+  return $ VerifierEnv lg timeLimit flags
 
 class HasTranslationUnit env where
   translationUnit :: Lens' env (CTranslationUnit SemPhase)
@@ -183,6 +192,7 @@ data DiffParameters = DiffParameters
   , _budgetSpecification :: Text
   , _timelimit           :: Int
   , _verifiers           :: [Verifier]
+  , _verifierFlags       :: Map VerifierName [Text]
   , _searchMode          :: SearchMode
   , _batchSize           :: Int
   , _inputFile           :: FilePath

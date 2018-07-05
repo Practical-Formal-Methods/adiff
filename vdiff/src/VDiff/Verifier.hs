@@ -27,5 +27,6 @@ allVerifiers = [ cbmc
                -- , cprover2Ls -- does not work
                ]
 
+
 lookupVerifier :: Text -> Maybe Verifier
 lookupVerifier n = headMay $ filter (\v -> v ^. name == n)  allVerifiers

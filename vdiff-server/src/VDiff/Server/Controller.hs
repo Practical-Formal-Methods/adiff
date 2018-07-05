@@ -127,7 +127,7 @@ postRunVerifier = do
   -- execute verifier here inside a semaphore-protected area
   res <- lift $ with' sema 1 $ withSystemTempFile "program.c" $ \fp h -> do
     liftIO $ T.hPutStr h source >> hFlush h
-    venv <- mkVerifierEnv timeout
+    venv <- mkVerifierEnv timeout []
     runRIO venv $ execute v fp
 
   html $ LT.fromStrict $ tshow (res ^. verdict)

@@ -68,9 +68,10 @@ cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
   fn' <- liftIO $ makeAbsolute (dp ^. inputFile)
   lg <- view logFuncL
-  let verifierEnv = VerifierEnv lg (dp ^. timelimit)
   forM_ (dp ^. verifiers) $ \v -> do
     liftIO $ print (v ^. name)
+    let flags = fromMaybe [] $ Map.lookup  (v ^. name) (dp ^. verifierFlags)
+    verifierEnv <- mkVerifierEnv (dp ^. timelimit) flags
     res <- runRIO verifierEnv $ execute v fn'
     liftIO $ print res
 

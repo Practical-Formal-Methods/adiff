@@ -16,6 +16,7 @@ import           VDiff.Prelude
 import qualified Prelude as P
 import           Control.Lens
 import           Control.Monad.State
+import qualified Data.Map as Map
 import           Language.C
 import           Language.C.Analysis.SemRep         hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
@@ -88,7 +89,9 @@ verify' n tu = do
         withSystemTempFile "input.c" $ \fp h -> do
           -- write file
           liftIO $ hPutStr h content >> hFlush h
-          vEnv <- mkVerifierEnv time
+          -- create verifier env
+          flags <- fromMaybe [] . Map.lookup  (v ^. name) <$> view (diffParameters . verifierFlags)
+          vEnv <- mkVerifierEnv time flags
           res <- runRIO vEnv $ execute v fp
           Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
   return (program', runs)

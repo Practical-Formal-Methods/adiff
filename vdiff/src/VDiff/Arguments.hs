@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE LambdaCase    #-}
 {-# LANGUAGE MultiWayIf    #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | argument parsers that are used by both vdiff and vdiff-viewer
 
@@ -11,6 +12,7 @@ module VDiff.Arguments
 
 import           VDiff.Prelude
 
+import qualified Data.Map.Strict     as Map
 import qualified Data.Text           as T
 import           Options.Applicative
 import qualified RIO.List            as L
@@ -50,12 +52,23 @@ verifierList = str >>= \s ->
         else readerError $ "unknown verifier(s): " ++ unwords (map T.unpack unavailable)
 
 
+verifierFlags :: Parser (Map VerifierName [Text])
+verifierFlags = foldl' addToMap Map.empty <$> many flagParsers
+  where
+    addToMap m (v,f) = Map.insertWith (++) v [f] m
+    flagParsers      = asum $ map (mkFlagParser . (^. name))  allVerifiers
+    mkFlagParser v   = (v,) <$> option strText (long (T.unpack v ++ "-flags"))
+
+strText :: ReadM Text
+strText = str
+
 diffParameters :: Parser DiffParameters
 diffParameters = DiffParameters
       <$> VDiff.Arguments.strategy
       <*> VDiff.Arguments.budget
       <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
       <*> VDiff.Arguments.verifiers
+      <*> VDiff.Arguments.verifierFlags
       <*> VDiff.Arguments.searchMode
       <*> VDiff.Arguments.batchSize
       <*> cFile
