@@ -3,7 +3,6 @@ packages:
 - ./vdiff
 - ./vdiff-docker
 - ./vdiff-server
-- ./language-doll
 - location: ./language-c-extensible
   extra-dep: true
 
@@ -11,8 +10,6 @@ extra-deps:
 - pptable-0.3.0.0
 - process-1.6.3.0
 - rio-0.1.0.0
-- Chart-1.9
-- Chart-cairo-1.9
 - beam-sqlite-0.3.2.1
 - wai-middleware-static-embedded-0.1.0.0
 
