@@ -122,4 +122,6 @@ dependencies:
   - beam-migrate
   - time
   - megaparsec
+  - regex-base
+  - regex-posix
   

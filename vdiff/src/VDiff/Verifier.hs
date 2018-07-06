@@ -14,11 +14,13 @@ import           VDiff.Verifier.Klee
 import           VDiff.Verifier.Sea
 import           VDiff.Verifier.Ultimate
 import           VDiff.Verifier.Smack
+import           VDiff.Verifier.CrabLlvm
 
 allVerifiers :: [Verifier]
 allVerifiers = [ cbmc
                , cpaChecker
                , klee
+               , crabLlvm
                , seacrab
                , seahorn
                , smack
