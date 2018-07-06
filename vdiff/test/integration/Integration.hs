@@ -32,7 +32,7 @@ testSimple = testGroup "unsat" $ map test [ (v, r) | v <- allVerifiers', r <- [S
       logOptions <- logOptionsHandle stderr True
       let logOptions' = setLogMinLevel LevelWarn $ setLogVerboseFormat False logOptions
       withLogFunc  logOptions' $ \lg -> do
-        let verifierEnv   = VerifierEnv lg (15 * 1000 * 1000)
+        let verifierEnv   = VerifierEnv lg (15 * 1000 * 1000) []
         runRIO verifierEnv $ withSystemTempFile "input.c" $ \fp h -> do
           BS.hPutStr h (if expected == Sat then satFile else unsatFile)
           hFlush h
