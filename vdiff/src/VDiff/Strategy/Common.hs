@@ -17,6 +17,7 @@ import qualified Prelude as P
 import           Control.Lens
 import           Control.Monad.State
 import qualified Data.Map as Map
+import qualified Data.Text as T
 import           Language.C
 import           Language.C.Analysis.SemRep         hiding (Stmt)
 import           Language.C.Analysis.TypeUtils
@@ -93,7 +94,9 @@ verify' n tu = do
           flags <- fromMaybe [] . Map.lookup  (v ^. name) <$> view (diffParameters . verifierFlags)
           vEnv <- mkVerifierEnv time flags
           res <- runRIO vEnv $ execute v fp
-          Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
+          run <- Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
+          Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
+          return run
   return (program', runs)
 
 conclude :: [VerifierRun] -> Conclusion
