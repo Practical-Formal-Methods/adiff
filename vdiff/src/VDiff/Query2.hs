@@ -26,6 +26,7 @@ type Statistics = [(Text, Text)]
 data Query
   = Query Suspicion AccordingTo
   | Disagreement
+  | Ties
   | Everything
   deriving (Show, Read)
 
@@ -57,6 +58,7 @@ executeQuery limit offset qf q =
   runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
     Everything                             -> allFindings
     Disagreement                           -> disagreementFindings
+    Ties                                   -> tiesFindings
     (Query SuspicionIncomplete Majority)   -> incompleteFindings
     (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
     (Query SuspicionUnsound  Majority)     -> unsoundFindings
@@ -71,6 +73,7 @@ executeQueryCount qf q = do
   (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ execQf qf $ case q of
     Everything                             -> allFindings
     Disagreement                           -> disagreementFindings
+    Ties                                   -> tiesFindings
     (Query SuspicionIncomplete Majority)   -> incompleteFindings
     (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
     (Query SuspicionUnsound  Majority)     -> unsoundFindings
@@ -174,12 +177,17 @@ runIdWithVerdict v = aggreg $ do
 
 
 
-incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack :: forall ctx . Q _ VDiffDb ctx _
+incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack, tiesFindings :: forall ctx . Q _ VDiffDb ctx _
 incompleteFindings   = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
 unsoundFindings      = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
-disagreementFindings = orderBy_ (desc_.diffSats) $ filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+disagreementFindings = orderBy_ (asc_.diffSats) $ filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
   where
     diffSats (_,_,sat,unsat) =  abs (sat - unsat)
+tiesFindings         = orderBy_  ordKey  $ filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
+  where
+    ordKey (_,_,sats,unsats) = (desc_ (min_ sats unsats), asc_ (abs (sats - unsats)), desc_ (sats + unsats))
+    min_ x y = if_ [ ( x <. y) `then_` x] (else_ y)
+
 
 
 

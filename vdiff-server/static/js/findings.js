@@ -30,10 +30,8 @@ re_query = /Query (SuspicionIncomplete|SuspicionUnsound) (Majority|\(AnyOf (.*)\
 
 
 function adjustControls(s) {
-    if (s == "Everything") {
-        setSuspicion("Everything");
-    } else if (s == "Disagreement") {
-        setSuspicion("Disagreement");
+    if (s == "Everything" || s  == "Disagreement" || s == "Ties") {
+        setSuspicion(s);
     } else {
         var m = s.match(re_query);
         console.log(m);
@@ -124,7 +122,7 @@ function reloadQuery() {
     var q = "";
 
     /* build the 'q' string */
-    if (suspicion == 'Everything' || suspicion == 'Disagreement') {
+    if (suspicion == 'Everything' || suspicion == 'Disagreement' || suspicion == 'Ties') {
         q = suspicion;
     } else {
         if (accordingTo == 'Majority') {
@@ -151,7 +149,7 @@ function reloadQuery() {
 
 function suspicionChanged() {
     var x = $('#suspicion').val();
-    if (x == 'Everything' || x == 'Disagreement') {
+    if (x == 'Everything' || x == 'Disagreement' || x == 'Ties') {
         $('#accordingToBox').hide();
         $('#verifier-row').hide();
     } else {

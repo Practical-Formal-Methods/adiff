@@ -32,8 +32,6 @@ runCommands param = case cmd param of
                       CmdVersions            -> cmdVersions
                       CmdRunVerifiers dp     -> cmdRunVerifiers dp
 
-
-
 --------------------------------------------------------------------------------
 -- | * Arguments
 -- | Arguments are fully typed:

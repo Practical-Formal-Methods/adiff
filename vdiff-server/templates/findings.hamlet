@@ -10,6 +10,8 @@
           Everything
         <option value="Disagreement">
           Disagreement
+        <option value="Ties">
+          Ties
         <option value="SuspicionIncomplete">
           Incomplete
         <option value="SuspicionUnsound">
