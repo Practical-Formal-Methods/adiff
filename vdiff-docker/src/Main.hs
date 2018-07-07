@@ -81,7 +81,7 @@ main = do
     other = map (\(x,y) -> "-p="++ show x ++ ":" ++ show y) portMapping
     cmd = concat' $ ["docker run -it"] ++ mounts ++ limits ++ other ++ ["vdiff/vdiff:latest"]
   if exec
-    then callCommand $ cmd ++ " /bin/bash -c '" ++ concat' passthrough ++ "'"
+    then callCommand $ cmd ++ " /bin/bash -i -c '" ++ concat' passthrough ++ "'"
     else callCommand $ cmd ++ " /bin/bash"
 
 mounts :: [String]
