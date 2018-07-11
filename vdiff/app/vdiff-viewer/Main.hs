@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
 {-# OPTIONS_GHC -fno-warn-orphans   #-}
 
 module Main where
@@ -11,6 +12,7 @@ import qualified Data.List.Key                   as K
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
 import qualified Database.SQLite.Simple.Extended as SQL
+import           Numeric
 import qualified Prelude                         as P
 import           RIO.List
 import           System.Directory                (makeAbsolute)
@@ -23,6 +25,9 @@ import           VDiff.Arguments                 hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence
 import qualified VDiff.Query2                    as Q2
+import qualified VDiff.Statistics                as Statistics
+import qualified VDiff.Util.Tables               as Tbl
+import           VDiff.Verifier
 
 
 data ViewCommand
@@ -35,6 +40,8 @@ data ViewCommand
   | MergeOld [FilePath]
   | MergeOldList FilePath
   | MergeNew [FilePath]
+  | Verdicts
+  | RelativeInclusion Verdict
   deriving Show
 
 newtype ViewParameters
@@ -97,9 +104,29 @@ executeView (Runs hsh) = do
 
 executeView (MergeOld files) = mergeFiles files
 
-executeView (MergeOldList file) =do
+executeView (MergeOldList file) = do
   files <- lines <$> liftIO (readFile file)
   mergeFiles files
+
+executeView Verdicts = do
+  stats <- mapM  (\v -> (v ^. name,) <$>  Statistics.verdicts (Q2.QueryFocus [v ^. name])) allVerifiers
+  let tbl = Tbl.table $ Tbl.row ["verifier", "sats", "unsats", "unknown"] : map (Tbl.toRow . (\(x,(a,b,c)) -> (x,a,b,c))) stats
+  liftIO $ T.putStr $ Tbl.renderTable tbl
+
+executeView (RelativeInclusion vrd) = do
+  let verifierNames = map (^. name) allVerifiers
+  let headers = Tbl.row $ " ⊆ " : verifierNames
+  rows <- forM verifierNames $ \v1 -> do
+         cells <- forM  verifierNames $ \v2 ->
+           formatNum <$> Statistics.relativeInclusion vrd v1 v2
+         return $ Tbl.row (v1 : cells)
+  let table = Tbl.table (headers : rows)
+  liftIO $ T.putStr $ Tbl.renderTable table
+  where
+    formatNum :: Double -> Text
+    formatNum x
+      | isNaN x = " "
+      | otherwise = T.pack $ Numeric.showFFloat (Just 2) x ""
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files =
@@ -145,9 +172,12 @@ viewParameters = ViewParameters <$> viewCommand
                        , mergeOldListCmd
                        , runsCmd
                        , distributionCmd
-                       , statCmd ]
+                       , statCmd
+                       , verdictsCmd
+                       , relativeInclusionCmd
+                       ]
 
-statCmd, listCmd, countCmd, programCmd, mergeOldCmd, mergeOldListCmd, runsCmd :: Parser ViewCommand
+statCmd, listCmd, countCmd, programCmd, mergeOldCmd, mergeOldListCmd, runsCmd, verdictsCmd  :: Parser ViewCommand
 statCmd = switch options $> Stats
   where options = mconcat [ long "stat"
                           , short 's'
@@ -190,6 +220,14 @@ distributionCmd = switch options $> DistributionPerFile <*> parseQuery2
   where options = mconcat [ long "per-file"
                           , help "shows the number of findings per file" ]
 
+verdictsCmd = switch options $> Verdicts
+  where options = long "verdicts" <> help "counts the frequency of each verdict for the given verifiers"
+
+relativeInclusionCmd = switch (long "inclusions-sat") $> RelativeInclusion Sat <|>
+                       switch (long "inclusions-unsat") $> RelativeInclusion Unsat
+
+
+parseFocus = Q2.QueryFocus . map (^. name) <$> VDiff.Arguments.verifiers
 
 parseQuery2 :: Parser Q2.Query
 parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete

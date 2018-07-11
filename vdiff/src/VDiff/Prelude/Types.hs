@@ -205,8 +205,6 @@ type TU       = CTranslationUnit SemPhase
 type Stmt     = CStatement SemPhase
 
 
-displayList :: Display a => [a] -> Utf8Builder
-displayList xs = mconcat $ intersperse ", " (map display xs)
 
 instance Display Stmt where
   display = display . pack . prettyp
