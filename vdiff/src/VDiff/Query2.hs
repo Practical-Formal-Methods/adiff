@@ -276,3 +276,14 @@ allRuns_      = all_ (vdiffDb ^. runs)
 
 allPrograms_ :: Q _ _ _ (ProgramT (QExpr _ _))
 allPrograms_  = all_ (vdiffDb ^. programs)
+
+
+programByVerdicts :: forall ctx . [(VerifierName, [Verdict])] -> Q _ _ ctx (ProgramT _)
+programByVerdicts specs = nub_ $ do
+  p <- allPrograms_
+  rs <- forM specs $ \(vn, vrds) -> do
+    r <- filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds &&. (r ^. verifierName) ==. val_ vn) allRuns_
+    guard_ $ (r ^. program) ==. p ^. hash
+    return r
+  return p
+

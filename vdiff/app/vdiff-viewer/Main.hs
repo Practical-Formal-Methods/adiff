@@ -41,8 +41,7 @@ data ViewCommand
   | MergeOldList FilePath
   | MergeNew [FilePath]
   | Verdicts
-  | RelativeInclusion Verdict
-  deriving Show
+  | RelativeInclusion Verdict Statistics.HandleUnknown
 
 newtype ViewParameters
   = ViewParameters { command :: ViewCommand }
@@ -113,12 +112,11 @@ executeView Verdicts = do
   let tbl = Tbl.table $ Tbl.row ["verifier", "sats", "unsats", "unknown"] : map (Tbl.toRow . (\(x,(a,b,c)) -> (x,a,b,c))) stats
   liftIO $ T.putStr $ Tbl.renderTable tbl
 
-executeView (RelativeInclusion vrd) = do
+executeView (RelativeInclusion vrd ignoreUnknown) = do
   let verifierNames = map (^. name) allVerifiers
   let headers = Tbl.row $ " ⊆ " : verifierNames
   rows <- forM verifierNames $ \v1 -> do
-         cells <- forM  verifierNames $ \v2 ->
-           formatNum <$> Statistics.relativeInclusion vrd v1 v2
+         cells <- mapM (fmap formatNum . Statistics.relativeInclusion vrd ignoreUnknown v1) verifierNames
          return $ Tbl.row (v1 : cells)
   let table = Tbl.table (headers : rows)
   liftIO $ T.putStr $ Tbl.renderTable table
@@ -223,8 +221,11 @@ distributionCmd = switch options $> DistributionPerFile <*> parseQuery2
 verdictsCmd = switch options $> Verdicts
   where options = long "verdicts" <> help "counts the frequency of each verdict for the given verifiers"
 
-relativeInclusionCmd = switch (long "inclusions-sat") $> RelativeInclusion Sat <|>
-                       switch (long "inclusions-unsat") $> RelativeInclusion Unsat
+relativeInclusionCmd = switch (long "inclusions-sat-include-unknown")   $> RelativeInclusion Sat   Statistics.IncludeUnknown <|>
+                       switch (long "inclusions-unsat-include-unknown") $> RelativeInclusion Unsat Statistics.IncludeUnknown <|>
+                       switch (long "inclusions-sat-exclude-unknown")   $> RelativeInclusion Sat   Statistics.ExcludeUnknown <|>
+                       switch (long "inclusions-unsat-exclude-unknown") $> RelativeInclusion Unsat Statistics.ExcludeUnknown
+
 
 
 parseFocus = Q2.QueryFocus . map (^. name) <$> VDiff.Arguments.verifiers
