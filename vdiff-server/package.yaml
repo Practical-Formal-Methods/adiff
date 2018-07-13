@@ -26,6 +26,7 @@ dependencies:
 - file-embed
 - safe
 - SafeSemaphore
+- containers
 
 
 library:

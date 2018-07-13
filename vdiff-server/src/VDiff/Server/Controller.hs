@@ -17,6 +17,7 @@ import           VDiff.Server.Widgets
 import qualified Control.Concurrent.MSemN              as Sema
 import           Data.FileEmbed
 import           Data.List
+import qualified Data.Map                              as Map
 import           Data.Semigroup
 import qualified Data.Text                             as T
 import qualified Data.Text.IO                          as T
@@ -24,9 +25,11 @@ import qualified Data.Text.Lazy                        as LT
 import           Database.Beam
 import           Database.Beam.Sqlite
 import           Network.Wai.Middleware.StaticEmbedded
+import           Numeric
 import           VDiff.Data
 import           VDiff.Persistence
 import qualified VDiff.Query2                          as Q2
+import           VDiff.Statistics
 import           VDiff.Verifier                        (allVerifiers,
                                                         lookupVerifier)
 
@@ -34,6 +37,7 @@ import           VDiff.Verifier                        (allVerifiers,
 endpoints :: (HasLogFunc env, HasSemaphore env, HasDatabase env) => ScottyT SrvError (RIO env) ()
 endpoints = do
   get "/" getIndex
+  get "/overview" getOverview
   get "/program/:hash" getProgram
   get "/findings/" getFindings
   get "/scratchpad" getScratch
@@ -132,6 +136,16 @@ postRunVerifier = do
 
   html $ LT.fromStrict $ tshow (res ^. verdict)
 
+getOverview :: (HasDatabase env) => RioActionM env ()
+getOverview = do
+  unsatInclusionTable <- lift $ inclusionTable Unsat ExcludeUnknown
+  satInclusionTable <- lift $ inclusionTable Sat ExcludeUnknown
+  defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
+  where
+    formatNum :: Double -> Text
+    formatNum x
+      | isNaN x = " "
+      | otherwise = T.pack $ Numeric.showFFloat (Just 2) x ""
 
 --------------------------------------------------------------------------------
 with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a

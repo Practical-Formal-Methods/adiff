@@ -1,9 +1,11 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TupleSections         #-}
 
 -- similar to Query but slightly more high-level
 module VDiff.Statistics where
 
 import           Data.List            (intersperse)
+import qualified Data.Map             as Map
 import           Database.Beam
 import           Database.Beam.Sqlite
 import           VDiff.Data
@@ -39,3 +41,9 @@ relativeInclusion vrd handleUnknown v1 v2 = do
   (Just implied) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, [vrd]), (v2, [vrd])]
   return (fromIntegral implied / fromIntegral n)
 
+
+inclusionTable :: (HasDatabase env) => Verdict -> HandleUnknown -> RIO env (Map (VerifierName, VerifierName) Double)
+inclusionTable v hu = Map.fromList <$> sequence [ ((v1, v2),) <$> relativeInclusion v hu v1 v2
+                                                | v1 <- verifierNames, v2 <- verifierNames ]
+  where
+    verifierNames = map (^. name) allVerifiers
