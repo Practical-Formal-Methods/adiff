@@ -32,17 +32,23 @@ verdicts qf = do
 
 data HandleUnknown = IncludeUnknown | ExcludeUnknown
 
-relativeInclusion :: (HasDatabase env) => Verdict -> HandleUnknown -> VerifierName -> VerifierName -> RIO env Double
+relativeInclusion :: (HasDatabase env) => Verdict
+  -> HandleUnknown
+  -> VerifierName
+  -> VerifierName
+  -> RIO env (Integer, Integer)
 relativeInclusion vrd handleUnknown v1 v2 = do
   let qTotal = case handleUnknown of
                IncludeUnknown -> [ (v1, [vrd]) , (v2, [Sat,Unsat,Unknown]) ]
                ExcludeUnknown -> [ (v1, [vrd]) , (v2, [Sat,Unsat]) ]
   (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts qTotal
   (Just implied) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, [vrd]), (v2, [vrd])]
-  return (fromIntegral implied / fromIntegral n)
+  return (fromIntegral implied,  fromIntegral n)
 
 
-inclusionTable :: (HasDatabase env) => Verdict -> HandleUnknown -> RIO env (Map (VerifierName, VerifierName) Double)
+inclusionTable :: (HasDatabase env) => Verdict
+  -> HandleUnknown
+  -> RIO env (Map (VerifierName, VerifierName) (Integer, Integer))
 inclusionTable v hu = Map.fromList <$> sequence [ ((v1, v2),) <$> relativeInclusion v hu v1 v2
                                                 | v1 <- verifierNames, v2 <- verifierNames ]
   where

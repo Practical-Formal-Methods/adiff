@@ -44,7 +44,12 @@ main = runVDiffApp parseServerParameters infos $ \sp -> do
                  then return True
                  else Q2.updateCountsTableNecessary
   when updateTable Q2.updateCountsTableProgressive
+  -- setPragmas
   scottyT (port sp) (runRIO env) endpoints
+
+-- setPragmas :: (HasDatabase env) => RIO env ()
+-- setPragmas = do
+--   execute  undefined
 
 mkServerEnv :: Sema.MSemN Int -> RIO MainEnv ServerEnv
 mkServerEnv s = do

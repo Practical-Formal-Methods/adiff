@@ -140,12 +140,14 @@ getOverview :: (HasDatabase env) => RioActionM env ()
 getOverview = do
   unsatInclusionTable <- lift $ inclusionTable Unsat ExcludeUnknown
   satInclusionTable <- lift $ inclusionTable Sat ExcludeUnknown
+  unsatInclusionWithUnknown <- lift $ inclusionTable Unsat IncludeUnknown
+  satInclusionWithUnknown <- lift $ inclusionTable Sat IncludeUnknown
+
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
-    formatNum :: Double -> Text
-    formatNum x
-      | isNaN x = " "
-      | otherwise = T.pack $ Numeric.showFFloat (Just 2) x ""
+    mkLinkUnsound, mkLinkIncomplete :: VerifierName -> VerifierName -> Text
+    mkLinkUnsound v1 v2 = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> v1 <> "%22])&qf=[%22" <> v2 <> "%22]"
+    mkLinkIncomplete v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> v1 <> "%22])&qf=[%22" <> v2 <> "%22]"
 
 --------------------------------------------------------------------------------
 with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a

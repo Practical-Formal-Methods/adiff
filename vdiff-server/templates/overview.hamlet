@@ -1,5 +1,15 @@
 <h3> Overview
 
+<h4> Soundness 
+<p>
+  This table is the "sat inclusion table". The value in row i and column j
+  represents the probability that given that v_i says that a program is sat,
+  verifier v_j will also say that it is sat . A value of 100% means that
+  verifier v_i is <i>sound according to v_j</i> (in other words: Every
+  bug that can be found by v_i can also be found by v_j.
+
+^{correlationTable unsatInclusionTable mkLinkIncomplete}
+
 
 <h4> Completeness
 <p>
@@ -9,36 +19,12 @@
   verifier v_j is <i>complete in relation to v_i</i> (in other words: Every
   program that can be proven with v_i can also be proven with v_j).
 
-<table>
-  <tr>
-    <td> unsat
-    $forall v <- verifierNames 
-      <td> #{v}
-  $forall v1 <- verifierNames
-    <tr>
-      <td> #{v1}
-      $forall v2 <- verifierNames
-        <td>
-          <a href="/findings?q=Query SuspicionIncomplete (AnyOf [%22#{v1}%22])&qf=[%22#{v2}%22]">
-            #{maybe "-"  formatNum (Map.lookup (v1,v2) unsatInclusionTable)} 
+^{correlationTable satInclusionTable mkLinkUnsound} 
 
-<h4> Soundness 
-<p>
-  This table is the "sat inclusion table". The value in row i and column j
-  represents the probability that given that v_i says that a program is sat,
-  verifier v_j will also say that it is sat . A value of 100% means that
-  verifier v_i is <i>sound according to v_j</i> (in other words: Every
-  bug that can be found by v_i can also be found by v_j.
+<h4> Precision
 
-<table>
-  <tr>
-    <td> unsat
-    $forall v <- verifierNames 
-      <td> #{v}
-  $forall v1 <- verifierNames
-    <tr>
-      <td> #{v1}
-      $forall v2 <- verifierNames
-        <td>
-          <a href="/findings?q=Query SuspicionUnsound (AnyOf [%22#{v1}%22])&qf=[%22#{v2}%22]">
-            #{maybe "-"  formatNum (Map.lookup (v1,v2) satInclusionTable)} 
+^{correlationTable  unsatInclusionWithUnknown mkLinkIncomplete}
+
+<h4> Recall 
+
+^{correlationTable  satInclusionWithUnknown mkLinkUnsound}

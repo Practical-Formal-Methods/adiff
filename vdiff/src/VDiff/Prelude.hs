@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
 
@@ -11,6 +12,7 @@ module VDiff.Prelude
   , nowISO
   , printD
   , displayList
+  , formatCorrelation
   -- * safe functions
   , readMay
   , headMay
@@ -24,6 +26,7 @@ import qualified Data.Text.IO           as T
 import           Data.Time
 import           Data.Time.Clock
 import           Data.Time.Format
+import           Numeric
 import           Options.Applicative
 import           RIO                    hiding (view, (^.))
 import           Safe
@@ -43,3 +46,18 @@ printD = liftIO . T.putStrLn . utf8BuilderToText . display
 
 displayList :: Display a => [a] -> Utf8Builder
 displayList xs = mconcat $ intersperse ", " (map display xs)
+
+
+
+-- formats rational numbers between 0.00 and 1.00 by rounding to up to 2 decimal
+-- digits but ensures that a number that is bigger then 0 will never be rounded
+-- to 0.00 and that a number smaller than 1 will never be rounded to 1.
+formatCorrelation :: (Integer, Integer)-> Text
+formatCorrelation (num,denum) =
+  if
+    | denum == 0 ->  " "
+    | s == "0.00" && num > 0 -> "> 0"
+    | s == "1.00" && num < 1 -> "< 1"
+    | otherwise -> T.pack s
+  where
+    s = Numeric.showFFloat (Just 2) (fromInteger num / fromInteger denum) ""

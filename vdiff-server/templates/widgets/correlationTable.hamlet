@@ -1,0 +1,13 @@
+<div.center>
+  <table.centered.correlation>
+    <tr>
+      <td>  
+      $forall v <- verifierNames 
+        <td> #{v}
+    $forall v1 <- verifierNames
+      <tr>
+        <td> #{v1}
+        $forall v2 <- verifierNames
+          <td>
+            <a href=#{mkLink v1 v2}>
+              #{maybe "-"  formatCorrelation (Map.lookup (v1,v2) tbl)} 

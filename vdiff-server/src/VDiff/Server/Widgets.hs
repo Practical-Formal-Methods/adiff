@@ -1,13 +1,16 @@
-{-# LANGUAGE QuasiQuotes     #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module VDiff.Server.Widgets where
 
+import qualified Data.Map             as Map
 import qualified Data.Text            as T
 import           VDiff.Server.Prelude
 
 import           VDiff.Data
 import qualified VDiff.Query2         as Q2
+import           VDiff.Verifier       (allVerifiers)
 
 mkProgramLink :: Text -> Html
 mkProgramLink hsh =
@@ -27,3 +30,11 @@ mkPaginationWidget pageSize totalCount page qstring qfstring = do
       prevPage = page - 1
       nextPage = page + 1
   return $(shamletFile "templates/widgets/pagination.hamlet")
+
+
+correlationTable :: Map (VerifierName, VerifierName) (Integer, Integer)
+  -> (VerifierName -> VerifierName -> Text)
+  -> Html
+correlationTable tbl mkLink = $(shamletFile "templates/widgets/correlationTable.hamlet")
+  where
+    verifierNames = map (^. name) allVerifiers

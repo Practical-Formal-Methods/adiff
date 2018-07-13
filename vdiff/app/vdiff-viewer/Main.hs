@@ -9,6 +9,7 @@ import           VDiff.Prelude
 
 import           Control.Lens.Operators          hiding ((^.))
 import qualified Data.List.Key                   as K
+import           Data.Ratio
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
 import qualified Database.SQLite.Simple.Extended as SQL
@@ -116,15 +117,10 @@ executeView (RelativeInclusion vrd ignoreUnknown) = do
   let verifierNames = map (^. name) allVerifiers
   let headers = Tbl.row $ " ⊆ " : verifierNames
   rows <- forM verifierNames $ \v1 -> do
-         cells <- mapM (fmap formatNum . Statistics.relativeInclusion vrd ignoreUnknown v1) verifierNames
+         cells <- mapM (fmap formatCorrelation . Statistics.relativeInclusion vrd ignoreUnknown v1) verifierNames
          return $ Tbl.row (v1 : cells)
   let table = Tbl.table (headers : rows)
   liftIO $ T.putStr $ Tbl.renderTable table
-  where
-    formatNum :: Double -> Text
-    formatNum x
-      | isNaN x = " "
-      | otherwise = T.pack $ Numeric.showFFloat (Just 2) x ""
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files =

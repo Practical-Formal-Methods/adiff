@@ -35,3 +35,7 @@
     /* Support for IE. */
     font-feature-settings: 'liga';
 }
+table.correlation {
+    table-layout: fixed;
+    max-width: 800px;
+}

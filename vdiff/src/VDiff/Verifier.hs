@@ -32,3 +32,4 @@ allVerifiers = [ cbmc
 
 lookupVerifier :: Text -> Maybe Verifier
 lookupVerifier n = headMay $ filter (\v -> v ^. name == n)  allVerifiers
+
