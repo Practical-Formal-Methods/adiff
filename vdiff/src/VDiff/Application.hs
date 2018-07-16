@@ -88,6 +88,8 @@ withDiffDB fn act = do
   conn <- liftIO $ SQL.open fn
   -- migrate / create schema
   retryOnBusy $ runBeamSqlite conn migrateVdiff
+  -- create indices
+  createIndices conn
   x <- act conn
   SQL.close conn
   return x
@@ -104,3 +106,5 @@ makeBackup srcFn dstFn = do
       liftIO $ Sqlite3.backupFinish bkp
     Sqlite3.BackupOK   -> logError "backup not completed"
 
+createIndices :: SQL.Connection -> IO ()
+createIndices conn = SQL.execute_ conn "CREATE INDEX `runs_code_hash_idx` ON `runs` (`code_hash`);"

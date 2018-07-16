@@ -13,6 +13,7 @@ module VDiff.Prelude
   , printD
   , displayList
   , formatCorrelation
+  , sort
   -- * safe functions
   , readMay
   , headMay
@@ -20,7 +21,7 @@ module VDiff.Prelude
 
 import           Control.Lens
 import           Control.Lens.Operators
-import           Data.List              (intersperse)
+import           Data.List              (intersperse, sort)
 import qualified Data.Text              as T
 import qualified Data.Text.IO           as T
 import           Data.Time

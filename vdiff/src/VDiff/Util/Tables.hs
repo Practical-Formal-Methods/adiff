@@ -37,13 +37,17 @@ renderTable :: Table -> Text
 renderTable (Table rows columnWidths) = T.unlines $ map renderRow rows
   where
     renderRow :: Row -> Text
-    renderRow (Row cells _) = withHsep [c `padd` w | c <- cells | w <- columnWidths]
+    renderRow (Row cells _) = "| " <> withHsep [c `padd` w | c <- cells | w <- columnWidths] <> " |"
 
 padd :: Cell -> Int -> Text
 padd t w = t <> T.replicate (w - T.length t) " "
 
 withHsep :: [Text] -> Text
 withHsep = T.intercalate  " | "
+
+
+toTable :: ToCell a => [[a]] -> Table
+toTable = table . map row . (fmap.fmap) toCell
 
 --------------------------------------------------------------------------------
 class ToRow a where

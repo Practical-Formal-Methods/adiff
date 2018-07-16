@@ -9,7 +9,8 @@ import           VDiff.Prelude
 
 import           Control.Lens.Operators          hiding ((^.))
 import qualified Data.List.Key                   as K
-import           Data.Ratio
+import qualified Data.Map                        as Map
+import           Data.Maybe                      (fromJust)
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
 import qualified Database.SQLite.Simple.Extended as SQL
@@ -42,7 +43,7 @@ data ViewCommand
   | MergeOldList FilePath
   | MergeNew [FilePath]
   | Verdicts
-  | RelativeInclusion Verdict Statistics.HandleUnknown
+  | RelativeInclusion Verdict Bool
 
 newtype ViewParameters
   = ViewParameters { command :: ViewCommand }
@@ -114,13 +115,15 @@ executeView Verdicts = do
   liftIO $ T.putStr $ Tbl.renderTable tbl
 
 executeView (RelativeInclusion vrd ignoreUnknown) = do
-  let verifierNames = map (^. name) allVerifiers
-  let headers = Tbl.row $ " ⊆ " : verifierNames
-  rows <- forM verifierNames $ \v1 -> do
-         cells <- mapM (fmap formatCorrelation . Statistics.relativeInclusion vrd ignoreUnknown v1) verifierNames
-         return $ Tbl.row (v1 : cells)
-  let table = Tbl.table (headers : rows)
-  liftIO $ T.putStr $ Tbl.renderTable table
+  tbl <- Statistics.overPairs (Statistics.relative vrd ignoreUnknown)
+  liftIO $ T.putStr $ Tbl.renderTable $ mkTable tbl
+  where
+    verifierNames = map (^. name) allVerifiers
+    mkTable m = Tbl.table $ headers : [mkRow v1 | v1 <- verifierNames]
+      where
+        mkRow v1 = Tbl.row $ v1 : [ mkCell v1 v2 | v2 <- verifierNames]
+        mkCell  v1 v2 = formatCorrelation $ fromJust $ Map.lookup (v1,v2) m
+        headers = Tbl.row $ "  " : verifierNames
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files =
@@ -217,10 +220,10 @@ distributionCmd = switch options $> DistributionPerFile <*> parseQuery2
 verdictsCmd = switch options $> Verdicts
   where options = long "verdicts" <> help "counts the frequency of each verdict for the given verifiers"
 
-relativeInclusionCmd = switch (long "inclusions-sat-include-unknown")   $> RelativeInclusion Sat   Statistics.IncludeUnknown <|>
-                       switch (long "inclusions-unsat-include-unknown") $> RelativeInclusion Unsat Statistics.IncludeUnknown <|>
-                       switch (long "inclusions-sat-exclude-unknown")   $> RelativeInclusion Sat   Statistics.ExcludeUnknown <|>
-                       switch (long "inclusions-unsat-exclude-unknown") $> RelativeInclusion Unsat Statistics.ExcludeUnknown
+relativeInclusionCmd = switch (long "relative-soundness")    $> RelativeInclusion Sat   True <|>
+                       switch (long "relative-completeness") $> RelativeInclusion Unsat True <|>
+                       switch (long "relative-recall")       $> RelativeInclusion Sat   False <|>
+                       switch (long "relative-precision")    $> RelativeInclusion Unsat False
 
 
 

@@ -138,16 +138,18 @@ postRunVerifier = do
 
 getOverview :: (HasDatabase env) => RioActionM env ()
 getOverview = do
-  unsatInclusionTable <- lift $ inclusionTable Unsat ExcludeUnknown
-  satInclusionTable <- lift $ inclusionTable Sat ExcludeUnknown
-  unsatInclusionWithUnknown <- lift $ inclusionTable Unsat IncludeUnknown
-  satInclusionWithUnknown <- lift $ inclusionTable Sat IncludeUnknown
+  soundnessTbl    <- lift $ overPairs relativeSoundness
+  completenessTbl <- lift $ overPairs relativeCompleteness
+  recallTbl       <- lift $ overPairs relativeRecall
+  precisionTbl    <- lift $ overPairs relativePrecision
 
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
-    mkLinkUnsound, mkLinkIncomplete :: VerifierName -> VerifierName -> Text
-    mkLinkUnsound v1 v2 = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> v1 <> "%22])&qf=[%22" <> v2 <> "%22]"
-    mkLinkIncomplete v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> v1 <> "%22])&qf=[%22" <> v2 <> "%22]"
+    mkUnsoundnessLink, mkIncompletenessLink :: VerifierName -> VerifierName -> Text
+    mkUnsoundnessLink v1 v2 = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> v2 <> "%22])&qf=[%22" <> v1 <> "%22]"
+    mkIncompletenessLink v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> v2 <> "%22])&qf=[%22" <> v1 <> "%22]"
+    mkPrecisionLink _ _ = "#"
+    mkRecallLink _ _ = "#"
 
 --------------------------------------------------------------------------------
 with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a

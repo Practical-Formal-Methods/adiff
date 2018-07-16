@@ -2,6 +2,9 @@
   <a href="/findings?q=Everything&qf=#{tshow verifierNames}">
     <h3>
       Go to Findings
+  <a href="/overview">
+    <h3>
+      Go to Overview 
 
   <h4 class="section">Statistics
 

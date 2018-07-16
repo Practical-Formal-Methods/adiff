@@ -30,26 +30,27 @@ verdicts qf = do
    agg = aggregate_ $ \r -> (group_ (r ^. (result . verdict)), countAll_)
 
 
-data HandleUnknown = IncludeUnknown | ExcludeUnknown
 
-relativeInclusion :: (HasDatabase env) => Verdict
-  -> HandleUnknown
+relative :: (HasDatabase env) => Verdict
+  -> Bool
   -> VerifierName
   -> VerifierName
   -> RIO env (Integer, Integer)
-relativeInclusion vrd handleUnknown v1 v2 = do
-  let qTotal = case handleUnknown of
-               IncludeUnknown -> [ (v1, [vrd]) , (v2, [Sat,Unsat,Unknown]) ]
-               ExcludeUnknown -> [ (v1, [vrd]) , (v2, [Sat,Unsat]) ]
-  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts qTotal
-  (Just implied) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, [vrd]), (v2, [vrd])]
-  return (fromIntegral implied,  fromIntegral n)
+relative vrd allowUnknown v1 v2 = do
+  (Just intersection) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, vrd : [Unknown | allowUnknown]), (v2, [vrd]) ]
+  (Just totalV2) <-      runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, [Sat, Unsat, Unknown])         , (v2, [vrd]) ]
+  return (fromIntegral intersection,  fromIntegral totalV2)
 
 
-inclusionTable :: (HasDatabase env) => Verdict
-  -> HandleUnknown
-  -> RIO env (Map (VerifierName, VerifierName) (Integer, Integer))
-inclusionTable v hu = Map.fromList <$> sequence [ ((v1, v2),) <$> relativeInclusion v hu v1 v2
-                                                | v1 <- verifierNames, v2 <- verifierNames ]
+relativeSoundness, relativeCompleteness, relativeRecall, relativePrecision
+  :: (HasDatabase env) => VerifierName -> VerifierName -> RIO env (Integer, Integer)
+
+relativeSoundness    = relative Sat True
+relativeCompleteness = relative Unsat True
+relativeRecall       = relative Sat False
+relativePrecision    = relative Unsat False
+
+overPairs f = Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2
+                                        | v1 <- verifierNames, v2 <- verifierNames ]
   where
     verifierNames = map (^. name) allVerifiers

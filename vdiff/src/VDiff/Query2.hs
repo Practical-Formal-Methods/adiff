@@ -281,9 +281,10 @@ allPrograms_  = all_ (vdiffDb ^. programs)
 programByVerdicts :: forall ctx . [(VerifierName, [Verdict])] -> Q _ _ ctx (ProgramT _)
 programByVerdicts specs = nub_ $ do
   p <- allPrograms_
-  rs <- forM specs $ \(vn, vrds) -> do
-    r <- filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds &&. (r ^. verifierName) ==. val_ vn) allRuns_
+  rs <- forM_ specs $ \(vn, vrds) -> do
+    r <- if sort vrds == sort [Unsat, Sat, Unknown]
+         then allRuns_
+         else filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds &&. (r ^. verifierName) ==. val_ vn) allRuns_
     guard_ $ (r ^. program) ==. p ^. hash
-    return r
   return p
 

@@ -1,30 +1,20 @@
-<h3> Overview
+<div.container>
+  <h3> Overview
 
-<h4> Soundness 
-<p>
-  This table is the "sat inclusion table". The value in row i and column j
-  represents the probability that given that v_i says that a program is sat,
-  verifier v_j will also say that it is sat . A value of 100% means that
-  verifier v_i is <i>sound according to v_j</i> (in other words: Every
-  bug that can be found by v_i can also be found by v_j.
+  <h4> Soundness 
 
-^{correlationTable unsatInclusionTable mkLinkIncomplete}
+  ^{correlationTable soundnessTbl mkUnsoundnessLink}
 
 
-<h4> Completeness
-<p>
-  This table is the "unsat inclusion table". The value in row i and column j
-  represents the probability that given that v_i says that a program is unsat,
-  verifier v_j will also say that it is unsat. A value of 100% means that
-  verifier v_j is <i>complete in relation to v_i</i> (in other words: Every
-  program that can be proven with v_i can also be proven with v_j).
+  <h4> Completeness
 
-^{correlationTable satInclusionTable mkLinkUnsound} 
+  ^{correlationTable completenessTbl mkIncompletenessLink} 
 
-<h4> Precision
+  <h4> Recall 
 
-^{correlationTable  unsatInclusionWithUnknown mkLinkIncomplete}
+  ^{correlationTable recallTbl mkRecallLink}
 
-<h4> Recall 
 
-^{correlationTable  satInclusionWithUnknown mkLinkUnsound}
+  <h4> Precision 
+
+  ^{correlationTable precisionTbl mkPrecisionLink} 
