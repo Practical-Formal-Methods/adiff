@@ -107,4 +107,4 @@ makeBackup srcFn dstFn = do
     Sqlite3.BackupOK   -> logError "backup not completed"
 
 createIndices :: SQL.Connection -> IO ()
-createIndices conn = SQL.execute_ conn "CREATE INDEX `runs_code_hash_idx` ON `runs` (`code_hash`);"
+createIndices conn = SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_code_hash_idx` ON `runs` (`code_hash`);"
