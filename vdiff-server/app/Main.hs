@@ -54,4 +54,5 @@ main = runVDiffApp parseServerParameters infos $ \sp -> do
 mkServerEnv :: Sema.MSemN Int -> RIO MainEnv ServerEnv
 mkServerEnv s = do
   menv <- ask
-  return $ ServerEnv menv s
+  tables <- newIORef Nothing
+  return $ ServerEnv menv s tables

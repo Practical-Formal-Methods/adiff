@@ -16,7 +16,10 @@ import qualified Data.Text.Lazy                as LT
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import           Text.Hamlet
 import           VDiff.Prelude                 hiding (body, showError)
+import           VDiff.Statistics
 import           Web.Scotty.Trans
+
+
 --------------------------------------------------------------------------------
 -- Some Scotty Setup
 type SrvError = LT.Text
@@ -26,14 +29,19 @@ type RioActionM env = ActionT SrvError (RIO env)
 data ServerEnv = ServerEnv
   { _serverMainEnv                :: MainEnv
   , _semaphoreConcurrentVerifiers :: MSemN Int
+  , _overviewCache :: IORef (Maybe (RelativeTable, RelativeTable, RelativeTable, RelativeTable))
   }
 serverMainEnv :: Lens' ServerEnv MainEnv
 serverMainEnv = lens _serverMainEnv (\e s -> e { _serverMainEnv = s})
 
+
 class HasSemaphore env where
   semaphore :: Lens' env (MSemN Int)
 
-class (HasMainEnv env, HasSemaphore env) => HasServerEnv env
+class HasOverviewCache env where
+  overviewCache :: Lens' env (IORef (Maybe (RelativeTable, RelativeTable, RelativeTable, RelativeTable)))
+
+class (HasMainEnv env, HasSemaphore env, HasOverviewCache env) => HasServerEnv env
 
 instance HasSemaphore ServerEnv where
   semaphore = lens _semaphoreConcurrentVerifiers (\e s -> e {_semaphoreConcurrentVerifiers = s})
@@ -44,7 +52,12 @@ instance HasDatabase ServerEnv where
 instance HasLogFunc ServerEnv where
   logFuncL  = serverMainEnv . logFuncL
 
+instance HasOverviewCache ServerEnv where
+  overviewCache = lens _overviewCache (\e c -> e {_overviewCache = c})
+
 instance HasMainEnv ServerEnv
+
+instance HasServerEnv ServerEnv
 --------------------------------------------------------------------------------
 
 defaultTemplate :: Text -> Html -> Html

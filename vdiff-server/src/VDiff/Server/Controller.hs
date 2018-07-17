@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
@@ -34,7 +35,7 @@ import           VDiff.Verifier                        (allVerifiers,
                                                         lookupVerifier)
 
 
-endpoints :: (HasLogFunc env, HasSemaphore env, HasDatabase env) => ScottyT SrvError (RIO env) ()
+endpoints :: (HasServerEnv env) => ScottyT SrvError (RIO env) ()
 endpoints = do
   get "/" getIndex
   get "/overview" getOverview
@@ -136,12 +137,21 @@ postRunVerifier = do
 
   html $ LT.fromStrict $ tshow (res ^. verdict)
 
-getOverview :: (HasDatabase env) => RioActionM env ()
+getOverview :: (HasDatabase env, HasOverviewCache env) => RioActionM env ()
 getOverview = do
-  soundnessTbl    <- lift $ overPairs relativeSoundness
-  completenessTbl <- lift $ overPairs relativeCompleteness
-  recallTbl       <- lift $ overPairs relativeRecall
-  precisionTbl    <- lift $ overPairs relativePrecision
+  -- this is quite ugly
+  (soundnessTbl, completenessTbl, recallTbl, precisionTbl) <- do
+    ref <- lift $ view overviewCache
+    x <- liftIO (readIORef ref)
+    case x of
+      Just y  -> return y
+      Nothing -> do
+        y <- lift $ (,,,) <$> overPairs relativeSoundness
+                          <*> overPairs relativeCompleteness
+                          <*> overPairs relativeRecall
+                          <*> overPairs relativePrecision
+        writeIORef ref (Just y)
+        return y
 
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
