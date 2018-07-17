@@ -22,6 +22,7 @@ module VDiff.Prelude
 import           Control.Lens
 import           Control.Lens.Operators
 import           Data.List              (intersperse, sort)
+import           Data.Ratio
 import qualified Data.Text              as T
 import qualified Data.Text.IO           as T
 import           Data.Time
@@ -58,7 +59,7 @@ formatCorrelation (num,denum) =
   if
     | denum == 0 ->  " "
     | s == "0.00" && num > 0 -> "> 0"
-    | s == "1.00" && num < 1 -> "< 1"
+    | s == "1.00" && (num % denum) < 1 -> "< 1"
     | otherwise -> T.pack s
   where
     s = Numeric.showFFloat (Just 2) (fromInteger num / fromInteger denum) ""
