@@ -50,6 +50,9 @@ relativeCompleteness = relative Unsat True
 relativeRecall       = relative Sat False
 relativePrecision    = relative Unsat False
 
+type RelativeTable = Map (VerifierName, VerifierName) (Integer, Integer)
+
+overPairs :: (HasDatabase env) => (VerifierName -> VerifierName -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairs f = Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2
                                         | v1 <- verifierNames, v2 <- verifierNames ]
   where
