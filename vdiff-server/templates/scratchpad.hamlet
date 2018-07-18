@@ -41,6 +41,7 @@
                     <div class="circle">
                   <div class="circle-clipper right">
                     <div class="circle">
+                <div class="verdict">
             <td>
               <button id="button-for-#{v ^. name}" onclick="runVerifier('#{v ^. name}');" class="btn-small run-button">
                 Run Verifier

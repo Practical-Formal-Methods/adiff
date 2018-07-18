@@ -10,6 +10,7 @@ $(document).ready(function() {
     };
     editor = ace.edit("editor", options);
     editor.setValue($('#code').val());
+    editor.on('change', invalidateResults);
 });
 
 function runVerifier(v) {
@@ -24,8 +25,9 @@ function runVerifier(v) {
     $(button).addClass("disabled");
 
     $(resultField).find(".spinner").addClass("active");
+    $(resultField).find('.verdict').css('color', 'black');
 
-    $(resultField).load("/run-verifier/", query, function() {
+    $(resultField).find(".verdict").load("/run-verifier/", query, function() {
         console.log("got result for " + v);
         $(button).removeClass("disabled");
         $(resultField).find(".spinner").removeClass("active");
@@ -37,3 +39,6 @@ function runAll() {
     $('#runAll').addClass("disabled");
 }
 
+function invalidateResults() {
+    $('.verdict').css('color', 'gray');
+}
