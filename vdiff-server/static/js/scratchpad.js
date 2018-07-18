@@ -25,7 +25,7 @@ function runVerifier(v) {
     $(button).addClass("disabled");
 
     $(resultField).find(".spinner").addClass("active");
-    $(resultField).find('.verdict').css('color', 'black');
+    $(resultField).find('.verdict').css('color', 'black').html("");
 
     $(resultField).find(".verdict").load("/run-verifier/", query, function() {
         console.log("got result for " + v);
