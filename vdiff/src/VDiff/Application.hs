@@ -94,8 +94,9 @@ withDiffDB fn act = do
   SQL.close conn
   return x
 
+
 makeBackup :: (HasMainEnv env) => Text -> Text -> RIO env ()
-makeBackup srcFn dstFn = do
+makeBackup _ dstFn = do
   srcDb <- SQL.connectionHandle <$> view databaseL
   dstDb <- liftIO $ Sqlite3.open dstFn
   bkp <- liftIO $ Sqlite3.backupInit dstDb "main" srcDb "main"
@@ -107,4 +108,6 @@ makeBackup srcFn dstFn = do
     Sqlite3.BackupOK   -> logError "backup not completed"
 
 createIndices :: SQL.Connection -> IO ()
-createIndices conn = SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_code_hash_idx` ON `runs` (`code_hash`);"
+createIndices conn = do
+  SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_code_hash_idx` ON `runs` (`code_hash`);"
+  SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_verifier_name_idx` ON `runs` (`verifier_name`);"

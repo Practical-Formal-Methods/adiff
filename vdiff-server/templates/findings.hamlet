@@ -27,18 +27,16 @@
             according to all of
     <div id="verifier-row" class="input-field col s12 m4 l4">
       <select id="verifiers" multiple>
-        $forall v <- allVerifiers
-          <option value="#{v ^. name}">
-            #{v ^. name}
+        $forall v <- verifierNames 
+          <option value="#{v}"> #{v}
 
   <h4>
       Focus
   <div class="row">
     <div class="input-field col s12 m8 l8">
       <select id="focusVerifiers" multiple>
-        $forall v <- allVerifiers
-          <option value="#{v ^. name}">
-            #{v ^. name}
+        $forall v <- verifierNames 
+          <option value="#{v}"> #{v}
 
   <div class="row">
       <button id="searchButton" class="btn waves-effect waves-light">

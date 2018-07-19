@@ -4,6 +4,7 @@
 
 module VDiff.Server.Widgets where
 
+import qualified Data.List            as L
 import qualified Data.Map             as Map
 import qualified Data.Text            as T
 import           VDiff.Server.Prelude
@@ -35,6 +36,6 @@ mkPaginationWidget pageSize totalCount page qstring qfstring = do
 correlationTable :: Map (VerifierName, VerifierName) (Integer, Integer)
   -> (VerifierName -> VerifierName -> Text)
   -> Html
-correlationTable tbl mkLink = $(shamletFile "templates/widgets/correlationTable.hamlet")
-  where
-    verifierNames = map (^. name) allVerifiers
+correlationTable tbl mkLink = do
+  let verifierNames  = L.nub $ map fst $ Map.keys tbl
+  $(shamletFile "templates/widgets/correlationTable.hamlet")

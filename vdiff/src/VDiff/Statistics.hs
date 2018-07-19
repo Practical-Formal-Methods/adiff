@@ -11,7 +11,7 @@ import           Database.Beam.Sqlite
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Prelude
-import           VDiff.Query2
+import           VDiff.Query2         as Q2
 import           VDiff.Util.Tables
 import           VDiff.Verifier
 
@@ -53,7 +53,6 @@ relativePrecision    = relative Unsat False
 type RelativeTable = Map (VerifierName, VerifierName) (Integer, Integer)
 
 overPairs :: (HasDatabase env) => (VerifierName -> VerifierName -> RIO env (Integer,Integer)) -> RIO env RelativeTable
-overPairs f = Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2
-                                        | v1 <- verifierNames, v2 <- verifierNames ]
-  where
-    verifierNames = map (^. name) allVerifiers
+overPairs f = do
+  vns <- Q2.verifierNames
+  Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- vns , v2 <- vns]

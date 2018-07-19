@@ -53,6 +53,7 @@ endpoints = do
 getIndex :: (HasDatabase env) => RioActionM env ()
 getIndex = do
   statistics <- lift Q2.stats
+  verifierNames <- lift Q2.verifierNames
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
 
 -- | shows all runs on one instrumented file
@@ -81,12 +82,9 @@ groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
     verdictAndName r = (show (r ^. (result . verdict)), r ^. verifierName)
 
 
--- getQueries :: RioActionM env ()
-  -- getQueries = do
---   defaultLayout "Queries" $(shamletFile "templates/queries.hamlet")
-
 getFindings :: (HasDatabase env) => RioActionM env ()
 getFindings = do
+  verifierNames <- lift Q2.verifierNames
   (qstring :: Text) <- param "q"
   (q :: Q2.Query) <- param "q"
   (page :: Integer) <- param "page" `rescue` const (return 1)
@@ -107,7 +105,6 @@ instance Parsable Q2.QueryFocus where
                   Nothing -> Left "xx"
                   Just vs -> Right $ Q2.QueryFocus vs
 
-verifierNames = map (^. name) allVerifiers
 
 
 getScratch ::  (HasDatabase env) => RioActionM env ()

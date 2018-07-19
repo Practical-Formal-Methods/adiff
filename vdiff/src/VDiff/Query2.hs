@@ -288,3 +288,8 @@ programByVerdicts specs = nub_ $ do
     guard_ $ (r ^. program) ==. p ^. hash
   return p
 
+
+verifierNames :: HasDatabase env => RIO env [VerifierName]
+verifierNames = runBeam $ runSelectReturningList $ select names
+  where
+    names = nub_ ((^. verifierName) <$> allRuns_)
