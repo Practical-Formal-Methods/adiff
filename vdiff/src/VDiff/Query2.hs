@@ -284,8 +284,9 @@ programByVerdicts specs = nub_ $ do
   rs <- forM_ specs $ \(vn, vrds) -> do
     r <- if sort vrds == sort [Unsat, Sat, Unknown]
          then allRuns_
-         else filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds &&. (r ^. verifierName) ==. val_ vn) allRuns_
+         else filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds) allRuns_
     guard_ $ (r ^. program) ==. p ^. hash
+    guard_ $ (r ^. verifierName) ==. val_ vn
   return p
 
 
