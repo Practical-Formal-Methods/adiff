@@ -53,7 +53,7 @@ parseQuery t = case readMay (T.unpack t) of
                  Nothing -> Left "not parseable"
                  Just q  -> Right q
 
-executeQuery :: (HasDatabase env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
+executeQuery :: (HasDatabase env, HasLogFunc env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
 executeQuery limit offset qf q =
   runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
     Everything                             -> allFindings
@@ -65,10 +65,10 @@ executeQuery limit offset qf q =
     (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
 
 -- | like 'executeQuery', but without pagination and focusing on everything
-executeQuerySimple :: (HasDatabase env) => Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
+executeQuerySimple :: (HasDatabase env, HasLogFunc env) => Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
 executeQuerySimple = executeQuery 10000000000 0 QueryFocusEverything
 
-executeQueryCount :: (HasDatabase env) => QueryFocus -> Query -> RIO env Int
+executeQueryCount :: (HasDatabase env, HasLogFunc env) => QueryFocus -> Query -> RIO env Int
 executeQueryCount qf q = do
   (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ execQf qf $ case q of
     Everything                             -> allFindings
@@ -85,7 +85,7 @@ execQf (QueryFocus vs) = filter_ (\(r,_,_,_) -> (r ^. verifierName) `in_` map va
 
 
 
-stats :: (HasDatabase env) => RIO env Statistics
+stats :: (HasDatabase env, HasLogFunc env) => RIO env Statistics
 stats = runBeam $ do
   (Just runsN)  <- runSelectReturningOne $ select runCount
   (Just programsN) <- runSelectReturningOne $ select programCount
@@ -100,23 +100,23 @@ stats = runBeam $ do
     distinctOrigins = aggregate_ (\c -> countOver_ distinctInGroup_ (c ^. origin)) allPrograms_
 
 
-allRuns :: (HasDatabase env) => RIO env [VerifierRun]
+allRuns :: (HasDatabase env, HasLogFunc env) => RIO env [VerifierRun]
 allRuns = runBeam $ runSelectReturningList $ select allRuns_
 
-allPrograms :: (HasDatabase env) => RIO env [Program]
+allPrograms :: (HasDatabase env, HasLogFunc env) => RIO env [Program]
 allPrograms = runBeam $ runSelectReturningList $ select $ all_ (vdiffDb ^. programs)
 
-programByHash :: (HasDatabase env) => Text -> RIO env (Maybe Program)
+programByHash :: (HasDatabase env, HasLogFunc env) => Text -> RIO env (Maybe Program)
 programByHash hsh = runBeam $ (vdiffDb ^. programs) `byPK` toProgramId hsh
 
 
 runsByHash :: Text -> Q _ _ _ _
 runsByHash hsh = filter_ (\r -> (r ^. program) ==. val_ hsh) allRuns_
 
-runsByHashR :: (HasDatabase env) => Text -> RIO env [VerifierRun]
+runsByHashR :: (HasDatabase env, HasLogFunc env) => Text -> RIO env [VerifierRun]
 runsByHashR hsh = runBeam $ runSelectReturningList $ select $ runsByHash hsh
 
-runById :: (HasDatabase env) => Int -> RIO env (Maybe VerifierRun)
+runById :: (HasDatabase env, HasLogFunc env) => Int -> RIO env (Maybe VerifierRun)
 runById i = runBeam $ (vdiffDb ^. runs) `byPK` toRunId i
 
 byPK table key = runSelectReturningOne $ select q
@@ -125,30 +125,30 @@ byPK table key = runSelectReturningOne $ select q
     flt prg = primaryKey prg ==. val_ key
 
 -- | his currently produces two queries (one to check if the program already exists.) This could be avoided.
-storeProgram :: (HasDatabase env) => Program -> RIO env ()
+storeProgram :: (HasDatabase env, HasLogFunc env) => Program -> RIO env ()
 storeProgram p = do
   exists <- isJust <$> programByHash (p ^. hash)
   unless exists $ runBeam $ runInsert $ insert (vdiffDb ^. programs) $ insertValues [p]
 
-storeRun :: (HasDatabase env) => VerifierRun -> RIO env ()
+storeRun :: (HasDatabase env, HasLogFunc env) => VerifierRun -> RIO env ()
 storeRun r = runBeam $ runInsert $ insert (vdiffDb ^. runs) $ insertValues [r]
 
-storeRunFreshId :: (HasDatabase env) => VerifierRun -> RIO env VerifierRun
+storeRunFreshId :: (HasDatabase env, HasLogFunc env) => VerifierRun -> RIO env VerifierRun
 storeRunFreshId r = do
   [run] <- runBeam $ runInsertReturningList (vdiffDb ^. runs) $ insertExpressions
               [VerifierRun default_ (val_ (r ^. verifierName)) (val_ $ toProgramId (r ^. program)) (val_ (r ^. result)) (val_ (r ^. iteration))]
   return run
 
-tagRun :: HasDatabase env => VerifierRunId -> [(TagName, TagValue)] -> RIO env ()
+tagRun :: (HasDatabase env, HasLogFunc env) => VerifierRunId -> [(TagName, TagValue)] -> RIO env ()
 tagRun rid pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertExpressions $
                      map (\(k,v) -> Tag default_ (just_ (val_ rid)) nothing_ (val_ k) (val_ v)) pairs
 
-tagProgram :: HasDatabase env => ProgramId -> [(TagName, TagValue)] -> RIO env ()
+tagProgram :: (HasDatabase env, HasLogFunc env) => ProgramId -> [(TagName, TagValue)] -> RIO env ()
 tagProgram hsh pairs = runBeam $ runInsert $ insert (vdiffDb ^. tags) $ insertExpressions $
                      map (\(k,v) -> Tag default_ nothing_ (just_ (val_ hsh)) (val_ k) (val_ v)) pairs
 
 
-lookupRun :: (HasDatabase env) => Text -> Text -> RIO env (Maybe VerifierRun)
+lookupRun :: (HasDatabase env, HasLogFunc env) => Text -> Text -> RIO env (Maybe VerifierRun)
 lookupRun vn hs = runBeam $ runSelectReturningOne $ select s
   where
     s = filter_ (\r -> (r ^. program) ==. val_ hs &&. r ^. verifierName ==. val_ vn) $ all_ (vdiffDb ^. runs)
@@ -233,7 +233,7 @@ updateCountsTable = do
     return $ Counts default_ (pk r) (maybe_ (val_ 0) id sats) (maybe_(val_ 0) id unsats)
 
 
-updateCountsTableProgressive :: (HasDatabase env, HasLogFunc env) => RIO env ()
+updateCountsTableProgressive :: (HasDatabase env, HasLogFunc env, HasLogFunc env) => RIO env ()
 updateCountsTableProgressive = do
   let bs = 100000 :: Int
   logInfo $ "updating counts table (using batches of size " <> display bs <> ")"
@@ -252,14 +252,14 @@ updateCountsTableProgressive = do
       return $ Counts default_ (pk r) (maybe_ (val_ 0) id sats) (maybe_(val_ 0) id unsats)
   logStickyDone "updating counts table completed"
 
-updateCountsTableNecessary :: (HasDatabase env) => RIO env Bool
+updateCountsTableNecessary :: (HasDatabase env, HasLogFunc env) => RIO env Bool
 updateCountsTableNecessary = do
   (Just runsN) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. runs)
   (Just countsN) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. tmpCounts)
   return $ runsN /= countsN
 
 
-tagsForProgram :: (HasDatabase env) => Text -> RIO env _
+tagsForProgram :: (HasDatabase env, HasLogFunc env) => Text -> RIO env _
 tagsForProgram hsh = runBeam $ runSelectReturningList $ select $ project <$> relevantTags
   where
     project r = (r ^. tagName, r ^. tagValue)
@@ -289,7 +289,7 @@ programByVerdicts specs = nub_ $ do
   return p
 
 
-verifierNames :: HasDatabase env => RIO env [VerifierName]
+verifierNames :: (HasDatabase env, HasLogFunc env) => RIO env [VerifierName]
 verifierNames = runBeam $ runSelectReturningList $ select names
   where
     names = nub_ ((^. verifierName) <$> allRuns_)

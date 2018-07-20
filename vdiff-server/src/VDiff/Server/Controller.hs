@@ -50,14 +50,14 @@ endpoints = do
 
 
 
-getIndex :: (HasDatabase env) => RioActionM env ()
+getIndex :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getIndex = do
   statistics <- lift Q2.stats
   verifierNames <- lift Q2.verifierNames
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
 
 -- | shows all runs on one instrumented file
-getProgram :: (HasDatabase env) => RioActionM env ()
+getProgram :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getProgram = do
   hash <- param "hash"
   (runs_ :: [VerifierRun]) <- lift $ runBeam $ runSelectReturningList $ select $ Q2.runsByHash hash
@@ -82,7 +82,7 @@ groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
     verdictAndName r = (show (r ^. (result . verdict)), r ^. verifierName)
 
 
-getFindings :: (HasDatabase env) => RioActionM env ()
+getFindings :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getFindings = do
   verifierNames <- lift Q2.verifierNames
   (qstring :: Text) <- param "q"
@@ -107,7 +107,7 @@ instance Parsable Q2.QueryFocus where
 
 
 
-getScratch ::  (HasDatabase env) => RioActionM env ()
+getScratch ::  (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getScratch = do
   -- if this param is set, load the source from the database
   pid <- paramMay "program"
@@ -134,7 +134,7 @@ postRunVerifier = do
 
   html $ LT.fromStrict $ tshow (res ^. verdict)
 
-getOverview :: (HasDatabase env, HasOverviewCache env) => RioActionM env ()
+getOverview :: (HasDatabase env, HasOverviewCache env, HasLogFunc env) => RioActionM env ()
 getOverview = do
   -- this is quite ugly
   (soundnessTbl, completenessTbl, recallTbl, precisionTbl) <- do

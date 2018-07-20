@@ -9,6 +9,7 @@ import qualified Data.ByteString.Char8          as C8
 import           Database.Beam
 import           Database.Beam.Sqlite           as Sqlite
 import qualified Database.SQLite.Simple         as SQL
+import qualified Data.Text as T
 import           Database.SQLite.Simple.ToField
 import           System.IO                      (putStrLn)
 
@@ -19,10 +20,12 @@ import           VDiff.Timed
 --------------------------------------------------------------------------------
 
 
-runBeam :: (HasDatabase env) => Sqlite.SqliteM a -> RIO env a
+runBeam :: (HasDatabase env, HasLogFunc env) => Sqlite.SqliteM a -> RIO env a
 runBeam act = do
   env <- ask
-  liftIO $ retryOnBusy $ Sqlite.runBeamSqlite (env ^. databaseL) act
+  logger <- view logFuncL
+  let lf = runRIO env . logDebug . display . T.pack
+  liftIO $ retryOnBusy $ Sqlite.runBeamSqliteDebug lf (env ^. databaseL) act
 
 retryOnBusy = retryOnBusy' 0
 

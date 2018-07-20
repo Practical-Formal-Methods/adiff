@@ -15,35 +15,38 @@ import           RIO
 import           System.IO              (putStrLn)
 import           VDiff.Data
 
-import VDiff.Persistence (runBeam, retryOnBusy)
+import           VDiff.Persistence      (retryOnBusy, runBeam)
 import           VDiff.Prelude.Types
 
 runVDiffApp :: Parser p -> (forall b. InfoMod b) -> (p -> RIO MainEnv a) -> IO a
 runVDiffApp parser infoMod app = do
   -- parse arguments
   let combinedParser = (,) <$> parseMainArguments <*> parser
-  ((dbPath, bkpPath, logLevel), customParams) <- execParser (info (combinedParser <**> helper) infoMod)
+  ((dbPath, inMemoryFlag, bkpPath, logLevel), customParams) <- execParser (info (combinedParser <**> helper) infoMod)
 
   -- set up logging
   logOptions <- logOptionsHandle stderr True
   let logOptions' = setLogMinLevel logLevel logOptions
 
+  let dbPath' = if inMemoryFlag then ":memory:" else dbPath
   -- wrap app in withLogFunc and withDiffDB
   withLogFunc logOptions' $ \logger ->
-    withDiffDB dbPath $ \database -> do
+    withDiffDB dbPath' $ \database -> do
       let env = MainEnv logger database
       runRIO env $ do
+        -- if necessary load into memory
+        when inMemoryFlag (restoreDb (T.pack dbPath))
         x <- app customParams
         -- run backup if requested
         case bkpPath of
           Nothing  -> return ()
-          Just bkp -> makeBackup (T.pack dbPath) (T.pack bkp)
+          Just bkp -> backupDb (T.pack bkp)
         return x
 
 
 -- | parses loglevel, database
-parseMainArguments :: Parser (FilePath, Maybe FilePath, LogLevel)
-parseMainArguments = (,,) <$> databasePath <*> databaseBkpPath <*> level
+parseMainArguments :: Parser (FilePath, Bool, Maybe FilePath, LogLevel)
+parseMainArguments = (,,,) <$> databasePath <*> inMemory <*> databaseBkpPath <*> level
 
 
 level :: Parser LogLevel
@@ -81,6 +84,8 @@ databaseBkpPath = option (Just <$> str) options
                           , value Nothing
                           ]
 
+inMemory :: Parser Bool
+inMemory = switch (long "in-memory" <> help "WARNING: potential data loss")
 
 -- | initializes the database with the necessary parameters. If not file path is given, the default name "vdiff.db" is used.
 withDiffDB :: FilePath -> (SQL.Connection -> IO a) -> IO a
@@ -95,19 +100,31 @@ withDiffDB fn act = do
   return x
 
 
-makeBackup :: (HasMainEnv env) => Text -> Text -> RIO env ()
-makeBackup _ dstFn = do
+restoreDb :: (HasMainEnv env) => Text -> RIO env ()
+restoreDb srcFn = do
+  srcDb <- liftIO $ Sqlite3.open srcFn
+  dstDb <- SQL.connectionHandle <$> view databaseL
+  transferDb srcDb dstDb
+  logInfo $ "load from " <> display srcFn <> " into in-memory Db complete"
+
+backupDb :: (HasMainEnv env) => Text -> RIO env ()
+backupDb dstFn = do
   srcDb <- SQL.connectionHandle <$> view databaseL
   dstDb <- liftIO $ Sqlite3.open dstFn
+  transferDb srcDb dstDb
+
+
+transferDb :: (HasMainEnv env) => Sqlite3.Database -> Sqlite3.Database -> RIO env ()
+transferDb srcDb dstDb = do
   bkp <- liftIO $ Sqlite3.backupInit dstDb "main" srcDb "main"
   res <- liftIO $ Sqlite3.backupStep bkp (-1)
   case res of
-    Sqlite3.BackupDone -> do
-      logInfo "backup completed"
-      liftIO $ Sqlite3.backupFinish bkp
-    Sqlite3.BackupOK   -> logError "backup not completed"
+    Sqlite3.BackupDone -> liftIO $ Sqlite3.backupFinish bkp
+    Sqlite3.BackupOK   -> logError "backup/restore not completed"
 
 createIndices :: SQL.Connection -> IO ()
 createIndices conn = do
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_code_hash_idx` ON `runs` (`code_hash`);"
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_verifier_name_idx` ON `runs` (`verifier_name`);"
+  SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_verifier_name_result_idx` ON `runs` (`verifier_name`, `result`);"
+  SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `tmp_counts_run_id_idx` ON `tmp_counts` (`run_id`);"

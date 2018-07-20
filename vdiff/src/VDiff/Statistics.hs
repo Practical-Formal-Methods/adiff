@@ -16,7 +16,7 @@ import           VDiff.Util.Tables
 import           VDiff.Verifier
 
 
-verdicts :: (HasDatabase env) => QueryFocus -> RIO env (Int, Int, Int)
+verdicts :: (HasDatabase env, HasLogFunc env) => QueryFocus -> RIO env (Int, Int, Int)
 verdicts qf = do
   vs <- runBeam $ runSelectReturningList $ select $ agg $ flt allRuns_
   let sats = fromMaybe 0 $ lookup Sat vs
@@ -31,7 +31,8 @@ verdicts qf = do
 
 
 
-relative :: (HasDatabase env) => Verdict
+relative :: (HasDatabase env, HasLogFunc env)
+  => Verdict
   -> Bool
   -> VerifierName
   -> VerifierName
@@ -43,7 +44,7 @@ relative vrd allowUnknown v1 v2 = do
 
 
 relativeSoundness, relativeCompleteness, relativeRecall, relativePrecision
-  :: (HasDatabase env) => VerifierName -> VerifierName -> RIO env (Integer, Integer)
+  :: (HasDatabase env, HasLogFunc env) => VerifierName -> VerifierName -> RIO env (Integer, Integer)
 
 relativeSoundness    = relative Sat True
 relativeCompleteness = relative Unsat True
@@ -52,7 +53,7 @@ relativePrecision    = relative Unsat False
 
 type RelativeTable = Map (VerifierName, VerifierName) (Integer, Integer)
 
-overPairs :: (HasDatabase env) => (VerifierName -> VerifierName -> RIO env (Integer,Integer)) -> RIO env RelativeTable
+overPairs :: (HasDatabase env, HasLogFunc env) => (VerifierName -> VerifierName -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairs f = do
   vns <- Q2.verifierNames
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- vns , v2 <- vns]
