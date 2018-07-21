@@ -7,5 +7,6 @@ FROM vdiff/all-verifiers
 COPY .stack-work/docker/_home/.local/bin/vdiff-viewer /root/.local/bin
 COPY .stack-work/docker/_home/.local/bin/vdiff-server /root/.local/bin
 COPY .stack-work/docker/_home/.local/bin/vdiff /root/.local/bin
+COPY .stack-work/docker/_home/.local/bin/vdiff-run-package /root/.local/bin
 
 COPY docker/vdiff/vdiff/bashrc /root/.bashrc

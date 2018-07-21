@@ -21,6 +21,7 @@ import           System.IO
 import           Text.PrettyPrint            (render)
 
 import           VDiff.ArithmeticExpressions (evalExpr)
+import           VDiff.Execute
 import           VDiff.Instrumentation
 import           VDiff.Strategy
 import           VDiff.Verifier
@@ -66,13 +67,13 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing (^. name)) allVerifiers) $ \veri
 
 cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
-  fn' <- liftIO $ makeAbsolute (dp ^. inputFile)
+  source <- readFileUtf8 (dp ^. inputFile)
   lg <- view logFuncL
   forM_ (dp ^. verifiers) $ \v -> do
     liftIO $ print (v ^. name)
     let flags = fromMaybe [] $ Map.lookup  (v ^. name) (dp ^. verifierFlags)
     verifierEnv <- mkVerifierEnv (dp ^. timelimit) flags
-    res <- runRIO verifierEnv $ execute v fn'
+    res <- runRIO verifierEnv $ executeVerifierInDocker (v ^. name) source
     liftIO $ print res
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv

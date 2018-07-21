@@ -50,6 +50,11 @@ executables:
       - extra>=1.6.5
     ghc-options: -threaded -O2 -rtsopts
 
+  vdiff-run-package:
+    source-dirs: app/vdiff-run-package
+    main: Main.hs
+    dependencies: vdiff
+    ghc-options: -threaded -O2 -rtsopts
   
 
 library:
@@ -124,4 +129,5 @@ dependencies:
   - megaparsec
   - regex-base
   - regex-posix
+  - docker
   

@@ -161,6 +161,7 @@ VerifierResult (LensFor wallTime) (LensFor memory) (LensFor verdict) = tableLens
 type VerifierResult = VerifierResultMixin Identity
 
 deriving instance Show VerifierResult
+deriving instance Read VerifierResult
 
 
 instance Table ProgramT where
