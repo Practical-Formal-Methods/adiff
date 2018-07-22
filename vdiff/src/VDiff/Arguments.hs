@@ -103,3 +103,10 @@ strategy = option stratParser options
           Nothing -> readerError $ "Accepted strategies are " ++ txtStrategies
         txtStrategies = unwords strategyNames
         strategyNames = map strategyName availableStrategies
+
+seed :: Parser (Maybe Int)
+seed = optional $ option auto options
+  where options = mconcat [ long "seed"
+                          , help "seed to initialize random generator"
+                          , metavar "SEED"
+                          ]

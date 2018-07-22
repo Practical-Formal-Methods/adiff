@@ -20,6 +20,7 @@ import           System.Directory
 import           System.Exit
 import           System.IO
 import           Text.PrettyPrint            (render)
+import           Control.Monad.Random
 
 import           VDiff.ArithmeticExpressions (evalExpr)
 import           VDiff.Execute
@@ -29,9 +30,17 @@ import           VDiff.Verifier
 
 
 
-cmdDiff :: HasMainEnv a => DiffParameters -> RIO a ()
-cmdDiff params = do
+cmdDiff :: HasMainEnv a => Maybe Int -> DiffParameters -> RIO a ()
+cmdDiff seed params = do
   logInfo "starting diff"
+
+  s <- case seed of
+    Just s  -> return s
+    Nothing -> getRandomR (1,10000)
+  logInfo $ "seed for random generator: " <> display s
+  liftIO $ setStdGen $ mkStdGen s
+
+
   mAst <- openCFile (params ^. inputFile)
   case mAst of
     Nothing -> liftIO exitFailure
