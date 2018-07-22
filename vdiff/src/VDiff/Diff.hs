@@ -14,6 +14,7 @@ import qualified Data.Map                    as Map
 import           Data.Ord                    (comparing)
 import qualified Data.Text.IO                as T
 import qualified Data.Text.Lazy              as LT
+import qualified Docker.Client               as Docker
 import           Language.C
 import           System.Directory
 import           System.Exit
@@ -72,8 +73,8 @@ cmdRunVerifiers dp = do
   forM_ (dp ^. verifiers) $ \v -> do
     liftIO $ print (v ^. name)
     let flags = fromMaybe [] $ Map.lookup  (v ^. name) (dp ^. verifierFlags)
-    verifierEnv <- mkVerifierEnv (dp ^. timelimit) flags
-    res <- runRIO verifierEnv $ executeVerifierInDocker (v ^. name) source
+    -- verifierEnv <- mkVerifierEnv (dp ^. timelimit) flags
+    res <- liftIO $ executeVerifierInDocker (defaultSimpleConstraints (dp ^. timelimit)) (v ^. name) source
     liftIO $ print res
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
