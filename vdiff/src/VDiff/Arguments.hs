@@ -109,29 +109,24 @@ strategy = option stratParser options
         strategyNames = map strategyName availableStrategies
 
 seed :: Parser (Maybe Int)
-seed = optional $ option auto options
-  where options = mconcat [ long "seed"
-                          , help "seed to initialize random generator"
-                          , metavar "SEED"
-                          ]
+seed = optional $ option auto (long "seed" <> help "seed to initialize random generator")
 
 resources :: Parser VerifierResources
 resources =  do
-  tl <- (*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15)
+  tl <- (*1000000) <$> parseTime
   mem <- optional parseMemory
-  return $ VerifierResources tl mem Nothing
-
-parseMemory :: Parser MemoryConstraint
-parseMemory = option xx $ mconcat
-  [ long "memory"
-  , help "limit the number of used memory"
-  , metavar "MEM"]
+  cpus <- optional parseCpus
+  return $ VerifierResources tl mem cpus
   where
-    xx  = str >>= \s ->  return $ MemoryConstraint (parsePrefix s ) (parseSuffix s)
-    parsePrefix s = read $ takeWhile isDigit s
-    parseSuffix s = case dropWhile isDigit s of
-      "B"  -> B
-      "M"  -> MB
-      "MB" -> MB
-      "G"  -> GB
-      "GB" -> GB
+    parseCpus   = option str  (long "cpuset-cpus" <> help "limit the process to the comma separated list of cpus")
+    parseTime   = option auto (long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 30)
+    parseMemory = option mem  (long "memory" <> help "limit the number of used memory")
+    mem = str >>= \s ->  return $ MemoryConstraint (parsePrefix s ) (parseSuffix s)
+      where
+        parsePrefix s = read $ takeWhile isDigit s
+        parseSuffix s = case dropWhile isDigit s of
+          "B"  -> B
+          "M"  -> MB
+          "MB" -> MB
+          "G"  -> GB
+          "GB" -> GB
