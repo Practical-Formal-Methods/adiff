@@ -23,8 +23,8 @@ import           Docker.Client       as Docker
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as T
 import           UnliftIO.Concurrent
-import           VDiff.Data          hiding (memory)
-import           VDiff.Prelude       hiding (force)
+import           VDiff.Data
+import           VDiff.Prelude
 
 -- this is passed through the docker boundary
 data ExecutionPackage
@@ -66,7 +66,7 @@ executeVerifierInDocker resources vn flags source = do
       let logWarnIO = liftIO . unliftIO u . logWarn :: Utf8Builder -> IO ()
       let logInfoIO = liftIO . unliftIO u . logInfo :: Utf8Builder -> IO ()
 
-      liftIO $ runDockerT (defaultClientOpts, h) $ do -- TODO: Find out why we cannot use unix:///var/run/docker.sock
+      liftIO $ runDockerT (defaultClientOpts, h) $ do
         -- create container
         let cops  = mkCreateOpts resources dirPath
         cid <- createContainer cops Nothing
@@ -98,7 +98,7 @@ executeVerifierInDocker resources vn flags source = do
               Just r  -> return r
             `finally` do
               liftIO $ logInfoIO $ "deleting container " <> display i
-              deleteContainer (defaultDeleteOpts { force = True}) i
+              deleteContainer (defaultDeleteOpts { Docker.force = True}) i
 
 mkCreateOpts :: VerifierResources -> FilePath -> CreateOpts
 mkCreateOpts simpleConstraints dirPath =
