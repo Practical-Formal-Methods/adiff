@@ -30,6 +30,7 @@ import           VDiff.Data
 import           VDiff.Instrumentation
 import           VDiff.Instrumentation.Reads
 import           VDiff.Persistence
+import VDiff.Execute
 import           VDiff.Strategy.Common.ConstantPool
 import Database.Beam
 import qualified VDiff.Query2 as Q2
@@ -71,7 +72,7 @@ verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
   -> m (Program, [VerifierRun])
 verify' n tu = do
   vs <- view (diffParameters . verifiers)
-  time <- view (diffParameters . timelimit)
+  verifierRsrc <- view (diffParameters . verifierResources)
   originalFileName <- view (diffParameters . inputFile)
   env <- ask
   let content = render . pretty $ tu
@@ -85,18 +86,13 @@ verify' n tu = do
       Just r -> do
         logInfo "using cached verifier result"
         return r
-      Nothing ->
+      Nothing -> do
         -- Okay, we actually have to run the verifier
-        withSystemTempFile "input.c" $ \fp h -> do
-          -- write file
-          liftIO $ hPutStr h content >> hFlush h
-          -- create verifier env
-          flags <- fromMaybe [] . Map.lookup  (v ^. name) <$> view (diffParameters . verifierFlags)
-          vEnv <- mkVerifierEnv time flags
-          res <- runRIO vEnv $ execute v fp
-          run <- Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
-          Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
-          return run
+        flags <- fromMaybe [] . Map.lookup  (v ^. name) <$> view (diffParameters . verifierFlags)
+        res <- executeVerifierInDocker verifierRsrc (v ^. name) (T.pack content)
+        run <- Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
+        Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
+        return run
   return (program', runs)
 
 conclude :: [VerifierRun] -> Conclusion

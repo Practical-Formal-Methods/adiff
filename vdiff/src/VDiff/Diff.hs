@@ -82,8 +82,7 @@ cmdRunVerifiers dp = do
   forM_ (dp ^. verifiers) $ \v -> do
     liftIO $ print (v ^. name)
     let flags = fromMaybe [] $ Map.lookup  (v ^. name) (dp ^. verifierFlags)
-    -- verifierEnv <- mkVerifierEnv (dp ^. timelimit) flags
-    res <- liftIO $ executeVerifierInDocker (defaultSimpleConstraints (dp ^. timelimit)) (v ^. name) source
+    res <- executeVerifierInDocker (dp ^. verifierResources) (v ^. name) source
     liftIO $ print res
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv

@@ -28,6 +28,7 @@ import qualified Data.Text.IO           as T
 import           Data.Time
 import           Data.Time.Clock
 import           Data.Time.Format
+import           Docker.Client
 import           Numeric
 import           Options.Applicative
 import           RIO                    hiding (view, (^.))
@@ -63,3 +64,7 @@ formatCorrelation (num,denum) =
     | otherwise -> T.pack s
   where
     s = Numeric.showFFloat (Just 2) (fromInteger num / fromInteger denum) ""
+
+instance Display ContainerID where
+  display = display . T.take 12 . fromContainerID
+

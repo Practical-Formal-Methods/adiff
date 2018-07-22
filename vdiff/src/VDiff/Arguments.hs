@@ -10,10 +10,14 @@ module VDiff.Arguments
   , module Options.Applicative
   ) where
 
+import           Prelude             (read)
 import           VDiff.Prelude
 
+import           Data.Char           (isDigit)
 import qualified Data.Map.Strict     as Map
 import qualified Data.Text           as T
+import           Docker.Client       (MemoryConstraint (..),
+                                      MemoryConstraintSize (..))
 import           Options.Applicative
 import qualified RIO.List            as L
 
@@ -66,7 +70,7 @@ diffParameters :: Parser DiffParameters
 diffParameters = DiffParameters
       <$> VDiff.Arguments.strategy
       <*> VDiff.Arguments.budget
-      <*> ((*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15))
+      <*> VDiff.Arguments.resources
       <*> VDiff.Arguments.verifiers
       <*> VDiff.Arguments.verifierFlags
       <*> VDiff.Arguments.searchMode
@@ -110,3 +114,24 @@ seed = optional $ option auto options
                           , help "seed to initialize random generator"
                           , metavar "SEED"
                           ]
+
+resources :: Parser VerifierResources
+resources =  do
+  tl <- (*1000000) <$> option auto ( long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 15)
+  mem <- optional parseMemory
+  return $ VerifierResources tl mem Nothing
+
+parseMemory :: Parser MemoryConstraint
+parseMemory = option xx $ mconcat
+  [ long "memory"
+  , help "limit the number of used memory"
+  , metavar "MEM"]
+  where
+    xx  = str >>= \s ->  return $ MemoryConstraint (parsePrefix s ) (parseSuffix s)
+    parsePrefix s = read $ takeWhile isDigit s
+    parseSuffix s = case dropWhile isDigit s of
+      "B"  -> B
+      "M"  -> MB
+      "MB" -> MB
+      "G"  -> GB
+      "GB" -> GB
