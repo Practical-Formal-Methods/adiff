@@ -80,18 +80,19 @@ verify' n tu = do
   runRIO env $ Q2.storeProgram program'
 
   -- run each verifier
-  runs <- forM vs $ \v -> runRIO env $
+  runs <- forM vs $ \(vn, flags, newName) -> runRIO env $ do
+    let name = fromMaybe vn newName
     -- check if we have already some result for this
-    Q2.lookupRun (v ^. name) (program' ^. hash) >>= \case
+    Q2.lookupRun name (program' ^. hash) >>= \case
       Just r -> do
         logInfo "using cached verifier result"
         return r
       Nothing -> do
         -- Okay, we actually have to run the verifier
-        flags <- fromMaybe [] . Map.lookup  (v ^. name) <$> view (diffParameters . verifierFlags)
-        res <- executeVerifierInDocker verifierRsrc (v ^. name) (T.pack content)
-        run <- Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
-        Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
+        res <- executeVerifierInDocker verifierRsrc vn flags (T.pack content)
+        run <- Q2.storeRunFreshId $ VerifierRun 0 name (pk program') res n
+        unless (null flags) $
+          Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
         return run
   return (program', runs)
 

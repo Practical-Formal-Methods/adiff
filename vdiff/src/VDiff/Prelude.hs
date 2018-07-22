@@ -67,4 +67,3 @@ formatCorrelation (num,denum) =
 
 instance Display ContainerID where
   display = display . T.take 12 . fromContainerID
-

@@ -226,8 +226,7 @@ relativeInclusionCmd = switch (long "relative-soundness")    $> RelativeInclusio
                        switch (long "relative-precision")    $> RelativeInclusion Unsat False
 
 
-
-parseFocus = Q2.QueryFocus . map (^. name) <$> VDiff.Arguments.verifiers
+parseFocus = Q2.QueryFocus . map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
 
 parseQuery2 :: Parser Q2.Query
 parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete

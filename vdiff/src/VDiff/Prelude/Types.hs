@@ -201,8 +201,7 @@ data DiffParameters = DiffParameters
   { _strategy            :: Strategy
   , _budgetSpecification :: Text
   , _verifierResources   :: VerifierResources
-  , _verifiers           :: [Verifier]
-  , _verifierFlags       :: Map VerifierName [Text]
+  , _verifiers           :: [(VerifierName, [Text], Maybe VerifierName)]
   , _searchMode          :: SearchMode
   , _batchSize           :: Int
   , _inputFile           :: FilePath

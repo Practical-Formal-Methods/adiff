@@ -79,10 +79,9 @@ cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
   source <- readFileUtf8 (dp ^. inputFile)
   lg <- view logFuncL
-  forM_ (dp ^. verifiers) $ \v -> do
-    liftIO $ print (v ^. name)
-    let flags = fromMaybe [] $ Map.lookup  (v ^. name) (dp ^. verifierFlags)
-    res <- executeVerifierInDocker (dp ^. verifierResources) (v ^. name) source
+  forM_ (dp ^. verifiers) $ \(vn, flags, _) -> do
+    liftIO $ print vn
+    res <- executeVerifierInDocker (dp ^. verifierResources) vn flags source
     liftIO $ print res
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv

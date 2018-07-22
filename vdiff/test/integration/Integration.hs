@@ -36,5 +36,5 @@ testSimple = testGroup "unsat" $ map test [ (v, r) | v <- allVerifiers', r <- [S
       let logOptions' = setLogMinLevel LevelWarn $ setLogVerboseFormat False logOptions
       withLogFunc  logOptions' $ \lg -> do
         let testFile = if expected == Sat then satFile else unsatFile
-        res <- executeVerifierInDocker (defaultVerifierResources (30 * 1000 * 1000)) (v ^. name) (decodeUtf8 testFile)
-        liftIO $ (res ^. verdict) @?= expected
+        res <- runRIO lg $ executeVerifierInDocker (defaultVerifierResources (30 * 1000 * 1000)) (v ^. name) [] (decodeUtf8 testFile)
+        (res ^. verdict) @?= expected

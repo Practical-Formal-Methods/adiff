@@ -52,9 +52,9 @@ instance MonadUnliftIO (DockerT IO) where
 
 
 
-executeVerifierInDocker :: (HasLogFunc env) => VerifierResources -> VerifierName -> Text -> RIO env VerifierResult
-executeVerifierInDocker resources vn source = do
-  let pkgS = T.pack $ show $ ExecutionPackage vn [] source -- TODO: Handle Flags
+executeVerifierInDocker :: (HasLogFunc env) => VerifierResources -> VerifierName -> [Text] -> Text -> RIO env VerifierResult
+executeVerifierInDocker resources vn flags source = do
+  let pkgS = T.pack $ show $ ExecutionPackage vn flags source -- TODO: Handle Flags
   h <- liftIO defaultHttpHandler
   withSystemTempDirectory "exchange" $ \dirPath -> do
       -- serialize the package and write it into a temporary file
