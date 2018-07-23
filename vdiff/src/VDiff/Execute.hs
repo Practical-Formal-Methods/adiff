@@ -81,9 +81,7 @@ executeVerifierInDocker resources vn flags source = do
               waitContainer i >>= \case
                 Right ExitSuccess  -> do
                   runOutput <- readFileUtf8 (dirPath <> "/output")
-                  case readMay $ T.unpack runOutput of
-                    Nothing -> putMVar resultVar Nothing
-                    Just r  -> putMVar resultVar (Just r)
+                  putMVar resultVar (readMay $ T.unpack runOutput)
                 Right (ExitFailure err) -> do
                   liftIO $ logWarnIO $ "internal vdiff exited with status code (could  be due to OOM)" <> display err
                   putMVar resultVar Nothing
