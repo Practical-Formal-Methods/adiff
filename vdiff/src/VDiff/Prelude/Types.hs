@@ -26,6 +26,7 @@ import           Control.Lens.TH
 import           Control.Monad.Random
 import           Data.List                           (intersperse, (!!))
 import           Data.List.Key                       (nub)
+import           Data.Pool
 import           Data.Text                           (pack)
 import qualified Database.SQLite.Simple              as SQL
 import           Docker.Client                       (MemoryConstraint)
@@ -82,7 +83,7 @@ execute v fp = try (_verifierExecute v fp) >>= \case
 -- | * RIO
 -- | type classes for usage with RIO instances
 class HasDatabase a where
-  databaseL :: Lens' a SQL.Connection
+  databaseL :: Lens' a (Pool SQL.Connection)
 
 class (HasLogFunc a, HasDatabase a) => HasMainEnv a
 
@@ -99,7 +100,7 @@ class HasDiffParameters env where
 -- | This is the main environment that is available for all commands.
 data MainEnv = MainEnv
   { _logger   :: LogFunc
-  , _database :: SQL.Connection
+  , _database :: Pool SQL.Connection
   }
 instance HasMainEnv MainEnv
 
@@ -134,7 +135,7 @@ data StrategyEnv = StrategyEnv
   { _strategyLogFunc         :: !LogFunc
   , _strategyTranslationUnit :: !(CTranslationUnit SemPhase)
   , _strategyDiffParameters  :: !DiffParameters
-  , _strategyDatabase        :: !SQL.Connection
+  , _strategyDatabase        :: Pool SQL.Connection
   , _strategyInitialBudget   :: !Int
   }
 

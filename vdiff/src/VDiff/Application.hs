@@ -5,6 +5,7 @@
 module VDiff.Application where
 
 import qualified Data.List              as L
+import           Data.Pool
 import qualified Data.Text              as T
 import           Database.Beam
 import           Database.Beam.Sqlite   as Sqlite
@@ -31,8 +32,8 @@ runVDiffApp parser infoMod app = do
   let dbPath' = if inMemoryFlag then ":memory:" else dbPath
   -- wrap app in withLogFunc and withDiffDB
   withLogFunc logOptions' $ \logger ->
-    withDiffDB dbPath' $ \database -> do
-      let env = MainEnv logger database
+    withDiffDB dbPath' $ \pool -> do
+      let env = MainEnv logger pool
       runRIO env $ do
         -- if necessary load into memory
         when inMemoryFlag (restoreDb (T.pack dbPath))
@@ -87,40 +88,53 @@ databaseBkpPath = option (Just <$> str) options
 inMemory :: Parser Bool
 inMemory = switch (long "in-memory" <> help "WARNING: potential data loss")
 
--- | initializes the database with the necessary parameters. If not file path is given, the default name "vdiff.db" is used.
-withDiffDB :: FilePath -> (SQL.Connection -> IO a) -> IO a
+-- | Initializes the database with the necessary parameters, migrates the schema
+-- and creates indices. For sqlite the number of concurrent connections is
+-- exactly 1. NOTE: Increasing the number will eventually cause deadlocks!
+withDiffDB :: FilePath -> (Pool SQL.Connection -> IO a) -> IO a
 withDiffDB fn act = do
-  conn <- liftIO $ SQL.open fn
+  pool <- liftIO $ createPool (SQL.open fn) SQL.close 1 6000 1
   -- migrate / create schema
-  retryOnBusy $ runBeamSqlite conn migrateVdiff
-  -- create indices
-  createIndices conn
-  x <- act conn
-  SQL.close conn
+  withResource pool $ \conn -> do
+    runBeamSqlite conn migrateVdiff
+    createIndices conn
+  x <- act pool
+  destroyAllResources pool
   return x
 
 
 restoreDb :: (HasMainEnv env) => Text -> RIO env ()
 restoreDb srcFn = do
   srcDb <- liftIO $ Sqlite3.open srcFn
-  dstDb <- SQL.connectionHandle <$> view databaseL
-  transferDb srcDb dstDb
-  logInfo $ "load from " <> display srcFn <> " into in-memory Db complete"
+  pool <- view databaseL
+  success <- liftIO $ withResource pool $ \conn -> do
+    let dstDb = SQL.connectionHandle conn
+    transferDb srcDb dstDb
+  liftIO $ Sqlite3.close srcDb
+  if success
+    then logInfo $ "load from " <> display srcFn <> " into in-memory Db complete"
+    else logInfo $ "load from " <> display srcFn <> " into in-memory Db failed"
 
 backupDb :: (HasMainEnv env) => Text -> RIO env ()
 backupDb dstFn = do
-  srcDb <- SQL.connectionHandle <$> view databaseL
   dstDb <- liftIO $ Sqlite3.open dstFn
-  transferDb srcDb dstDb
+  pool <- view databaseL
+  success <- liftIO $ withResource pool $ \conn -> do
+    let srcDb = SQL.connectionHandle conn
+    transferDb srcDb dstDb
+  liftIO $ Sqlite3.close dstDb
+  if success
+    then logInfo $ "backup to " <> display dstFn <> " complete"
+    else logInfo $ "backup to " <> display dstFn <> " failed"
 
 
-transferDb :: (HasMainEnv env) => Sqlite3.Database -> Sqlite3.Database -> RIO env ()
+transferDb :: Sqlite3.Database -> Sqlite3.Database -> IO Bool
 transferDb srcDb dstDb = do
   bkp <- liftIO $ Sqlite3.backupInit dstDb "main" srcDb "main"
   res <- liftIO $ Sqlite3.backupStep bkp (-1)
   case res of
-    Sqlite3.BackupDone -> liftIO $ Sqlite3.backupFinish bkp
-    Sqlite3.BackupOK   -> logError "backup/restore not completed"
+    Sqlite3.BackupDone -> liftIO (Sqlite3.backupFinish bkp) >> return True
+    Sqlite3.BackupOK   -> return False
 
 createIndices :: SQL.Connection -> IO ()
 createIndices conn = do
