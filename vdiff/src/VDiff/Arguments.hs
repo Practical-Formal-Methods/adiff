@@ -105,14 +105,17 @@ strategy = option stratParser options
 seed :: Parser (Maybe Int)
 seed = optional $ option auto (long "seed" <> help "seed to initialize random generator")
 
-resources :: Parser VerifierResources
+resources :: Parser [VerifierResources]
 resources =  do
   tl <- (*1000000) <$> parseTime
   mem <- optional parseMemory
-  cpus <- optional parseCpus
-  return $ VerifierResources tl mem cpus
+  cpuSet <- optional parseCpus
+  return $ case cpuSet of
+    Nothing     -> [VerifierResources tl mem Nothing]
+    Just cpuSet -> [VerifierResources tl mem (Just cpus) | cpus <- cpuSet]
   where
-    parseCpus   = option str  (long "cpuset-cpus" <> help "limit the process to the comma separated list of cpus")
+    parseCpus :: Parser [Text]
+    parseCpus   = option cpuSets (long "cpus" <> help "limit the process to the comma separated list of cpus")
     parseTime   = option auto (long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 30)
     parseMemory = option mem  (long "memory" <> help "limit the number of used memory")
     mem = str >>= \s ->  return $ MemoryConstraint (parsePrefix s ) (parseSuffix s)
@@ -132,6 +135,9 @@ resources =  do
 -- * its name with a combination of parameters and a new name: @smack(--loop-unroll=1)#smack-1@
 
 type MParser = MP.Parsec Void Text
+sc = MPL.space MP.space1 empty empty
+lexeme :: MParser a -> MParser a
+lexeme = MPL.lexeme sc
 
 verifierList :: ReadM [(VerifierName, [Text], Maybe VerifierName)]
 verifierList = str >>= \inp -> case MP.parse verifierList' "command-line" inp of
@@ -139,7 +145,7 @@ verifierList = str >>= \inp -> case MP.parse verifierList' "command-line" inp of
        Right l  -> pure l
   where
     verifierList' :: MParser [(VerifierName, [Text], Maybe VerifierName)]
-    verifierList' = many (MPL.lexeme sc verifier) <* MP.eof
+    verifierList' = many (lexeme verifier) <* MP.eof
 
     verifier :: MParser (VerifierName, [Text], Maybe VerifierName)
     verifier = do
@@ -152,6 +158,12 @@ verifierList = str >>= \inp -> case MP.parse verifierList' "command-line" inp of
 
     verifierName = MP.try $ asum $ map (MP.string . (^. name)) allVerifiers
 
-    sc = MPL.space MP.space1 empty empty
-
+cpuSets :: ReadM [Text]
+cpuSets = str >>= \(inp :: Text) -> case MP.parse cpuSets' "command-line" inp of
+  Left err -> fail "cannot parse cpuset list"
+  Right l  -> pure l
+  where
+    cpuSets' = some (lexeme cpuSet) <* MP.eof
+    cpuSet = MP.char '[' *> innerList <* MP.char ']'
+    innerList = MP.takeWhile1P Nothing (\c -> isDigit c || c `elem` [',', ' '])
 

@@ -130,4 +130,5 @@ dependencies:
   - regex-base
   - regex-posix
   - docker
+  - stm
   

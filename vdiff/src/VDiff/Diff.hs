@@ -8,6 +8,7 @@ module VDiff.Diff where
 
 import           VDiff.Prelude
 
+import           Control.Monad.Random
 import           Data.List                   (sortBy)
 import qualified Data.List                   as L
 import qualified Data.Map                    as Map
@@ -20,12 +21,13 @@ import           System.Directory
 import           System.Exit
 import           System.IO
 import           Text.PrettyPrint            (render)
-import           Control.Monad.Random
 
 import           VDiff.ArithmeticExpressions (evalExpr)
+import           VDiff.Data
 import           VDiff.Execute
 import           VDiff.Instrumentation
 import           VDiff.Strategy
+import           VDiff.Util.ResourcePool
 import           VDiff.Verifier
 
 
@@ -78,11 +80,12 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing (^. name)) allVerifiers) $ \veri
 cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
   source <- readFileUtf8 (dp ^. inputFile)
-  lg <- view logFuncL
-  forM_ (dp ^. verifiers) $ \(vn, flags, _) -> do
-    liftIO $ print vn
-    res <- executeVerifierInDocker (dp ^. verifierResources) vn flags source
-    liftIO $ print res
+  pool <- newResourcePool (dp ^. verifierResources)
+  logInfo $ "created pool with " <> display (length $ dp ^. verifierResources) <> " verifier resources"
+  runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, _) r -> do
+    result <- executeVerifierInDocker r vn flags source
+    printD $ display vn <> ":\t " <> display (tshow $ result ^. verdict)
+  return ()
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
 mkStrategyEnv tu dp = do

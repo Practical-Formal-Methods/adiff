@@ -200,7 +200,7 @@ defaultVerifierResources t = VerifierResources t Nothing Nothing
 data DiffParameters = DiffParameters
   { _strategy            :: Strategy
   , _budgetSpecification :: Text
-  , _verifierResources   :: VerifierResources
+  , _verifierResources   :: [VerifierResources]
   , _verifiers           :: [(VerifierName, [Text], Maybe VerifierName)]
   , _searchMode          :: SearchMode
   , _batchSize           :: Int
