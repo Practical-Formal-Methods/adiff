@@ -26,8 +26,10 @@ import           Control.Lens.TH
 import           Control.Monad.Random
 import           Data.List                           (intersperse, (!!))
 import           Data.List.Key                       (nub)
+import           Data.Pool
 import           Data.Text                           (pack)
 import qualified Database.SQLite.Simple              as SQL
+import           Docker.Client                       (MemoryConstraint)
 import           Language.C                          hiding (LevelError,
                                                       LevelWarn, execParser)
 import           Language.C.Analysis.AstAnalysis2
@@ -39,6 +41,7 @@ import           System.IO                           (FilePath)
 import           Text.PrettyPrint                    (render)
 import           VDiff.Data
 import           VDiff.Instrumentation.Browser.Types
+
 
 
 data Strategy = RandomWalkStrategy
@@ -80,7 +83,7 @@ execute v fp = try (_verifierExecute v fp) >>= \case
 -- | * RIO
 -- | type classes for usage with RIO instances
 class HasDatabase a where
-  databaseL :: Lens' a SQL.Connection
+  databaseL :: Lens' a (Pool SQL.Connection)
 
 class (HasLogFunc a, HasDatabase a) => HasMainEnv a
 
@@ -97,7 +100,7 @@ class HasDiffParameters env where
 -- | This is the main environment that is available for all commands.
 data MainEnv = MainEnv
   { _logger   :: LogFunc
-  , _database :: SQL.Connection
+  , _database :: Pool SQL.Connection
   }
 instance HasMainEnv MainEnv
 
@@ -132,7 +135,7 @@ data StrategyEnv = StrategyEnv
   { _strategyLogFunc         :: !LogFunc
   , _strategyTranslationUnit :: !(CTranslationUnit SemPhase)
   , _strategyDiffParameters  :: !DiffParameters
-  , _strategyDatabase        :: !SQL.Connection
+  , _strategyDatabase        :: Pool SQL.Connection
   , _strategyInitialBudget   :: !Int
   }
 
@@ -184,21 +187,29 @@ data ExprRead = ExprRead
   } deriving (Show, Eq)
 
 
+data VerifierResources
+  = VerifierResources
+  { _timelimit :: Int -- in seconds
+  , _memory    :: Maybe MemoryConstraint
+  , _cpus      :: Maybe Text
+  }
+defaultVerifierResources t = VerifierResources t Nothing Nothing
+
 -- | This data type contains all the diff parameters that are passed to the
 -- strategy. Note that not all parameters are relevant for all strategies. For
 -- example the "batchSize" parameter is only available in random-uniform.
 data DiffParameters = DiffParameters
   { _strategy            :: Strategy
   , _budgetSpecification :: Text
-  , _timelimit           :: Int
-  , _verifiers           :: [Verifier]
-  , _verifierFlags       :: Map VerifierName [Text]
+  , _verifierResources   :: [VerifierResources]
+  , _verifiers           :: [(VerifierName, [Text], Maybe VerifierName)]
   , _searchMode          :: SearchMode
   , _batchSize           :: Int
   , _inputFile           :: FilePath
   }
 
 makeFieldsNoPrefix ''DiffParameters
+makeFieldsNoPrefix ''VerifierResources
 
 type Property = String
 type TU       = CTranslationUnit SemPhase
@@ -270,8 +281,8 @@ instance HasLogFunc NoLogging where
 
 
 isCompound ::Stmt -> Bool
-isCompound (CCompound _ _ _ ) = True
-isCompound _                  = False
+isCompound CCompound{} = True
+isCompound _           = False
 
 
 makeFieldsNoPrefix ''Verifier

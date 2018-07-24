@@ -1,8 +1,9 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE MultiWayIf            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 -- | common things that are necessary to implement strategies.
 module VDiff.Strategy.Common
@@ -12,29 +13,30 @@ module VDiff.Strategy.Common
   , Type
   ) where
 
-import           VDiff.Prelude
-import qualified Prelude as P
 import           Control.Lens
 import           Control.Monad.State
-import qualified Data.Map as Map
-import qualified Data.Text as T
-import           Language.C
-import           Language.C.Analysis.SemRep         hiding (Stmt)
-import           Language.C.Analysis.TypeUtils
-import           Safe
-import           System.IO                          (hPutStr)
-import           System.Random
-import           Text.PrettyPrint.HughesPJ          (render)
+import qualified Data.Map                                 as Map
+import qualified Data.Text                                as T
+import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
+import           Language.C
+import           Language.C.Analysis.SemRep               hiding (Stmt)
+import           Language.C.Analysis.TypeUtils
+import qualified Prelude                                  as P
+import           Safe
+import           System.IO                                (hPutStr)
+import           System.Random
+import           Text.PrettyPrint.HughesPJ                (render)
 import           VDiff.Data
+import           VDiff.Execute
 import           VDiff.Instrumentation
 import           VDiff.Instrumentation.Reads
 import           VDiff.Persistence
+import           VDiff.Prelude
+import qualified VDiff.Query2                             as Q2
+import           VDiff.Strategy.Common.Budget
 import           VDiff.Strategy.Common.ConstantPool
-import Database.Beam
-import qualified VDiff.Query2 as Q2
-
-import VDiff.Strategy.Common.Budget
+import           VDiff.Util.ResourcePool
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
@@ -71,33 +73,38 @@ verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
   -> m (Program, [VerifierRun])
 verify' n tu = do
   vs <- view (diffParameters . verifiers)
-  time <- view (diffParameters . timelimit)
+  resources <- view (diffParameters . verifierResources)
   originalFileName <- view (diffParameters . inputFile)
   env <- ask
   let content = render . pretty $ tu
       program' = mkProgram originalFileName content
   runRIO env $ Q2.storeProgram program'
 
-  -- run each verifier
-  runs <- forM vs $ \v -> runRIO env $
-    -- check if we have already some result for this
-    Q2.lookupRun (v ^. name) (program' ^. hash) >>= \case
-      Just r -> do
-        logInfo "using cached verifier result"
-        return r
-      Nothing ->
-        -- Okay, we actually have to run the verifier
-        withSystemTempFile "input.c" $ \fp h -> do
-          -- write file
-          liftIO $ hPutStr h content >> hFlush h
-          -- create verifier env
-          flags <- fromMaybe [] . Map.lookup  (v ^. name) <$> view (diffParameters . verifierFlags)
-          vEnv <- mkVerifierEnv time flags
-          res <- runRIO vEnv $ execute v fp
-          run <- Q2.storeRunFreshId $ VerifierRun 0 (v ^. name) (pk program') res n
-          Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
-          return run
+  runs <- runRIO env $ verifyParallel resources vs program' n
   return (program', runs)
+
+verifyParallel :: (IsStrategyEnv env)
+  => [VerifierResources]
+  -> [(VerifierName, [Text], Maybe VerifierName)]
+  -> Program -- ^ the program source
+  -> Int -- ^ iteration counter
+  -> RIO env [VerifierRun]
+verifyParallel resources verifiers program n = do
+  pool <- newResourcePool resources
+  withResourcePool pool $ flip map verifiers $ \(vn, flags, newVn) r -> do
+      let name = fromMaybe vn newVn
+      -- check if we have already some result for this
+      Q2.lookupRun name (program ^. hash) >>= \case
+        Just r -> do
+          logInfo "using cached verifier result"
+          return r
+        Nothing -> do
+          -- Okay, we actually have to run the verifier
+          res <- executeVerifierInDocker r vn flags (program ^. source)
+          run <- Q2.storeRunFreshId $ VerifierRun 0 name (pk program) res n
+          unless (null flags) $
+            Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
+          return run
 
 conclude :: [VerifierRun] -> Conclusion
 conclude  rs = if

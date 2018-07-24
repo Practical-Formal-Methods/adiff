@@ -8,12 +8,14 @@ module VDiff.Diff where
 
 import           VDiff.Prelude
 
+import           Control.Monad.Random
 import           Data.List                   (sortBy)
 import qualified Data.List                   as L
 import qualified Data.Map                    as Map
 import           Data.Ord                    (comparing)
 import qualified Data.Text.IO                as T
 import qualified Data.Text.Lazy              as LT
+import qualified Docker.Client               as Docker
 import           Language.C
 import           System.Directory
 import           System.Exit
@@ -21,15 +23,26 @@ import           System.IO
 import           Text.PrettyPrint            (render)
 
 import           VDiff.ArithmeticExpressions (evalExpr)
+import           VDiff.Data
+import           VDiff.Execute
 import           VDiff.Instrumentation
 import           VDiff.Strategy
+import           VDiff.Util.ResourcePool
 import           VDiff.Verifier
 
 
 
-cmdDiff :: HasMainEnv a => DiffParameters -> RIO a ()
-cmdDiff params = do
+cmdDiff :: HasMainEnv a => Maybe Int -> DiffParameters -> RIO a ()
+cmdDiff seed params = do
   logInfo "starting diff"
+
+  s <- case seed of
+    Just s  -> return s
+    Nothing -> getRandomR (1,10000)
+  logInfo $ "seed for random generator: " <> display s
+  liftIO $ setStdGen $ mkStdGen s
+
+
   mAst <- openCFile (params ^. inputFile)
   case mAst of
     Nothing -> liftIO exitFailure
@@ -66,14 +79,13 @@ cmdVersions = liftIO $ forM_ (sortBy (comparing (^. name)) allVerifiers) $ \veri
 
 cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
-  fn' <- liftIO $ makeAbsolute (dp ^. inputFile)
-  lg <- view logFuncL
-  forM_ (dp ^. verifiers) $ \v -> do
-    liftIO $ print (v ^. name)
-    let flags = fromMaybe [] $ Map.lookup  (v ^. name) (dp ^. verifierFlags)
-    verifierEnv <- mkVerifierEnv (dp ^. timelimit) flags
-    res <- runRIO verifierEnv $ execute v fn'
-    liftIO $ print res
+  source <- readFileUtf8 (dp ^. inputFile)
+  pool <- newResourcePool (dp ^. verifierResources)
+  logInfo $ "created pool with " <> display (length $ dp ^. verifierResources) <> " verifier resources"
+  runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, _) r -> do
+    result <- executeVerifierInDocker r vn flags source
+    printD $ display vn <> ":\t " <> display (tshow $ result ^. verdict)
+  return ()
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
 mkStrategyEnv tu dp = do

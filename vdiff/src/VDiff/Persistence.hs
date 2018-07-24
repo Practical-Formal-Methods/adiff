@@ -5,6 +5,7 @@ import           VDiff.Prelude
 import qualified Crypto.Hash.SHA1               as SHA1
 import qualified Data.ByteString.Base16         as Hex
 import qualified Data.ByteString.Char8          as C8
+import Data.Pool
 
 import           Database.Beam
 import           Database.Beam.Sqlite           as Sqlite
@@ -25,7 +26,8 @@ runBeam act = do
   env <- ask
   logger <- view logFuncL
   let lf = runRIO env . logDebug . display . T.pack
-  liftIO $ retryOnBusy $ Sqlite.runBeamSqliteDebug lf (env ^. databaseL) act
+  let pool = env ^. databaseL
+  liftIO $ withResource pool $ \conn -> retryOnBusy $ Sqlite.runBeamSqliteDebug lf  conn act
 
 retryOnBusy = retryOnBusy' 0
 
@@ -41,21 +43,21 @@ retryOnBusy' i action = catch action $ \(e :: SQL.SQLError) ->
 
 query_ :: (SQL.FromRow r, HasDatabase env) => SQL.Query -> RIO env [r]
 query_ q = do
-  conn <- view databaseL
-  liftIO $ SQL.query_ conn q
+  pool <- view databaseL
+  liftIO $ withResource pool $ \conn -> SQL.query_ conn q
 
 query :: (HasDatabase env, SQL.ToRow q, SQL.FromRow r) => SQL.Query -> q -> RIO env [r]
 query q params = do
-  conn <- view databaseL
-  liftIO $ SQL.query conn q params
+  pool <- view databaseL
+  liftIO $ withResource pool $ \conn -> SQL.query conn q params
 
 execute_ :: ( MonadReader env m, HasDatabase env, MonadIO m) => SQL.Query -> m ()
 execute_ q = do
-  conn <- view databaseL
-  liftIO $ SQL.execute_ conn q
+  pool <- view databaseL
+  liftIO $ withResource pool $ \conn -> SQL.execute_ conn q
 
 fold_ :: (HasDatabase env, SQL.FromRow row) => SQL.Query -> a -> (a -> row -> IO a) -> RIO env a
 fold_ q z f = do
-  conn <- view databaseL
-  liftIO $ SQL.fold_ conn q z f
+  pool <- view databaseL
+  liftIO $ withResource pool $ \conn -> SQL.fold_ conn q z f
 
