@@ -48,8 +48,6 @@ endpoints = do
   middleware (static $(embedDir "static"))
 
 
-
-
 getIndex :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getIndex = do
   statistics <- lift Q2.stats
@@ -143,20 +141,20 @@ getOverview = do
     case x of
       Just y  -> return y
       Nothing -> do
-        y <- lift $ (,,,) <$> overPairs relativeSoundness
-                          <*> overPairs relativeCompleteness
-                          <*> overPairs relativeRecall
-                          <*> overPairs relativePrecision
+        y <- lift $ (,,,) <$> overPairsWithConsensus relativeSoundness
+                          <*> overPairsWithConsensus relativeCompleteness
+                          <*> overPairsWithConsensus relativeRecall
+                          <*> overPairsWithConsensus relativePrecision
         writeIORef ref (Just y)
         return y
 
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
-    mkUnsoundnessLink, mkIncompletenessLink :: VerifierName -> VerifierName -> Text
-    mkUnsoundnessLink v1 v2 = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> v2 <> "%22])&qf=[%22" <> v1 <> "%22]"
-    mkIncompletenessLink v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> v2 <> "%22])&qf=[%22" <> v1 <> "%22]"
-    mkPrecisionLink _ _ = "#"
-    mkRecallLink _ _ = "#"
+    mkUnsoundnessLink, mkIncompletenessLink :: Relatee -> Relatee -> Text
+    mkUnsoundnessLink v1 v2    = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> printRelatee v2 <> "%22])&qf=[%22" <> printRelatee v1 <> "%22]"
+    mkIncompletenessLink v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> printRelatee v2 <> "%22])&qf=[%22" <> printRelatee v1 <> "%22]"
+    mkPrecisionLink _ _        = "#"
+    mkRecallLink _ _           = "#"
 
 --------------------------------------------------------------------------------
 with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a

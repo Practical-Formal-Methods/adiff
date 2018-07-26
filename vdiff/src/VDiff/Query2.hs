@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -11,10 +13,12 @@
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
 
+import qualified Data.Map.Strict                          as Map
 import qualified Data.Text                                as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
 import           Database.Beam.Sqlite                     hiding (runInsertReturningList)
+import           Numeric
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Prelude                            hiding (Disagreement)
@@ -190,7 +194,6 @@ tiesFindings         = orderBy_  ordKey  $ filter_ (\(_,_,sat,unsat) -> sat /=. 
 
 
 
-
 allFindings :: Q _ _ _ _
 allFindings = do
   r <- allRuns_
@@ -259,6 +262,113 @@ updateCountsTableNecessary = do
   return $ runsN /= countsN
 
 
+
+-- updateConsensus' :: (HasDatabase env, HasLogFunc env) => RIO env ()
+-- updateConsensus' = do
+--   vns <- verifierNames
+--   -- this is the raw structure
+--   -- let (m :: Map (ProgramId, VerifierName) [Verdict]) = undefined
+--   runs <- runBeam $ runSelectReturningList $ select $ all_ (vdiffDb ^. runs)
+--   let m = collect runs
+
+--   -- then we map a decision procedure (e.g. Sat/Unsat > Unknown, then use majority)
+--   let m' = fmap decide m :: Map (Text, VerifierName) Verdict
+--   -- then we use the given weights to calcule
+--   let (m'' :: Map ProgramId Verdict) = []
+--   undefined
+--   where
+--     collect :: [VerifierRun] -> Map (Text, VerifierName) [Verdict]
+--     collect = foldl' (\m r -> Map.insertWith (++) (r ^. program, r ^. verifierName) [r ^. (result . verdict)] m) Map.empty
+
+--     decide :: [Verdict] -> Verdict
+--     decide vrds =
+--       let (sats, unsats) = partition (== Sat) $ filter (/= Unknown) vrds
+--           satN           = length sats
+--           unsatN         = length unsats
+--       in if | satN >  unsatN -> Sat
+--             | satN < unsatN -> Unsat
+--             | otherwise -> Unknown
+
+--     calculateConsensus :: Map (Text, VerifierName) Verdict -> [VerifierName] -> Weights -> [(Text, Verdict)]
+--     calculateConsensus m vns w = undefined
+
+
+-- | Problem: A left join can still increase the number of results if there is more than one matching on the right side!
+updateConsensus :: (HasDatabase env, HasLogFunc env) => RIO env ()
+updateConsensus = do
+  runBeam $ runDelete $ delete (vdiffDb ^. tmpConsensus) (const $ val_ True)
+  let bs = 100 :: Int
+  logInfo $ "updating consensus table (using batch size " <> display bs <> ")"
+
+  (Just numPrograms ) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. programs)
+  logInfo $ "total number of programs in db: " <> display numPrograms
+  vns <- verifierNames
+  let weights = defaultWeights
+
+  forM_ [0.. numPrograms `div` bs + 1] $ \i -> do
+    let percentage = Numeric.showFFloat (Just 2) ((fromIntegral i / (fromIntegral numPrograms / fromIntegral bs + 1)) * 100) "" :: String
+    logSticky $ "inserted consensuses for " <> display (i * bs) <> " of " <> display numPrograms <> " programs (" <> display (T.pack percentage) <> "%)"
+
+    runBeam $ runInsert $ insert (vdiffDb ^. tmpConsensus) $ insertFrom $ do
+      p <- limit_ (fromIntegral bs) $ offset_ (fromIntegral $ i * bs) $ all_ (vdiffDb ^. programs)
+
+
+      -- positive score means sat majority, negative score means unsat majority
+      score <- sum <$> mapM (weightedCount weights p) vns
+
+      let vrd = if_ [ (score >. 0) `then_` val_ Sat
+                    , (score <. 0) `then_` val_ Unsat
+                    ] (else_ (val_ Unknown))
+
+      return $ Consensus default_  (pk p) (val_ weights) vrd
+  logStickyDone "updating consensus table completed"
+    where
+      runsByVerifier vn = filter_ (\r -> (r ^. verifierName) ==. val_ vn) allRuns_
+
+      -- weightedCount :: _ -> VerifierName -> Q _ _ _ _
+      weightedCount weights p vn = do
+            let weighted = weightF weights vn
+            x <- leftJoin_ (runsByVerifier vn) (\r -> (r ^. program) ==. (p ^. hash))
+            return $ maybe_ 0 (\r -> if_ [ (r ^. (result . verdict) ==. val_ Sat) `then_` val_ weighted
+                                         , (r ^. (result . verdict) ==. val_ Unsat) `then_` val_ (-weighted)
+                                         ] (else_ 0)
+                                ) x
+
+
+updateConsensusTableNecessary :: (HasDatabase env, HasLogFunc env) => RIO env Bool
+updateConsensusTableNecessary = do
+  (Just programN) <-     runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. programs)
+  (Just consensusesN) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ all_ (vdiffDb ^. tmpConsensus)
+  logInfo $ "number of programs: " <> display programN
+  logInfo $ "number of entries in consensus table: " <> display consensusesN
+  return $ programN /= consensusesN
+
+
+cleanUp = do
+  logInfo "removing redundant runs"
+  removeRedundantRuns
+  -- logInfo "removing superfluous 'Unknown' in runs"
+  -- removeSuperfluousUnknowns
+
+removeSuperfluousUnknowns = runBeam $ runDelete $ delete (vdiffDb ^. runs) $ \r -> exists_ $ do
+  t <- all_ (vdiffDb ^. runs)
+  guard_ $ (r ^. verifierName) ==. (t ^. verifierName)
+  guard_ $ (r ^. program) ==. (t ^. program)
+  guard_ $ ((r ^. resultVerdict) ==. val_ Unknown) &&. ((t ^. resultVerdict) /=. val_ Unknown)
+  return (t ^. runId)
+
+
+removeRedundantRuns = do
+  execute_ "DELETE FROM runs AS r WHERE EXISTS(SELECT * FROM runs AS t WHERE r.verifier_name= t.verifier_name AND r.run_id > t.run_id AND r.result = t.result AND r.code_hash = t.code_hash);"
+  -- runBeam $ runDelete $ delete (vdiffDb ^. runs) $ \r -> exists_ $ do
+  -- t <- all_ (vdiffDb ^. runs)
+  -- guard_ $ (r ^. verifierName) ==. (t ^. verifierName)
+  -- guard_ $ (r ^. runId) >. (t ^. runId)
+  -- guard_ $ (r ^. resultVerdict) ==. (t ^. resultVerdict)
+  -- guard_ $ (r ^. program) ==. (t ^. program)
+  -- return (t ^. runId)
+
+--------------------------------------------------------------------------------
 tagsForProgram :: (HasDatabase env, HasLogFunc env) => Text -> RIO env _
 tagsForProgram hsh = runBeam $ runSelectReturningList $ select $ project <$> relevantTags
   where
@@ -278,17 +388,24 @@ allPrograms_ :: Q _ _ _ (ProgramT (QExpr _ _))
 allPrograms_  = all_ (vdiffDb ^. programs)
 
 
-programByVerdicts :: forall ctx . [(VerifierName, [Verdict])] -> Q _ _ ctx (ProgramT _)
+programByVerdicts :: forall ctx . [(Relatee, [Verdict])] -> Q _ _ ctx (ProgramT _)
 programByVerdicts specs = nub_ $ do
   p <- allPrograms_
-  rs <- forM_ specs $ \(vn, vrds) -> do
-    r <- if sort vrds == sort [Unsat, Sat, Unknown]
-         then allRuns_
-         else filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds) allRuns_
-    guard_ $ (r ^. program) ==. p ^. hash
-    guard_ $ (r ^. verifierName) ==. val_ vn
+  forM_ specs $ \(relatee, vrds) ->
+    case relatee of
+      RelateName vn -> do
+        r <- if sort vrds == sort [Unsat, Sat, Unknown]
+             then allRuns_
+             else filter_ (\r -> (r ^. (result . verdict)) `in_` map val_ vrds) allRuns_
+        guard_ $ (r ^. program) ==. p ^. hash
+        guard_ $ (r ^. verifierName) ==. val_ vn
+      (ConsensusBy w) -> do
+        c <- filter_ (\c -> (c ^. consensusWeights) ==. val_ w ) $ all_ (vdiffDb ^. tmpConsensus)
+        guard_ $ (c ^. consensusVerdict) `in_` map val_ vrds
+        guard_ $ (p ^. hash) ==. (c ^. consensusProgramId)
   return p
 
+resultVerdict = result . verdict
 
 verifierNames :: (HasDatabase env, HasLogFunc env) => RIO env [VerifierName]
 verifierNames = runBeam $ runSelectReturningList $ select names

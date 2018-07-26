@@ -34,26 +34,34 @@ verdicts qf = do
 relative :: (HasDatabase env, HasLogFunc env)
   => Verdict
   -> Bool
-  -> VerifierName
-  -> VerifierName
+  -> Relatee
+  -> Relatee
   -> RIO env (Integer, Integer)
 relative vrd allowUnknown v1 v2 = do
-  (Just intersection) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, vrd : [Unknown | allowUnknown]), (v2, [vrd]) ]
-  (Just totalV2) <-      runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, [Sat, Unsat, Unknown])         , (v2, [vrd]) ]
+  (Just intersection) <- runProgramByVerdicts [ (v1, vrd : [Unknown | allowUnknown]), (v2, [vrd]) ]
+  (Just totalV2) <-      runProgramByVerdicts [ (v1, [Sat, Unsat, Unknown])         , (v2, [vrd]) ]
   return (fromIntegral intersection,  fromIntegral totalV2)
+  where
+    runProgramByVerdicts = runBeam . runSelectReturningOne . select . aggregate_ (const countAll_) . programByVerdicts
 
 
 relativeSoundness, relativeCompleteness, relativeRecall, relativePrecision
-  :: (HasDatabase env, HasLogFunc env) => VerifierName -> VerifierName -> RIO env (Integer, Integer)
+  :: (HasDatabase env, HasLogFunc env) => Relatee -> Relatee -> RIO env (Integer, Integer)
 
 relativeSoundness    = relative Sat True
 relativeCompleteness = relative Unsat True
 relativeRecall       = relative Sat False
 relativePrecision    = relative Unsat False
 
-type RelativeTable = Map (VerifierName, VerifierName) (Integer, Integer)
+type RelativeTable = Map (Relatee, Relatee) (Integer, Integer)
 
-overPairs :: (HasDatabase env, HasLogFunc env) => (VerifierName -> VerifierName -> RIO env (Integer,Integer)) -> RIO env RelativeTable
+overPairs :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairs f = do
-  vns <- Q2.verifierNames
+  (vns :: [Relatee]) <- map RelateName <$> Q2.verifierNames
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- vns , v2 <- vns]
+
+overPairsWithConsensus :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
+overPairsWithConsensus f = do
+  vns <- Q2.verifierNames
+  let rels = ConsensusBy defaultWeights : [RelateName v | v <- vns]
+  Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- rels, v2 <- rels ]

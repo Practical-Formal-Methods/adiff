@@ -13,6 +13,7 @@ import qualified Data.Map                        as Map
 import           Data.Maybe                      (fromJust)
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
+import           Database.Beam
 import qualified Database.SQLite.Simple.Extended as SQL
 import           Numeric
 import qualified Prelude                         as P
@@ -93,7 +94,12 @@ executeView (GetProgram hsh) = do
       T.hPutStrLn stderr $ "could not find program with hash: " <> hsh
       exitFailure
 
-executeView (Runs hsh) = do
+executeView (Runs hsh)
+  | hsh == "all" = do
+      -- this is purely experimental, I just want to see how much memory this would need
+      runs <- runBeam $ runSelectReturningList $ select $ Q2.allRuns_
+      liftIO $ print runs
+  | otherwise = do
   runs <- Q2.runsByHashR hsh
   liftIO $ Tab.printTableWithFlds flds runs
   where
@@ -118,12 +124,13 @@ executeView (RelativeInclusion vrd ignoreUnknown) = do
   tbl <- Statistics.overPairs (Statistics.relative vrd ignoreUnknown)
   liftIO $ T.putStr $ Tbl.renderTable $ mkTable tbl
   where
-    verifierNames = map (^. name) allVerifiers
-    mkTable m = Tbl.table $ headers : [mkRow v1 | v1 <- verifierNames]
+    relatees = [ RelateName (v ^. name) | v <- allVerifiers ] ++ [ConsensusBy defaultWeights]
+    mkTable :: Map (Relatee, Relatee) (Integer, Integer) -> Tbl.Table
+    mkTable m = Tbl.table $ headers : [mkRow r1 | r1 <- relatees ]
       where
-        mkRow v1 = Tbl.row $ v1 : [ mkCell v1 v2 | v2 <- verifierNames]
-        mkCell  v1 v2 = formatCorrelation $ fromJust $ Map.lookup (v1,v2) m
-        headers = Tbl.row $ "  " : verifierNames
+        mkRow r1 = Tbl.row $ printRelatee r1 : [ mkCell r1 r2 | r2 <- relatees]
+        mkCell  r1 r2 = formatCorrelation $ fromJust $ Map.lookup (r1, r2) m
+        headers = Tbl.row $ "  " : map printRelatee relatees
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files =

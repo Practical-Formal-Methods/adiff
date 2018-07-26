@@ -33,9 +33,9 @@ mkPaginationWidget pageSize totalCount page qstring qfstring = do
   return $(shamletFile "templates/widgets/pagination.hamlet")
 
 
-correlationTable :: Map (VerifierName, VerifierName) (Integer, Integer)
-  -> (VerifierName -> VerifierName -> Text)
+correlationTable :: Map (Relatee, Relatee) (Integer, Integer)
+  -> (Relatee -> Relatee -> Text)
   -> Html
 correlationTable tbl mkLink = do
-  let verifierNames  = L.nub $ map fst $ Map.keys tbl
+  let verifierNames  = (L.nub $ map fst $ Map.keys tbl) :: [Relatee]
   $(shamletFile "templates/widgets/correlationTable.hamlet")
