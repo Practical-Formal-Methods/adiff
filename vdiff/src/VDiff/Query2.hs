@@ -66,7 +66,7 @@ executeQuery limit offset q = do
           | (pid, origin, satN, unsatN , sats, unsats) <- fs
           ]
   where
-    toVerifierL =  sort . L.nub . filter (/= "") . T.split (`elem` [' ', ','])
+    toVerifierL =  sort . L.nub . filter (/= "") . T.split (`elem` [' ', ',']) . fromMaybe ""
 
 compileQuery :: Query -> Q _ _ ctx _
 compileQuery= \case
@@ -201,7 +201,7 @@ findingsByVerdicts rvs = agg $ do
                                                       , concatComma_ sats
                                                       , concatComma_ unsats))
 
-    concatComma_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ (Maybe Text) -> QGenExpr QAggregateContext syntax s Text
+    concatComma_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ (Maybe Text) -> QGenExpr QAggregateContext syntax s (Maybe Text)
     concatComma_ = customExpr_ (\bytes -> "group_concat(" <> bytes <> ")")
 
     countDistinct_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ _ -> QGenExpr QAggregateContext syntax s Int

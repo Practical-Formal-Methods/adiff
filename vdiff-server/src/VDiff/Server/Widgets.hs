@@ -28,8 +28,8 @@ mkPaginationWidget pageSize totalCount page = do
       totalLinks = 10
       pref = [max (page - 5) 1 .. page - 1]
       pages = pref ++ [page .. min (page + ((totalLinks - 1) - length pref)) numPages]
-      showLeftArr = page > 1
-      showRightArr = page < numPages
+      showLeftArr = if page > 1 then "" else "disabled" :: Text
+      showRightArr = if page < numPages then "" else "disabled" :: Text
       prevPage = page - 1
       nextPage = page + 1
   return $(shamletFile "templates/widgets/pagination.hamlet")

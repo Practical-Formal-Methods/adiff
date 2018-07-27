@@ -1,63 +1,63 @@
-<div class="configuration">
-  <form method="GET" action="/findings">
-    <textarea name="q">
-      #{JSON.encodeToLazyText q}
-    <!-- <div class="row"> -->
-    <!--   <h4> -->
-    <!--     Discrepancies -->
-    <!--   <div class="input-field col s12 m4 l4"> -->
-    <!--     <select id="suspicion" name="q"> -->
-    <!--       <option value="" disabled selected> -->
-    <!--         Show -->
-    <!--       <option value="Everything"> -->
-    <!--         Everything -->
-    <!--       <option value="Disagreement"> -->
-    <!--         Disagreement -->
-    <!--       <option value="Ties"> -->
-    <!--         Ties -->
-    <!--       <option value="SuspicionIncomplete"> -->
-    <!--         Incomplete -->
-    <!--       <option value="SuspicionUnsound"> -->
-    <!--         Unsound -->
-    <!--   <div class="input-field col s12 m4 l4"> -->
-    <!--     <div id="accordingToBox"> -->
-    <!--       <select id="accordingTo"> -->
-    <!--         <option value="Majority"> -->
-    <!--           according to the majority -->
-    <!--         <option value="AnyOf"> -->
-    <!--           according to any of -->
-    <!--         <option value="AllOf" disabled> -->
-    <!--           according to all of -->
-    <!--   <div id="verifier-row" class="input-field col s12 m4 l4"> -->
-    <!--     <select id="verifiers" multiple> -->
-    <!--       $forall v <- verifierNames  -->
-    <!--         <option value="#{v}"> #{v} -->
+<form method="GET" action="/findings">
+  <div class="configuration">
+      <textarea name="q">
+        #{JSON.encodeToLazyText q}
+      <!-- <div class="row"> -->
+      <!--   <h4> -->
+      <!--     Discrepancies -->
+      <!--   <div class="input-field col s12 m4 l4"> -->
+      <!--     <select id="suspicion" name="q"> -->
+      <!--       <option value="" disabled selected> -->
+      <!--         Show -->
+      <!--       <option value="Everything"> -->
+      <!--         Everything -->
+      <!--       <option value="Disagreement"> -->
+      <!--         Disagreement -->
+      <!--       <option value="Ties"> -->
+      <!--         Ties -->
+      <!--       <option value="SuspicionIncomplete"> -->
+      <!--         Incomplete -->
+      <!--       <option value="SuspicionUnsound"> -->
+      <!--         Unsound -->
+      <!--   <div class="input-field col s12 m4 l4"> -->
+      <!--     <div id="accordingToBox"> -->
+      <!--       <select id="accordingTo"> -->
+      <!--         <option value="Majority"> -->
+      <!--           according to the majority -->
+      <!--         <option value="AnyOf"> -->
+      <!--           according to any of -->
+      <!--         <option value="AllOf" disabled> -->
+      <!--           according to all of -->
+      <!--   <div id="verifier-row" class="input-field col s12 m4 l4"> -->
+      <!--     <select id="verifiers" multiple> -->
+      <!--       $forall v <- verifierNames  -->
+      <!--         <option value="#{v}"> #{v} -->
 
 
-    <div class="row">
-        <input type="submit" id="searchButton" class="btn waves-effect waves-light">
-          Search
-          <i class="material-icons right">
-            search
+      <div class="row">
+          <button type="submit" id="searchButton" class="btn waves-effect waves-light">
+            Search
+            <i class="material-icons right">
+              search
         
-<p>
-  total: #{countFindings}
-<table>
-  <tr>
-    <th>program
-    <th>sats
-    <th>unsats
-
-  $forall f <- findings 
+  <p>
+    total: #{countFindings}
+  <table>
     <tr>
-      <td>
-        ^{mkProgramLink $ f ^. Q2.findingProgramId}
-        (#{f ^. Q2.findingOrigin})
-      <td>#{ T.intercalate ", " $ f ^. Q2.findingSatVerifiers }
-      <td>#{ T.intercalate ", " $ f ^. Q2.findingUnsatVerifiers }
+      <th>program
+      <th>sats
+      <th>unsats
 
-<div.center>
-  ^{pg}
+    $forall f <- findings 
+      <tr>
+        <td>
+          ^{mkProgramLink $ f ^. Q2.findingProgramId}
+          (#{f ^. Q2.findingOrigin})
+        <td>#{ T.intercalate ", " $ f ^. Q2.findingSatVerifiers }
+        <td>#{ T.intercalate ", " $ f ^. Q2.findingUnsatVerifiers }
+
+  <div.center>
+    ^{pg}
 
 <script src="/js/findings.js">
 
