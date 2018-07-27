@@ -21,6 +21,7 @@ module VDiff.Data (
     Program
   , ProgramT(Program)
   , ProgramId
+  , programIdToHash
   , mkProgram
   , hash
   , origin
@@ -90,6 +91,7 @@ module VDiff.Data (
 import           RIO
 
 import qualified Crypto.Hash.SHA1                 as SHA1
+import           Data.Aeson
 import qualified Data.ByteString.Base16           as Hex
 import qualified Data.ByteString.Char8            as C8
 import qualified Data.List                        as L
@@ -182,6 +184,9 @@ instance Table ProgramT where
   data PrimaryKey ProgramT f = ProgramId (C f Text) deriving (Generic, Beamable)
   primaryKey = ProgramId . _hash
 
+programIdToHash :: ProgramId -> Text
+programIdToHash (ProgramId x) = x
+
 -- | A run of one verifier on one program
 data  VerifierRunT f = VerifierRun
   { _runId        :: C f Int
@@ -249,19 +254,20 @@ instance Table CountsT where
   primaryKey = CountsId . _countId
 
 newtype Weights = Weights [(VerifierName, Int)]
-  deriving (Show, Read, Ord, Eq)
+  deriving (Show, Read, Ord, Eq, Generic, ToJSON, FromJSON)
+
 
 weightF :: Weights -> VerifierName -> Int
 weightF (Weights m) vn = fromMaybe 0 (lookup vn m)
 
 defaultWeights :: Weights
 defaultWeights = Weights
-  [ ("cbmc", 0)
-  , ("cpachecker", 0)
-  , ("klee", 0)
+  [ ("cbmc", 1)
+  , ("cpachecker", 1)
+  , ("klee", 1)
   , ("seacrab", 0)
-  , ("seahorn", 0)
-  , ("smack", 0)
+  , ("seahorn", 1)
+  , ("smack", 1)
   , ("uautomizer", 1)
   , ("utaipan", 0)
   ]
@@ -275,7 +281,7 @@ instance (HasSqlValueSyntax s Text) => HasSqlValueSyntax s Weights where
 
 -- TODO: This is a shitty name
 data Relatee = RelateName VerifierName | ConsensusBy Weights
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord, Generic, ToJSON, FromJSON)
 
 printRelatee :: Relatee -> Text
 printRelatee (RelateName v)  = v

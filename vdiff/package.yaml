@@ -132,4 +132,5 @@ dependencies:
   - docker
   - stm
   - resource-pool
+  - aeson
   

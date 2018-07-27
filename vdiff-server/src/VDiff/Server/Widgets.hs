@@ -7,21 +7,23 @@ module VDiff.Server.Widgets where
 import qualified Data.List            as L
 import qualified Data.Map             as Map
 import qualified Data.Text            as T
+import qualified Data.Text.Lazy       as LT
 import           VDiff.Server.Prelude
 
 import           VDiff.Data
 import qualified VDiff.Query2         as Q2
 import           VDiff.Verifier       (allVerifiers)
 
-mkProgramLink :: Text -> Html
-mkProgramLink hsh =
+mkProgramLink :: ProgramId -> Html
+mkProgramLink pid =
   let trunc = T.take 5 hsh
+      hsh = programIdToHash pid
   in [shamlet| <a href="/program/#{hsh}">#{trunc}|]
 
 
 
-mkPaginationWidget :: Int -> Int -> Int -> Text -> Text -> RioActionM env Html
-mkPaginationWidget pageSize totalCount page qstring qfstring = do
+mkPaginationWidget :: Int -> Int -> Int -> RioActionM env Html
+mkPaginationWidget pageSize totalCount page = do
   let numPages = totalCount `div` pageSize
       totalLinks = 10
       pref = [max (page - 5) 1 .. page - 1]
@@ -34,7 +36,7 @@ mkPaginationWidget pageSize totalCount page qstring qfstring = do
 
 
 correlationTable :: Map (Relatee, Relatee) (Integer, Integer)
-  -> (Relatee -> Relatee -> Text)
+  -> (Relatee -> Relatee -> LT.Text)
   -> Html
 correlationTable tbl mkLink = do
   let verifierNames  = (L.nub $ map fst $ Map.keys tbl) :: [Relatee]

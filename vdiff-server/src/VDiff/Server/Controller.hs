@@ -16,6 +16,9 @@ import           VDiff.Server.Prelude
 import           VDiff.Server.Widgets
 
 import qualified Control.Concurrent.MSemN              as Sema
+import qualified Data.Aeson                            as JSON
+import qualified Data.Aeson.Text                       as JSON
+import qualified Data.ByteString.Lazy                  as LBS
 import           Data.FileEmbed
 import           Data.List
 import qualified Data.Map                              as Map
@@ -83,26 +86,24 @@ groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
 getFindings :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getFindings = do
   verifierNames <- lift Q2.verifierNames
-  (qstring :: Text) <- param "q"
-  (q :: Q2.Query) <- param "q"
+  q <- fromMaybe Q2.Everything <$> paramJsonMay "q"
+  lift $ logInfo $ "processing query: " <> display (tshow q)
   (page :: Integer) <- param "page" `rescue` const (return 1)
-  (qf :: Q2.QueryFocus) <- param "qf" `rescue` const (return $ Q2.QueryFocus verifierNames)
-  (qfstring :: Text) <- param "qf" `rescue` const (return $ tshow verifierNames)
   let pageSize = 30
   let offset = (page - 1) * 30
-  countFindings <- lift $ Q2.executeQueryCount qf q
-  findings <- lift $ Q2.executeQuery pageSize offset qf q
-  pg <- mkPaginationWidget 30 countFindings (fromIntegral page) qstring qfstring
+  countFindings <- lift $ Q2.executeQueryCount q
+  findings <- lift $ Q2.executeQuery pageSize offset q
+  pg <- mkPaginationWidget 30 countFindings (fromIntegral page)
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
 
-instance Parsable Q2.Query where
-    parseParam = mapLeft LT.fromStrict . Q2.parseQuery . LT.toStrict
-
-instance Parsable Q2.QueryFocus where
- parseParam p = case readMay (LT.unpack p) of
-                  Nothing -> Left "xx"
-                  Just vs -> Right $ Q2.QueryFocus vs
-
+paramJsonMay :: (JSON.FromJSON a) => LT.Text -> RioActionM env  (Maybe a)
+paramJsonMay n = do
+  (p :: Maybe LBS.ByteString) <- (Just <$> param n) `rescue` const (return Nothing)
+  case p of
+    Nothing -> return Nothing
+    Just p' -> case JSON.eitherDecode p' of
+                 Left err -> raise (LT.pack err)
+                 Right x  -> return $ Just x
 
 
 getScratch ::  (HasDatabase env, HasLogFunc env) => RioActionM env ()
@@ -150,9 +151,9 @@ getOverview = do
 
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
-    mkUnsoundnessLink, mkIncompletenessLink :: Relatee -> Relatee -> Text
-    mkUnsoundnessLink v1 v2    = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> printRelatee v2 <> "%22])&qf=[%22" <> printRelatee v1 <> "%22]"
-    mkIncompletenessLink v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> printRelatee v2 <> "%22])&qf=[%22" <> printRelatee v1 <> "%22]"
+    mkUnsoundnessLink, mkIncompletenessLink :: Relatee -> Relatee -> LT.Text
+    mkUnsoundnessLink v1 v2    = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionUnsound  (Just v1) v2)
+    mkIncompletenessLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
     mkPrecisionLink _ _        = "#"
     mkRecallLink _ _           = "#"
 

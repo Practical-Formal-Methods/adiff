@@ -1,11 +1,17 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE DeriveAnyClass            #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE FunctionalDependencies    #-}
+{-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE Rank2Types                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TypeApplications          #-}
 {- signatures of beam-related functions are incredibly verbose, so let's settle for partial type signatures.
    Sometimes it is straight up impossible to write the types down because of ambiguous types .-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures -fno-warn-missing-signatures #-}
@@ -13,10 +19,13 @@
 {- This will become the new type-safe query module after I figured out how to use beam -}
 module VDiff.Query2 where
 
+import           Data.Aeson
+import qualified Data.List                                as L
 import qualified Data.Map.Strict                          as Map
 import qualified Data.Text                                as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
+import           Database.Beam.Query
 import           Database.Beam.Sqlite                     hiding (runInsertReturningList)
 import           Numeric
 import           VDiff.Data
@@ -28,66 +37,54 @@ type Statistics = [(Text, Text)]
 
 -- a generalized query interface:
 data Query
-  = Query Suspicion AccordingTo
+  = Query Suspicion (Maybe Relatee) Relatee
   | Disagreement
   | Ties
   | Everything
-  deriving (Show, Read)
+  deriving (Show, Generic, ToJSON, FromJSON)
 
 data Suspicion
   = SuspicionIncomplete
   | SuspicionUnsound
-  deriving (Show, Read)
+  deriving (Show, Generic, ToJSON, FromJSON)
 
-data AccordingTo
-  = AnyOf [VerifierName]
-  | AllOf [VerifierName]
-  | Majority
-  deriving (Show, Read)
 
-data QueryFocus
-  = QueryFocus [VerifierName]
-  | QueryFocusEverything
-  deriving (Show,Read)
+data Finding
+  = Finding
+  { _findingProgramId      :: ProgramId
+  , _findingOrigin         :: Text
+  , _findingCountSat       :: Int
+  , _findingCountUnsat     :: Int
+  , _findingSatVerifiers   :: [VerifierName]
+  , _findingUnsatVerifiers :: [VerifierName]
+  }
 
--- | at the moment, using 'el cheapo' parsing via read
-parseQuery :: Text -> Either Text Query
-parseQuery "everything" = Right Everything
-parseQuery t = case readMay (T.unpack t) of
-                 Nothing -> Left "not parseable"
-                 Just q  -> Right q
+executeQuery :: (HasDatabase env, HasLogFunc env) => Integer -> Integer ->  Query -> RIO env [Finding]
+executeQuery limit offset q = do
+   fs <- runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ compileQuery q
+   return [ Finding pid origin satN unsatN (toVerifierL sats) (toVerifierL unsats)
+          | (pid, origin, satN, unsatN , sats, unsats) <- fs
+          ]
+  where
+    toVerifierL =  sort . L.nub . filter (/= "") . T.split (`elem` [' ', ','])
 
-executeQuery :: (HasDatabase env, HasLogFunc env) => Integer -> Integer -> QueryFocus -> Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
-executeQuery limit offset qf q =
-  runBeam $ runSelectReturningList $ select $ limit_ limit $ offset_ offset $ execQf qf $ case q of
-    Everything                             -> allFindings
-    Disagreement                           -> disagreementFindings
-    Ties                                   -> tiesFindings
-    (Query SuspicionIncomplete Majority)   -> incompleteFindings
-    (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
-    (Query SuspicionUnsound  Majority)     -> unsoundFindings
-    (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
+compileQuery :: Query -> Q _ _ ctx _
+compileQuery= \case
+  (Query SuspicionIncomplete (Just r1) r2) -> findingsByVerdicts [(r1, [Sat]), (r2, [Unsat])]
+  (Query SuspicionIncomplete Nothing r2)   -> filter_ (\(_,_,satCount,_,_,_) -> satCount >. 0) $ findingsByVerdicts [(r2, [Unsat])]
+  (Query SuspicionUnsound (Just r1) r2)    -> findingsByVerdicts [(r1, [Unsat]), (r2, [Sat])]
+  (Query SuspicionUnsound Nothing r2)      -> filter_ (\(_,_,_, unsatCount,_,_) -> unsatCount >. 0) $ findingsByVerdicts [(r2, [Sat])]
+  Everything -> findingsByVerdicts []
 
--- | like 'executeQuery', but without pagination and focusing on everything
-executeQuerySimple :: (HasDatabase env, HasLogFunc env) => Query -> RIO env [(VerifierRun, Maybe Text, Int, Int)]
-executeQuerySimple = executeQuery 10000000000 0 QueryFocusEverything
 
-executeQueryCount :: (HasDatabase env, HasLogFunc env) => QueryFocus -> Query -> RIO env Int
-executeQueryCount qf q = do
-  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ execQf qf $ case q of
-    Everything                             -> allFindings
-    Disagreement                           -> disagreementFindings
-    Ties                                   -> tiesFindings
-    (Query SuspicionIncomplete Majority)   -> incompleteFindings
-    (Query SuspicionIncomplete (AnyOf vs)) -> incompleteAccordingToAnyOf vs
-    (Query SuspicionUnsound  Majority)     -> unsoundFindings
-    (Query SuspicionUnsound (AnyOf vs))    -> unsoundAccordingToAnyOf vs
+executeQueryCount :: (HasDatabase env, HasLogFunc env) => Query -> RIO env Int
+executeQueryCount q = do
+  (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ compileQuery q
   return n;
 
-execQf QueryFocusEverything = filter_ (const $ val_ True)
-execQf (QueryFocus vs) = filter_ (\(r,_,_,_) -> (r ^. verifierName) `in_` map val_ vs )
-
-
+-- | like 'executeQuery', but without pagination and focusing on everything
+executeQuerySimple :: (HasDatabase env, HasLogFunc env) => Query -> RIO env [Finding]
+executeQuerySimple = executeQuery 10000000000 0
 
 stats :: (HasDatabase env, HasLogFunc env) => RIO env Statistics
 stats = runBeam $ do
@@ -181,9 +178,39 @@ runIdWithVerdict v = aggreg $ do
 
 
 
-incompleteFindings, unsoundFindings, disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack, tiesFindings :: forall ctx . Q _ VDiffDb ctx _
-incompleteFindings   = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Sat &&. sat <. unsat) allFindings
-unsoundFindings      = filter_ (\(r,_,sat,unsat) -> r ^. (result . verdict) ==. val_ Unsat &&. unsat <. sat) allFindings
+-- | morally produces [Finding]
+findingsByVerdicts :: [(Relatee, [Verdict])] -> Q _ VDiffDb ctx _
+findingsByVerdicts rvs = agg $ do
+  -- the program
+  p <- programByVerdicts rvs
+  -- join with all runs that say "Sat"
+  sats <- leftJoin_ (filter_ (\r -> (r ^. resultVerdict) ==. val_ Sat) $ all_ $ vdiffDb ^. runs)
+            (\r -> (r ^. program) ==. (p ^. hash) )
+
+  -- join with all runs that say "Unsat"
+  unsats <- leftJoin_ (filter_ (\r -> (r ^. resultVerdict) ==. val_ Unsat) $ all_ $ vdiffDb ^. runs)
+            (\r -> (r ^. program) ==. (p ^. hash) )
+
+  return (pk p, p ^. origin, sats ^. verifierName, unsats ^. verifierName)
+  where
+    consensusByWeight w = filter_ (\c -> (c ^. consensusWeights) ==. val_ w) (all_ $ vdiffDb ^. tmpConsensus)
+    agg = aggregate_ (\(pid, origin, sats, unsats) -> ( group_ pid
+                                                      , group_ origin
+                                                      , countDistinct_ sats
+                                                      , countDistinct_ unsats
+                                                      , concatComma_ sats
+                                                      , concatComma_ unsats))
+
+    concatComma_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ (Maybe Text) -> QGenExpr QAggregateContext syntax s Text
+    concatComma_ = customExpr_ (\bytes -> "group_concat(" <> bytes <> ")")
+
+    countDistinct_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ _ -> QGenExpr QAggregateContext syntax s Int
+    countDistinct_ = customExpr_ (\bytes -> "COUNT(DISTINCT " <> bytes <> ")")
+
+
+
+disagreementFindings, unsoundKleeCbmc, unsoundKleeCbmcSmack, tiesFindings :: forall ctx . Q _ VDiffDb ctx _
+
 disagreementFindings = orderBy_ (asc_.diffSats) $ filter_ (\(_,_,sat,unsat) -> sat /=. 0 &&. unsat /=. 0) allFindings
   where
     diffSats (_,_,sat,unsat) =  abs (sat - unsat)
@@ -194,7 +221,7 @@ tiesFindings         = orderBy_  ordKey  $ filter_ (\(_,_,sat,unsat) -> sat /=. 
 
 
 
-allFindings :: Q _ _ _ _
+allFindings :: Q _ _ _ (VerifierRunT _, QExpr _ _ (Maybe Text), QExpr _ _ Int , QExpr _ _ Int )
 allFindings = do
   r <- allRuns_
   cts <- filter_ (\c -> (r ^. runId) ==. (c ^. countedRunId)) $ all_ (vdiffDb ^. tmpCounts)
@@ -204,7 +231,7 @@ allFindings = do
 unsoundKleeCbmc = unsoundAccordingToAnyOf ["klee", "cbmc"]
 unsoundKleeCbmcSmack = unsoundAccordingToAnyOf ["klee", "cbmc", "smack"]
 
-unsoundAccordingToAnyOf, incompleteAccordingToAnyOf :: forall ctx . [Text] -> Q _ VDiffDb ctx _
+unsoundAccordingToAnyOf, incompleteAccordingToAnyOf :: forall ctx . [VerifierName] -> Q _ VDiffDb ctx _
 unsoundAccordingToAnyOf vs = do
   (r,origin,sats,unsats) <- filter_ (\(r,_,_,_) -> (r ^. (result . verdict))  ==. val_ Unsat) allFindings
   x <- checkers
@@ -411,3 +438,5 @@ verifierNames :: (HasDatabase env, HasLogFunc env) => RIO env [VerifierName]
 verifierNames = runBeam $ runSelectReturningList $ select names
   where
     names = nub_ ((^. verifierName) <$> allRuns_)
+
+makeFieldsNoPrefix ''Finding

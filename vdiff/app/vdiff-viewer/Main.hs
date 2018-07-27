@@ -70,21 +70,23 @@ executeView Stats = do
   liftIO $  Tab.printTable stats
 executeView (List q) = do
   rs <- Q2.executeQuerySimple q
-  printFindingsTable rs
+  error "niy"
+  -- printFindingsTable rs
 
 executeView (Count q) = do
-  n <- Q2.executeQueryCount Q2.QueryFocusEverything q
+  n <- Q2.executeQueryCount q
   liftIO $ print n
 executeView (DistributionPerFile q) = do
-  rs <- Q2.executeQuerySimple q
-  let grouped = reverse $ sortOn length $ K.group snd4 $ sortOn snd4  rs
-  let counts = map (\fs -> (snd4  (P.head fs), length fs )) grouped
-  liftIO $ Tab.printTableWithFlds flds counts
-  where
-    snd4 (_,p,_,_) = p
-    flds = [ Tab.DFld $ maybe "<unknown>" T.unpack . fst
-           , Tab.DFld snd
-           ]
+  error "niy"
+  -- rs <- Q2.executeQuerySimple q
+  -- let grouped = reverse $ sortOn length $ K.group snd4 $ sortOn snd4  rs
+  -- let counts = map (\fs -> (snd4  (P.head fs), length fs )) grouped
+  -- liftIO $ Tab.printTableWithFlds flds counts
+  -- where
+  --   snd4 (_,p,_,_) = p
+  --   flds = [ Tab.DFld $ maybe "<unknown>" T.unpack . fst
+  --          , Tab.DFld snd
+  --          ]
 
 executeView (GetProgram hsh) = do
   p <- Q2.programByHash hsh
@@ -116,7 +118,7 @@ executeView (MergeOldList file) = do
   mergeFiles files
 
 executeView Verdicts = do
-  stats <- mapM  (\v -> (v ^. name,) <$>  Statistics.verdicts (Q2.QueryFocus [v ^. name])) allVerifiers
+  stats <- mapM  (\v -> (v ^. name,) <$>  Statistics.verdicts (Just [v ^. name])) allVerifiers
   let tbl = Tbl.table $ Tbl.row ["verifier", "sats", "unsats", "unknown"] : map (Tbl.toRow . (\(x,(a,b,c)) -> (x,a,b,c))) stats
   liftIO $ T.putStr $ Tbl.renderTable tbl
 
@@ -233,20 +235,21 @@ relativeInclusionCmd = switch (long "relative-soundness")    $> RelativeInclusio
                        switch (long "relative-precision")    $> RelativeInclusion Unsat False
 
 
-parseFocus = Q2.QueryFocus . map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
+parseFocus :: Parser [VerifierName]
+parseFocus = map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
 
 parseQuery2 :: Parser Q2.Query
-parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete
-  where
-    disagreement = switch (long "disagreement") $> Q2.Disagreement
-    everything = switch (long "everything") $> Q2.Everything
-    unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  <*> parseAccordingTo
-    incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete <*> parseAccordingTo
-    parseAccordingTo =  asum [ Q2.AnyOf <$> option listOfVerifierNames (long "according-to-any-of")
-                             , Q2.AllOf <$> option listOfVerifierNames (long "according-to-all-of")
-                             , pure Q2.Majority
-                             ]
-    listOfVerifierNames = map T.strip . T.splitOn "," <$>  str
+parseQuery2 = error "niy"
+-- parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete
+--   where
+--     disagreement = switch (long "disagreement") $> Q2.Disagreement
+--     everything = switch (long "everything") $> Q2.Everything
+--     unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  Nothing <*> parseAccordingTo
+--     incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete Nothing <*> parseAccordingTo
+--     parseAccordingTo =  asum [ Just . RelateName <$> option str (long "according-to")
+--                              , pure (Just $ ConsensusBy defaultWeights)
+--                              ]
+--     listOfVerifierNames = map T.strip . T.splitOn "," <$>  str
 
 
 printFindingsTable rs = liftIO $ Tab.printTableWithFlds dspls rs

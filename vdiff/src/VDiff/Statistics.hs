@@ -16,17 +16,17 @@ import           VDiff.Util.Tables
 import           VDiff.Verifier
 
 
-verdicts :: (HasDatabase env, HasLogFunc env) => QueryFocus -> RIO env (Int, Int, Int)
+verdicts :: (HasDatabase env, HasLogFunc env) => Maybe [VerifierName] -> RIO env (Int, Int, Int)
 verdicts qf = do
   vs <- runBeam $ runSelectReturningList $ select $ agg $ flt allRuns_
-  let sats = fromMaybe 0 $ lookup Sat vs
-  let unsats = fromMaybe 0 $ lookup Unsat vs
+  let sats    = fromMaybe 0 $ lookup Sat vs
+  let unsats  = fromMaybe 0 $ lookup Unsat vs
   let unknown = fromMaybe 0 $ lookup Unknown vs
   return (sats, unsats, unknown)
  where
    flt = case qf of
-           QueryFocusEverything -> filter_ ( const $ val_ True)
-           QueryFocus vs -> filter_ (\r  -> (r ^. verifierName) `in_` map val_ vs)
+           Nothing -> filter_ ( const $ val_ True)
+           Just vs -> filter_ (\r  -> (r ^. verifierName) `in_` map val_ vs)
    agg = aggregate_ $ \r -> (group_ (r ^. (result . verdict)), countAll_)
 
 
