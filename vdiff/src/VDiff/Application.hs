@@ -142,7 +142,6 @@ createIndices conn = do
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_code_hash_idx` ON `runs` (`code_hash`);"
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_verifier_name_idx` ON `runs` (`verifier_name`);"
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `runs_verifier_name_result_idx` ON `runs` (`verifier_name`, `result`);"
-  SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `tmp_counts_run_id_idx` ON `tmp_counts` (`run_id`);"
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `tmp_consensuses_verifier_name_weights_idx` ON `tmp_consensuses` (`code_hash`, `weights`, `verdict`);"
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `tmp_consensuses_xxx_idx` ON `tmp_consensuses` (`code_hash`, `weights`);"
   SQL.execute_ conn "CREATE INDEX IF NOT EXISTS `tmp_consensuses_yyy_idx` ON `tmp_consensuses` (`weights`);"

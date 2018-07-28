@@ -11,6 +11,7 @@ import           Control.Lens.Operators          hiding ((^.))
 import qualified Data.List.Key                   as K
 import qualified Data.Map                        as Map
 import           Data.Maybe                      (fromJust)
+import           Data.Ord                        (Down(Down))
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
 import           Database.Beam
@@ -70,23 +71,20 @@ executeView Stats = do
   liftIO $  Tab.printTable stats
 executeView (List q) = do
   rs <- Q2.executeQuerySimple q
-  error "niy"
-  -- printFindingsTable rs
+  printFindingsTable rs
 
 executeView (Count q) = do
   n <- Q2.executeQueryCount q
   liftIO $ print n
 executeView (DistributionPerFile q) = do
-  error "niy"
-  -- rs <- Q2.executeQuerySimple q
-  -- let grouped = reverse $ sortOn length $ K.group snd4 $ sortOn snd4  rs
-  -- let counts = map (\fs -> (snd4  (P.head fs), length fs )) grouped
-  -- liftIO $ Tab.printTableWithFlds flds counts
-  -- where
-  --   snd4 (_,p,_,_) = p
-  --   flds = [ Tab.DFld $ maybe "<unknown>" T.unpack . fst
-  --          , Tab.DFld snd
-  --          ]
+  rs <- Q2.executeQuerySimple q
+  let grouped = sortOn (Down . length) $ K.group (^. Q2.findingOrigin) $ sortOn (^. Q2.findingOrigin) rs
+  let counts = map (\fs -> (P.head fs ^. Q2.findingOrigin, length fs )) grouped
+  liftIO $ Tab.printTableWithFlds flds counts
+  where
+    flds = [ Tab.DFld $ T.unpack . fst
+           , Tab.DFld snd
+           ]
 
 executeView (GetProgram hsh) = do
   p <- Q2.getProgramByHash hsh
@@ -234,25 +232,23 @@ parseFocus :: Parser [VerifierName]
 parseFocus = map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
 
 parseQuery2 :: Parser Q2.Query
-parseQuery2 = error "niy"
--- parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete
---   where
---     disagreement = switch (long "disagreement") $> Q2.Disagreement
---     everything = switch (long "everything") $> Q2.Everything
---     unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  Nothing <*> parseAccordingTo
---     incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete Nothing <*> parseAccordingTo
---     parseAccordingTo =  asum [ Just . RelateName <$> option str (long "according-to")
---                              , pure (Just $ ConsensusBy defaultWeights)
---                              ]
---     listOfVerifierNames = map T.strip . T.splitOn "," <$>  str
+parseQuery2 = everything <|> unsound <|> incomplete
+  where
+    everything = switch (long "everything") $> Q2.Everything
+    unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  Nothing <*> parseAccordingTo
+    incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete Nothing <*> parseAccordingTo
+    parseAccordingTo :: Parser Relatee
+    parseAccordingTo =  asum [ RelateName <$> option str (long "according-to")
+                             , pure (ConsensusBy defaultWeights)
+                             ]
+    listOfVerifierNames = map T.strip . T.splitOn "," <$>  str
 
 
+printFindingsTable :: (MonadIO m) => [Q2.Finding] -> m ()
 printFindingsTable rs = liftIO $ Tab.printTableWithFlds dspls rs
   where
-    dspls = [ Tab.DFld (\(r,_,_,_) -> (r ^. runId))
-            , Tab.DFld (\(r,_,_,_) -> T.unpack (r ^. verifierName))
-            , Tab.DFld (\(_,p,_,_) -> maybe " - " T.unpack p)
-            , Tab.DFld (\(r,_,_,_) -> T.unpack (r ^. program))
-            , Tab.DFld (\(_,_,sats,_) -> sats)
-            , Tab.DFld (\(_,_,_,unsats) -> unsats)
+    dspls = [ Tab.DFld (T.unpack . T.take 12 .  programIdToHash . (^. Q2.findingProgramId))
+            , Tab.DFld (T.unpack . (^. Q2.findingOrigin))
+            , Tab.DFld (T.unpack . T.intercalate "," . (^. Q2.findingSatVerifiers))
+            , Tab.DFld (T.unpack . T.intercalate "," . (^. Q2.findingUnsatVerifiers))
             ]
