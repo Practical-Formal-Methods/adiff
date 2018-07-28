@@ -16,17 +16,17 @@ import           VDiff.Util.Tables
 import           VDiff.Verifier
 
 
-verdicts :: (HasDatabase env, HasLogFunc env) => QueryFocus -> RIO env (Int, Int, Int)
+verdicts :: (HasDatabase env, HasLogFunc env) => Maybe [VerifierName] -> RIO env (Int, Int, Int)
 verdicts qf = do
   vs <- runBeam $ runSelectReturningList $ select $ agg $ flt allRuns_
-  let sats = fromMaybe 0 $ lookup Sat vs
-  let unsats = fromMaybe 0 $ lookup Unsat vs
+  let sats    = fromMaybe 0 $ lookup Sat vs
+  let unsats  = fromMaybe 0 $ lookup Unsat vs
   let unknown = fromMaybe 0 $ lookup Unknown vs
   return (sats, unsats, unknown)
  where
    flt = case qf of
-           QueryFocusEverything -> filter_ ( const $ val_ True)
-           QueryFocus vs -> filter_ (\r  -> (r ^. verifierName) `in_` map val_ vs)
+           Nothing -> filter_ ( const $ val_ True)
+           Just vs -> filter_ (\r  -> (r ^. verifierName) `in_` map val_ vs)
    agg = aggregate_ $ \r -> (group_ (r ^. (result . verdict)), countAll_)
 
 
@@ -34,26 +34,35 @@ verdicts qf = do
 relative :: (HasDatabase env, HasLogFunc env)
   => Verdict
   -> Bool
-  -> VerifierName
-  -> VerifierName
+  -> Relatee
+  -> Relatee
   -> RIO env (Integer, Integer)
 relative vrd allowUnknown v1 v2 = do
-  (Just intersection) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, vrd : [Unknown | allowUnknown]), (v2, [vrd]) ]
-  (Just totalV2) <-      runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ programByVerdicts [ (v1, [Sat, Unsat, Unknown])         , (v2, [vrd]) ]
+  (Just intersection) <- runProgramByVerdicts [ (v1, vrd : [Unknown | allowUnknown]), (v2, [vrd]) ]
+  (Just totalV2) <-      runProgramByVerdicts [ (v1, [Sat, Unsat, Unknown])         , (v2, [vrd]) ]
   return (fromIntegral intersection,  fromIntegral totalV2)
+  where
+    runProgramByVerdicts = runBeam . runSelectReturningOne . select . aggregate_ (const countAll_) . programByVerdicts
 
 
 relativeSoundness, relativeCompleteness, relativeRecall, relativePrecision
-  :: (HasDatabase env, HasLogFunc env) => VerifierName -> VerifierName -> RIO env (Integer, Integer)
+  :: (HasDatabase env, HasLogFunc env) => Relatee -> Relatee -> RIO env (Integer, Integer)
 
 relativeSoundness    = relative Sat True
 relativeCompleteness = relative Unsat True
 relativeRecall       = relative Sat False
 relativePrecision    = relative Unsat False
 
-type RelativeTable = Map (VerifierName, VerifierName) (Integer, Integer)
+type RelativeTable = Map (Relatee, Relatee) (Integer, Integer)
 
-overPairs :: (HasDatabase env, HasLogFunc env) => (VerifierName -> VerifierName -> RIO env (Integer,Integer)) -> RIO env RelativeTable
+overPairs :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairs f = do
-  vns <- Q2.verifierNames
+  (vns :: [Relatee]) <- map RelateName <$> Q2.getVerifierNames
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- vns , v2 <- vns]
+
+overPairsWithConsensus :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
+overPairsWithConsensus f = do
+  Q2.ensureConsensusExists defaultWeights
+  vns <- Q2.getVerifierNames
+  let rels = ConsensusBy defaultWeights : [RelateName v | v <- vns]
+  Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- rels, v2 <- rels ]

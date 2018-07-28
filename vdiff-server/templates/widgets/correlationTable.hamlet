@@ -3,10 +3,10 @@
     <tr>
       <td>  
       $forall v <- verifierNames 
-        <td> #{v}
+        <td> #{printRelatee v}
     $forall v1 <- verifierNames
       <tr>
-        <td> #{v1}
+        <td> #{printRelatee v1}
         $forall v2 <- verifierNames
           <td>
             <a href=#{mkLink v1 v2}>

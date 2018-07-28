@@ -1,3 +1,5 @@
+resolver: lts-11.13
+
 flags: {}
 packages:
 - ./vdiff
@@ -10,10 +12,11 @@ extra-deps:
 - pptable-0.3.0.0
 - process-1.6.3.0
 - rio-0.1.0.0
-- beam-sqlite-0.3.2.1
 - wai-middleware-static-embedded-0.1.0.0
 
-resolver: lts-11.13
+# We need at least sqlite 2.3.24
+- git: https://github.com/IreneKnapp/direct-sqlite.git
+  commit: 8e3da41c46b5de19942cc7bf421c3deb5117ba7a
 
 docker:
    enable: true

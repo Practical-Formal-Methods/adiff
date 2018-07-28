@@ -2,27 +2,27 @@
 $(document).ready(function() {
     $('select').formSelect();
     /* restore UI from query */
-    var urlParams = window.location.search;
-    urlParams.substr(1).split("&").forEach(function (param) {
-        ps = param.split("=");
-        if (ps[0] == "q") {
-            var query = decodeURIComponent(ps[1]);
-            queryObj = adjustControls(query);
-        } else if (ps[0] == "qf") {
-            var qf = decodeURIComponent(ps[1]);
-            console.log(qf);
-            var vs = qf.substr(1, qf.length - 2).split(",").map(v => v.substr(1, v.length-2));
-            console.log(vs);
-            setFocusedVerifiers(vs);
-        } else if (ps[0] == "page") {
-            page = ps[1];
-        }
-    });
+    // var urlParams = window.location.search;
+    // urlParams.substr(1).split("&").forEach(function (param) {
+    //     ps = param.split("=");
+    //     if (ps[0] == "q") {
+    //         var query = decodeURIComponent(ps[1]);
+    //         queryObj = adjustControls(query);
+    //     } else if (ps[0] == "qf") {
+    //         var qf = decodeURIComponent(ps[1]);
+    //         console.log(qf);
+    //         var vs = qf.substr(1, qf.length - 2).split(",").map(v => v.substr(1, v.length-2));
+    //         console.log(vs);
+    //         setFocusedVerifiers(vs);
+    //     } else if (ps[0] == "page") {
+    //         page = ps[1];
+    //     }
+    // });
 
     /* bind search button */
-    $('#searchButton').on('click', reloadQuery);
-    $('#suspicion').on('change', suspicionChanged);
-    $('#accordingTo').on('change', accordingToChanged);
+    // $('#searchButton').on('click', reloadQuery);
+    // $('#suspicion').on('change', suspicionChanged);
+    // $('#accordingTo').on('change', accordingToChanged);
 
 });
 

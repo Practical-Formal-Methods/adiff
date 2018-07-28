@@ -27,6 +27,8 @@ dependencies:
 - safe
 - SafeSemaphore
 - containers
+- aeson
+- bytestring
 
 
 library:

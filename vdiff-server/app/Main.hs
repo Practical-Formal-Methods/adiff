@@ -40,16 +40,15 @@ main = runVDiffApp parseServerParameters infos $ \sp -> do
   sema <- liftIO $ Sema.new (maxConcurrentVerifiers sp)
   env <- mkServerEnv sema
 
-  updateTable <- if forceRecount sp
-                 then return True
-                 else Q2.updateCountsTableNecessary
-  when updateTable Q2.updateCountsTableProgressive
-  -- setPragmas
+  -- clean up DB (this is important for the correctness of consensus)
+  Q2.cleanUp
+
+  -- drop temporary entries
+  when (forceRecount sp) Q2.cleanTemporary
+
+  -- start server
   scottyT (port sp) (runRIO env) endpoints
 
--- setPragmas :: (HasDatabase env) => RIO env ()
--- setPragmas = do
---   execute  undefined
 
 mkServerEnv :: Sema.MSemN Int -> RIO MainEnv ServerEnv
 mkServerEnv s = do

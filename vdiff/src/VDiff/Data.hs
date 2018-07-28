@@ -21,6 +21,7 @@ module VDiff.Data (
     Program
   , ProgramT(Program)
   , ProgramId
+  , programIdToHash
   , mkProgram
   , hash
   , origin
@@ -40,16 +41,23 @@ module VDiff.Data (
   , program
   , result
   , iteration
-  -- , result -- TODO: Figure out how to get this lens
+  , resultVerdict
   , runId
   , verifierName
   , toRunId
-  -- * Counts
-  , tmpCounts
-  , CountsT(Counts)
-  , countedRunId
-  , countedSats
-  , countedUnsats
+  -- * Consensus
+  , tmpConsensus
+  , consensusId
+  , consensusProgramId
+  , consensusVerdict
+  , consensusWeights
+  , ConsensusT(Consensus)
+  , Consensus
+  , Weights(Weights)
+  , defaultWeights
+  , weightF
+  , Relatee(RelateName, ConsensusBy)
+  , printRelatee
   -- * Tags
   , tags
   , Tag
@@ -77,8 +85,10 @@ module VDiff.Data (
 import           RIO
 
 import qualified Crypto.Hash.SHA1                 as SHA1
+import           Data.Aeson
 import qualified Data.ByteString.Base16           as Hex
 import qualified Data.ByteString.Char8            as C8
+import qualified Data.List                        as L
 import qualified Data.Text                        as T
 import qualified Data.Text.Encoding               as T
 import           Database.Beam
@@ -158,6 +168,9 @@ data VerifierResultMixin f = VerifierResult
 
 VerifierResult (LensFor wallTime) (LensFor memory) (LensFor verdict) = tableLenses
 
+-- | short-hand lens
+resultVerdict = result . verdict
+
 type VerifierResult = VerifierResultMixin Identity
 
 deriving instance Show VerifierResult
@@ -167,6 +180,9 @@ deriving instance Read VerifierResult
 instance Table ProgramT where
   data PrimaryKey ProgramT f = ProgramId (C f Text) deriving (Generic, Beamable)
   primaryKey = ProgramId . _hash
+
+programIdToHash :: ProgramId -> Text
+programIdToHash (ProgramId x) = x
 
 -- | A run of one verifier on one program
 data  VerifierRunT f = VerifierRun
@@ -220,31 +236,79 @@ Tag (LensFor tagId) (VerifierRunId (LensFor taggedRunId)) (ProgramId (LensFor ta
 
 --------------------------------------------------------------------------------
 
+newtype Weights = Weights [(VerifierName, Int)]
+  deriving (Show, Read, Ord, Eq, Generic, ToJSON, FromJSON)
 
-data CountsT f = Counts
-  { _countId      :: C f Int
-  , _countedRunId :: PrimaryKey VerifierRunT f
-  , _sats         :: C f Int
-  , _unsats       :: C f Int
+
+weightF :: Weights -> VerifierName -> Int
+weightF (Weights m) vn = fromMaybe 0 (lookup vn m)
+
+defaultWeights :: Weights
+defaultWeights = Weights
+  [ ("cbmc", 1)
+  , ("cpachecker", 1)
+  , ("klee", 1)
+  , ("seacrab", 0)
+  , ("seahorn", 1)
+  , ("smack", 1)
+  , ("uautomizer", 1)
+  , ("utaipan", 0)
+  ]
+
+instance (IsSql92DataTypeSyntax s)     => HasDefaultSqlDataType s Weights where
+  defaultSqlDataType _ _ = varCharType Nothing Nothing
+instance (IsSql92ColumnSchemaSyntax s) => HasDefaultSqlDataTypeConstraints s Weights
+instance (IsSql92ExpressionSyntax s)   => HasSqlEqualityCheck s Weights
+instance (HasSqlValueSyntax s Text)    => HasSqlValueSyntax s Weights where
+  sqlValueSyntax (Weights m) = sqlValueSyntax $ tshow $ Weights (L.sort m)
+
+-- TODO: This is a shitty name
+data Relatee = RelateName VerifierName | ConsensusBy Weights
+  deriving (Eq, Show, Ord, Generic, ToJSON, FromJSON)
+
+printRelatee :: Relatee -> Text
+printRelatee (RelateName v)  = v
+printRelatee (ConsensusBy w) = "consensus"
+
+-- | This is also a temporary table
+data ConsensusT f = Consensus
+  { _consensusId        :: C f Int
+  , _consensusProgramId :: PrimaryKey ProgramT f
+  , _consensusWeights   :: C f Weights
+  , _consensusVerdict   :: C f Verdict
   } deriving (Generic, Beamable)
 
-Counts _ (VerifierRunId (LensFor countedRunId)) (LensFor countedSats) (LensFor countedUnsats) = tableLenses
 
-instance Table CountsT where
-  data PrimaryKey CountsT f = CountsId (C f Int) deriving (Generic, Beamable)
-  primaryKey = CountsId . _countId
+instance Table ConsensusT where
+  data PrimaryKey ConsensusT f = ConsensusId (C f Int) deriving (Generic, Beamable)
+  primaryKey = ConsensusId . _consensusId
 
+type Consensus = ConsensusT Identity
 
+Consensus
+  (LensFor consensusId)
+  (ProgramId (LensFor consensusProgramId))
+  (LensFor consensusWeights)
+  (LensFor consensusVerdict)
+  = tableLenses
+--------------------------------------------------------------------------------
+-- The database
 
 --- and now we define the database
 data VDiffDb f = VDiffDb
-  { _runs      :: f (TableEntity VerifierRunT)
-  , _programs  :: f (TableEntity ProgramT)
-  , _tags      :: f (TableEntity TagT)
-  , _tmpCounts :: f (TableEntity CountsT)
+  { _runs         :: f (TableEntity VerifierRunT)
+  , _programs     :: f (TableEntity ProgramT)
+  , _tags         :: f (TableEntity TagT)
+  , _tmpConsensus :: f (TableEntity ConsensusT)
   } deriving Generic
 
-VDiffDb (TableLens runs) (TableLens programs) (TableLens tags) (TableLens tmpCounts)= dbLenses
+
+VDiffDb
+  (TableLens runs)
+  (TableLens programs)
+  (TableLens tags)
+  (TableLens tmpConsensus)
+  = dbLenses
 
 instance Database be VDiffDb
 
@@ -252,10 +316,10 @@ vdiffDbChecked :: CheckedDatabaseSettings be VDiffDb
 vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModification` modification
   where
     modification = dbModification
-      { _runs     = modifyCheckedTable (const "runs") mod_runs
-      , _programs = modifyCheckedTable (const "programs") mod_programs
-      , _tags     = modifyCheckedTable (const "tags") mod_tags
-      , _tmpCounts = modifyCheckedTable (const "tmp_counts") mod_counts
+      { _runs         = modifyCheckedTable (const "runs") mod_runs
+      , _programs     = modifyCheckedTable (const "programs") mod_programs
+      , _tags         = modifyCheckedTable (const "tags") mod_tags
+      , _tmpConsensus = modifyCheckedTable (const "tmp_consensuses") mod_consensuses
       }
     mod_runs = checkedTableModification
       { _runId        = "run_id"
@@ -275,10 +339,11 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
       , _tagName      = "name"
       , _tagValue     = "value"
       }
-    mod_counts = checkedTableModification
-      { _countedRunId = VerifierRunId "run_id"
-      , _sats         = "sats"
-      , _unsats       = "unsats"
+    mod_consensuses = checkedTableModification
+      { _consensusId      = "consensus_id"
+      , _consensusProgramId = ProgramId "code_hash"
+      , _consensusWeights = "weights"
+      , _consensusVerdict = "verdict"
       }
 
 vdiffDb :: DatabaseSettings be VDiffDb
@@ -287,12 +352,6 @@ vdiffDb = unCheckDatabase vdiffDbChecked
 migrateVdiff :: SqliteM ()
 migrateVdiff = autoMigrate migrationBackend vdiffDbChecked
 
-
-
---------------------------------------------------------------------------------
--- SomeDatabasePredicate <- sth. like "HasTmpCountTables"
--- PotentialAction <- sth. like CREATE TEMP TABLE tmp_counts AS ...
--- ActionProvider
 
 --------------------------------------------------------------------------------
 -- Some useful instances
