@@ -53,8 +53,8 @@ endpoints = do
 
 getIndex :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getIndex = do
-  statistics <- lift Q2.stats
-  verifierNames <- lift Q2.verifierNames
+  statistics <- lift Q2.getStatistics
+  verifierNames <- lift Q2.getVerifierNames
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
 
 -- | shows all runs on one instrumented file
@@ -63,7 +63,7 @@ getProgram = do
   hash <- param "hash"
   (runs_ :: [VerifierRun]) <- lift $ runBeam $ runSelectReturningList $ select $ Q2.runsByHash hash
   let runs = groupRuns runs_
-  (Just program) <- lift $ Q2.programByHash hash
+  (Just program) <- lift $ Q2.getProgramByHash hash
   tags <- lift $ Q2.tagsForProgram hash
   defaultLayout ("program: " <> hash) $(shamletFile "templates/program.hamlet")
 
@@ -85,7 +85,7 @@ groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
 
 getFindings :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getFindings = do
-  verifierNames <- lift Q2.verifierNames
+  verifierNames <- lift Q2.getVerifierNames
   q <- fromMaybe Q2.Everything <$> paramJsonMay "q"
   lift $ logInfo $ "processing query: " <> display (tshow q)
   (page :: Integer) <- param "page" `rescue` const (return 1)
@@ -96,14 +96,6 @@ getFindings = do
   pg <- mkPaginationWidget 30 countFindings (fromIntegral page)
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
 
-paramJsonMay :: (JSON.FromJSON a) => LT.Text -> RioActionM env  (Maybe a)
-paramJsonMay n = do
-  (p :: Maybe LBS.ByteString) <- (Just <$> param n) `rescue` const (return Nothing)
-  case p of
-    Nothing -> return Nothing
-    Just p' -> case JSON.eitherDecode p' of
-                 Left err -> raise (LT.pack err)
-                 Right x  -> return $ Just x
 
 
 getScratch ::  (HasDatabase env, HasLogFunc env) => RioActionM env ()
@@ -113,7 +105,7 @@ getScratch = do
   code <- case pid of
     Nothing -> return "int main(){...}" -- TODO add default stuff
     Just pid -> do
-      (Just p) <- lift $ Q2.programByHash pid
+      (Just p) <- lift $ Q2.getProgramByHash pid
       return $ p ^. source
 
   defaultLayout "Scratchpad" $(shamletFile "templates/scratchpad.hamlet")

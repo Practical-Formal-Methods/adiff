@@ -57,11 +57,12 @@ type RelativeTable = Map (Relatee, Relatee) (Integer, Integer)
 
 overPairs :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairs f = do
-  (vns :: [Relatee]) <- map RelateName <$> Q2.verifierNames
+  (vns :: [Relatee]) <- map RelateName <$> Q2.getVerifierNames
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- vns , v2 <- vns]
 
 overPairsWithConsensus :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairsWithConsensus f = do
-  vns <- Q2.verifierNames
+  Q2.ensureConsensusExists defaultWeights
+  vns <- Q2.getVerifierNames
   let rels = ConsensusBy defaultWeights : [RelateName v | v <- vns]
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- rels, v2 <- rels ]

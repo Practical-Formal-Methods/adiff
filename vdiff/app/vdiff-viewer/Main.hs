@@ -66,7 +66,7 @@ instance Tab.Tabulate VerifierRun Tab.ExpandWhenNested
 
 executeView :: (HasMainEnv env) => ViewCommand -> RIO env ()
 executeView Stats = do
-  stats <- Q2.stats
+  stats <- Q2.getStatistics
   liftIO $  Tab.printTable stats
 executeView (List q) = do
   rs <- Q2.executeQuerySimple q
@@ -89,19 +89,14 @@ executeView (DistributionPerFile q) = do
   --          ]
 
 executeView (GetProgram hsh) = do
-  p <- Q2.programByHash hsh
+  p <- Q2.getProgramByHash hsh
   liftIO $ case p of
     Just p' -> T.putStr (p' ^. source)
     Nothing -> do
       T.hPutStrLn stderr $ "could not find program with hash: " <> hsh
       exitFailure
 
-executeView (Runs hsh)
-  | hsh == "all" = do
-      -- this is purely experimental, I just want to see how much memory this would need
-      runs <- runBeam $ runSelectReturningList $ select $ Q2.allRuns_
-      liftIO $ print runs
-  | otherwise = do
+executeView (Runs hsh) = do
   runs <- Q2.runsByHashR hsh
   liftIO $ Tab.printTableWithFlds flds runs
   where

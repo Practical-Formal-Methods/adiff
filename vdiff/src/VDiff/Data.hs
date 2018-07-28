@@ -41,16 +41,10 @@ module VDiff.Data (
   , program
   , result
   , iteration
-  -- , result -- TODO: Figure out how to get this lens
+  , resultVerdict
   , runId
   , verifierName
   , toRunId
-  -- * Counts
-  , tmpCounts
-  , CountsT(Counts)
-  , countedRunId
-  , countedSats
-  , countedUnsats
   -- * Consensus
   , tmpConsensus
   , consensusId
@@ -174,6 +168,9 @@ data VerifierResultMixin f = VerifierResult
 
 VerifierResult (LensFor wallTime) (LensFor memory) (LensFor verdict) = tableLenses
 
+-- | short-hand lens
+resultVerdict = result . verdict
+
 type VerifierResult = VerifierResultMixin Identity
 
 deriving instance Show VerifierResult
@@ -239,20 +236,6 @@ Tag (LensFor tagId) (VerifierRunId (LensFor taggedRunId)) (ProgramId (LensFor ta
 
 --------------------------------------------------------------------------------
 
-
-data CountsT f = Counts
-  { _countId      :: C f Int
-  , _countedRunId :: PrimaryKey VerifierRunT f
-  , _sats         :: C f Int
-  , _unsats       :: C f Int
-  } deriving (Generic, Beamable)
-
-Counts _ (VerifierRunId (LensFor countedRunId)) (LensFor countedSats) (LensFor countedUnsats) = tableLenses
-
-instance Table CountsT where
-  data PrimaryKey CountsT f = CountsId (C f Int) deriving (Generic, Beamable)
-  primaryKey = CountsId . _countId
-
 newtype Weights = Weights [(VerifierName, Int)]
   deriving (Show, Read, Ord, Eq, Generic, ToJSON, FromJSON)
 
@@ -272,11 +255,11 @@ defaultWeights = Weights
   , ("utaipan", 0)
   ]
 
-instance (IsSql92DataTypeSyntax s) => HasDefaultSqlDataType s Weights where
+instance (IsSql92DataTypeSyntax s)     => HasDefaultSqlDataType s Weights where
   defaultSqlDataType _ _ = varCharType Nothing Nothing
 instance (IsSql92ColumnSchemaSyntax s) => HasDefaultSqlDataTypeConstraints s Weights
-instance (IsSql92ExpressionSyntax s) => HasSqlEqualityCheck s Weights
-instance (HasSqlValueSyntax s Text) => HasSqlValueSyntax s Weights where
+instance (IsSql92ExpressionSyntax s)   => HasSqlEqualityCheck s Weights
+instance (HasSqlValueSyntax s Text)    => HasSqlValueSyntax s Weights where
   sqlValueSyntax (Weights m) = sqlValueSyntax $ tshow $ Weights (L.sort m)
 
 -- TODO: This is a shitty name
@@ -316,7 +299,6 @@ data VDiffDb f = VDiffDb
   { _runs         :: f (TableEntity VerifierRunT)
   , _programs     :: f (TableEntity ProgramT)
   , _tags         :: f (TableEntity TagT)
-  , _tmpCounts    :: f (TableEntity CountsT)
   , _tmpConsensus :: f (TableEntity ConsensusT)
   } deriving Generic
 
@@ -325,7 +307,6 @@ VDiffDb
   (TableLens runs)
   (TableLens programs)
   (TableLens tags)
-  (TableLens tmpCounts)
   (TableLens tmpConsensus)
   = dbLenses
 
@@ -338,7 +319,6 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
       { _runs         = modifyCheckedTable (const "runs") mod_runs
       , _programs     = modifyCheckedTable (const "programs") mod_programs
       , _tags         = modifyCheckedTable (const "tags") mod_tags
-      , _tmpCounts    = modifyCheckedTable (const "tmp_counts") mod_counts
       , _tmpConsensus = modifyCheckedTable (const "tmp_consensuses") mod_consensuses
       }
     mod_runs = checkedTableModification
@@ -359,11 +339,6 @@ vdiffDbChecked = defaultMigratableDbSettings @SqliteCommandSyntax `withDbModific
       , _tagName      = "name"
       , _tagValue     = "value"
       }
-    mod_counts = checkedTableModification
-      { _countedRunId = VerifierRunId "run_id"
-      , _sats         = "sats"
-      , _unsats       = "unsats"
-      }
     mod_consensuses = checkedTableModification
       { _consensusId      = "consensus_id"
       , _consensusProgramId = ProgramId "code_hash"
@@ -377,12 +352,6 @@ vdiffDb = unCheckDatabase vdiffDbChecked
 migrateVdiff :: SqliteM ()
 migrateVdiff = autoMigrate migrationBackend vdiffDbChecked
 
-
-
---------------------------------------------------------------------------------
--- SomeDatabasePredicate <- sth. like "HasTmpCountTables"
--- PotentialAction <- sth. like CREATE TEMP TABLE tmp_counts AS ...
--- ActionProvider
 
 --------------------------------------------------------------------------------
 -- Some useful instances
