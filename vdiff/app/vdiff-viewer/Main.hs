@@ -11,6 +11,7 @@ import           Control.Lens.Operators          hiding ((^.))
 import qualified Data.List.Key                   as K
 import qualified Data.Map                        as Map
 import           Data.Maybe                      (fromJust)
+import           Data.Ord                        (Down (Down))
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
 import qualified Database.SQLite.Simple.Extended as SQL

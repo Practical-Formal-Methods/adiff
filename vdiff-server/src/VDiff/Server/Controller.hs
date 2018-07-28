@@ -28,6 +28,7 @@ import           Database.Beam.Sqlite
 import           Network.Wai.Middleware.StaticEmbedded
 import           Numeric
 import           VDiff.Data
+import           VDiff.Execute
 import           VDiff.Persistence
 import qualified VDiff.Query2                          as Q2
 import           VDiff.Statistics
@@ -123,14 +124,11 @@ postRunVerifier :: (HasLogFunc env, HasSemaphore env) => RioActionM env ()
 postRunVerifier = do
   source <- param "source"
   timeout <- (*1000000) . read <$> param "timeout"
-  (Just v) <- lookupVerifier <$> param "verifier"
-
+  vn <- param "verifier"
   sema <- lift $ view semaphore
   -- execute verifier here inside a semaphore-protected area
-  res <- lift $ with' sema 1 $ withSystemTempFile "program.c" $ \fp h -> do
-    liftIO $ T.hPutStr h source >> hFlush h
-    venv <- mkVerifierEnv timeout []
-    runRIO venv $ execute v fp
+  res <- lift $ with' sema 1 $
+    executeVerifierInDocker (defaultVerifierResources timeout) vn [] source
 
   html $ LT.fromStrict $ tshow (res ^. verdict)
 
