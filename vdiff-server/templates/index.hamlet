@@ -1,5 +1,5 @@
 <div class="container">
-  <a href="/findings?q=Everything&qf=#{tshow verifierNames}">
+  <a href="/findings">
     <h3>
       Go to Findings
   <a href="/overview">

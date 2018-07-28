@@ -1,55 +1,23 @@
 
 <!-- page buttons -->
 <ul.pagination>
-  $if showLeftArr
-    <li>
-      <a href="?page=1&q=#{qstring}&qf=#{qfstring}">
-        <i.material-icons>
-          first_page
-    <li>
-      <a href="?page=#{prevPage}&q=#{qstring}&qf=#{qfstring}">
-        <i.material-icons>
-          chevron_left
-  $else
-    <li.disabled>
-      <a href="?page=1&q=#{qstring}&qf=#{qfstring}">
-        <i.material-icons>
-          first_page
-    <li.disabled>
-      <a>
-        <i.material-icons>
-          chevron_left
+    <li class="#{showLeftArr}"><button type="submit"  name="page" value="1" class="btn btn-small" #{showLeftArr}><i class="material-icons">first_page</i></button>
+    <li class="#{showLeftArr}"><button type="submit"  name="page" value="#{prevPage}" class="btn btn-small" #{showLeftArr}><i class="material-icons">chevron_left</i></button>
       
   
   $forall i <- pages
     $if i == page
       <li.active>
-        <a.waves-effect href="?page=#{i}&q=#{qstring}&qf=#{qfstring}">
+        <button type="submit" name="page" value="#{i}" class="btn btn-small teal darken-5">
           #{ show i }
     $elseif i == -1
-      <li>
-        <a>
+      <li.disabled>
+        <button class="btn btn-small disabled grey">
           &#8230;
     $else
       <li>
-        <a.waves-effect href="?page=#{i}&q=#{qstring}&qf=#{qfstring}">
+        <button type="submit" name="page" value="#{i}" class="btn btn-small">
           #{ show i }
-      
-  $if showRightArr
-    <li>
-      <a href="?page=#{nextPage}&q=#{qstring}&qf=#{qfstring}">
-        <i.material-icons>
-          chevron_right
-    <li>
-      <a href="?page=#{numPages}">
-        <i.material-icons>
-          last_page
-  $else
-    <li.disabled>
-      <a>
-        <i.material-icons>
-          chevron_right
-    <li.disabled>
-      <a href="?page=#{numPages}">
-        <i.material-icons>
-          last_page
+
+  <li class="#{showRightArr}"><button type="submit"  name="page" value="#{nextPage}" class="btn btn-small" #{showRightArr}><i class="material-icons">chevron_right</i></button>
+  <li class="#{showRightArr}"><button type="submit"  name="page" value="#{numPages}" class="btn btn-small" #{showRightArr}><i class="material-icons">last_page</i></button>

@@ -16,6 +16,9 @@ import           VDiff.Server.Prelude
 import           VDiff.Server.Widgets
 
 import qualified Control.Concurrent.MSemN              as Sema
+import qualified Data.Aeson                            as JSON
+import qualified Data.Aeson.Text                       as JSON
+import qualified Data.ByteString.Lazy                  as LBS
 import           Data.FileEmbed
 import           Data.List
 import qualified Data.Map                              as Map
@@ -48,12 +51,10 @@ endpoints = do
   middleware (static $(embedDir "static"))
 
 
-
-
 getIndex :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getIndex = do
-  statistics <- lift Q2.stats
-  verifierNames <- lift Q2.verifierNames
+  statistics <- lift Q2.getStatistics
+  verifierNames <- lift Q2.getVerifierNames
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
 
 -- | shows all runs on one instrumented file
@@ -62,7 +63,7 @@ getProgram = do
   hash <- param "hash"
   (runs_ :: [VerifierRun]) <- lift $ runBeam $ runSelectReturningList $ select $ Q2.runsByHash hash
   let runs = groupRuns runs_
-  (Just program) <- lift $ Q2.programByHash hash
+  (Just program) <- lift $ Q2.getProgramByHash hash
   tags <- lift $ Q2.tagsForProgram hash
   defaultLayout ("program: " <> hash) $(shamletFile "templates/program.hamlet")
 
@@ -84,26 +85,16 @@ groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
 
 getFindings :: (HasDatabase env, HasLogFunc env) => RioActionM env ()
 getFindings = do
-  verifierNames <- lift Q2.verifierNames
-  (qstring :: Text) <- param "q"
-  (q :: Q2.Query) <- param "q"
+  verifierNames <- lift Q2.getVerifierNames
+  q <- fromMaybe Q2.Everything <$> paramJsonMay "q"
+  lift $ logInfo $ "processing query: " <> display (tshow q)
   (page :: Integer) <- param "page" `rescue` const (return 1)
-  (qf :: Q2.QueryFocus) <- param "qf" `rescue` const (return $ Q2.QueryFocus verifierNames)
-  (qfstring :: Text) <- param "qf" `rescue` const (return $ tshow verifierNames)
   let pageSize = 30
   let offset = (page - 1) * 30
-  countFindings <- lift $ Q2.executeQueryCount qf q
-  findings <- lift $ Q2.executeQuery pageSize offset qf q
-  pg <- mkPaginationWidget 30 countFindings (fromIntegral page) qstring qfstring
+  countFindings <- lift $ Q2.executeQueryCount q
+  findings <- lift $ Q2.executeQuery pageSize offset q
+  pg <- mkPaginationWidget 30 countFindings (fromIntegral page)
   defaultLayout "Findings" $(shamletFile "templates/findings.hamlet")
-
-instance Parsable Q2.Query where
-    parseParam = mapLeft LT.fromStrict . Q2.parseQuery . LT.toStrict
-
-instance Parsable Q2.QueryFocus where
- parseParam p = case readMay (LT.unpack p) of
-                  Nothing -> Left "xx"
-                  Just vs -> Right $ Q2.QueryFocus vs
 
 
 
@@ -114,7 +105,7 @@ getScratch = do
   code <- case pid of
     Nothing -> return "int main(){...}" -- TODO add default stuff
     Just pid -> do
-      (Just p) <- lift $ Q2.programByHash pid
+      (Just p) <- lift $ Q2.getProgramByHash pid
       return $ p ^. source
 
   defaultLayout "Scratchpad" $(shamletFile "templates/scratchpad.hamlet")
@@ -143,20 +134,20 @@ getOverview = do
     case x of
       Just y  -> return y
       Nothing -> do
-        y <- lift $ (,,,) <$> overPairs relativeSoundness
-                          <*> overPairs relativeCompleteness
-                          <*> overPairs relativeRecall
-                          <*> overPairs relativePrecision
+        y <- lift $ (,,,) <$> overPairsWithConsensus relativeSoundness
+                          <*> overPairsWithConsensus relativeCompleteness
+                          <*> overPairsWithConsensus relativeRecall
+                          <*> overPairsWithConsensus relativePrecision
         writeIORef ref (Just y)
         return y
 
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
-    mkUnsoundnessLink, mkIncompletenessLink :: VerifierName -> VerifierName -> Text
-    mkUnsoundnessLink v1 v2 = "/findings?q=Query SuspicionUnsound (AnyOf [%22"<> v2 <> "%22])&qf=[%22" <> v1 <> "%22]"
-    mkIncompletenessLink v1 v2 = "/findings?q=Query SuspicionIncomplete (AnyOf [%22"<> v2 <> "%22])&qf=[%22" <> v1 <> "%22]"
-    mkPrecisionLink _ _ = "#"
-    mkRecallLink _ _ = "#"
+    mkUnsoundnessLink, mkIncompletenessLink :: Relatee -> Relatee -> LT.Text
+    mkUnsoundnessLink v1 v2    = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionUnsound  (Just v1) v2)
+    mkIncompletenessLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
+    mkPrecisionLink _ _        = "#"
+    mkRecallLink _ _           = "#"
 
 --------------------------------------------------------------------------------
 with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a

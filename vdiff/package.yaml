@@ -104,8 +104,8 @@ dependencies:
   - process >= 1.6.3
   - random
   - safe
-  - sqlite-simple
-  - direct-sqlite
+  - sqlite-simple 
+  - direct-sqlite >= 2.3.24
   - transformers
   - mtl
   - text
@@ -122,8 +122,8 @@ dependencies:
   - MonadRandom
   - filepath
   - utility-ht
-  - beam-core
-  - beam-sqlite
+  - beam-core >= 0.7.2.1
+  - beam-sqlite >= 0.3.2.1
   - beam-migrate
   - time
   - megaparsec
@@ -132,4 +132,5 @@ dependencies:
   - docker
   - stm
   - resource-pool
+  - aeson
   

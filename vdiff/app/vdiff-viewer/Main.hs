@@ -11,8 +11,10 @@ import           Control.Lens.Operators          hiding ((^.))
 import qualified Data.List.Key                   as K
 import qualified Data.Map                        as Map
 import           Data.Maybe                      (fromJust)
+import           Data.Ord                        (Down(Down))
 import qualified Data.Text                       as T
 import qualified Data.Text.IO                    as T
+import           Database.Beam
 import qualified Database.SQLite.Simple.Extended as SQL
 import           Numeric
 import qualified Prelude                         as P
@@ -65,28 +67,27 @@ instance Tab.Tabulate VerifierRun Tab.ExpandWhenNested
 
 executeView :: (HasMainEnv env) => ViewCommand -> RIO env ()
 executeView Stats = do
-  stats <- Q2.stats
+  stats <- Q2.getStatistics
   liftIO $  Tab.printTable stats
 executeView (List q) = do
   rs <- Q2.executeQuerySimple q
   printFindingsTable rs
 
 executeView (Count q) = do
-  n <- Q2.executeQueryCount Q2.QueryFocusEverything q
+  n <- Q2.executeQueryCount q
   liftIO $ print n
 executeView (DistributionPerFile q) = do
   rs <- Q2.executeQuerySimple q
-  let grouped = reverse $ sortOn length $ K.group snd4 $ sortOn snd4  rs
-  let counts = map (\fs -> (snd4  (P.head fs), length fs )) grouped
+  let grouped = sortOn (Down . length) $ K.group (^. Q2.findingOrigin) $ sortOn (^. Q2.findingOrigin) rs
+  let counts = map (\fs -> (P.head fs ^. Q2.findingOrigin, length fs )) grouped
   liftIO $ Tab.printTableWithFlds flds counts
   where
-    snd4 (_,p,_,_) = p
-    flds = [ Tab.DFld $ maybe "<unknown>" T.unpack . fst
+    flds = [ Tab.DFld $ T.unpack . fst
            , Tab.DFld snd
            ]
 
 executeView (GetProgram hsh) = do
-  p <- Q2.programByHash hsh
+  p <- Q2.getProgramByHash hsh
   liftIO $ case p of
     Just p' -> T.putStr (p' ^. source)
     Nothing -> do
@@ -110,7 +111,7 @@ executeView (MergeOldList file) = do
   mergeFiles files
 
 executeView Verdicts = do
-  stats <- mapM  (\v -> (v ^. name,) <$>  Statistics.verdicts (Q2.QueryFocus [v ^. name])) allVerifiers
+  stats <- mapM  (\v -> (v ^. name,) <$>  Statistics.verdicts (Just [v ^. name])) allVerifiers
   let tbl = Tbl.table $ Tbl.row ["verifier", "sats", "unsats", "unknown"] : map (Tbl.toRow . (\(x,(a,b,c)) -> (x,a,b,c))) stats
   liftIO $ T.putStr $ Tbl.renderTable tbl
 
@@ -118,12 +119,13 @@ executeView (RelativeInclusion vrd ignoreUnknown) = do
   tbl <- Statistics.overPairs (Statistics.relative vrd ignoreUnknown)
   liftIO $ T.putStr $ Tbl.renderTable $ mkTable tbl
   where
-    verifierNames = map (^. name) allVerifiers
-    mkTable m = Tbl.table $ headers : [mkRow v1 | v1 <- verifierNames]
+    relatees = [ RelateName (v ^. name) | v <- allVerifiers ] ++ [ConsensusBy defaultWeights]
+    mkTable :: Map (Relatee, Relatee) (Integer, Integer) -> Tbl.Table
+    mkTable m = Tbl.table $ headers : [mkRow r1 | r1 <- relatees ]
       where
-        mkRow v1 = Tbl.row $ v1 : [ mkCell v1 v2 | v2 <- verifierNames]
-        mkCell  v1 v2 = formatCorrelation $ fromJust $ Map.lookup (v1,v2) m
-        headers = Tbl.row $ "  " : verifierNames
+        mkRow r1 = Tbl.row $ printRelatee r1 : [ mkCell r1 r2 | r2 <- relatees]
+        mkCell  r1 r2 = formatCorrelation $ fromJust $ Map.lookup (r1, r2) m
+        headers = Tbl.row $ "  " : map printRelatee relatees
 
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files =
@@ -226,28 +228,27 @@ relativeInclusionCmd = switch (long "relative-soundness")    $> RelativeInclusio
                        switch (long "relative-precision")    $> RelativeInclusion Unsat False
 
 
-parseFocus = Q2.QueryFocus . map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
+parseFocus :: Parser [VerifierName]
+parseFocus = map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
 
 parseQuery2 :: Parser Q2.Query
-parseQuery2 = disagreement  <|> everything <|> unsound <|> incomplete
+parseQuery2 = everything <|> unsound <|> incomplete
   where
-    disagreement = switch (long "disagreement") $> Q2.Disagreement
     everything = switch (long "everything") $> Q2.Everything
-    unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  <*> parseAccordingTo
-    incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete <*> parseAccordingTo
-    parseAccordingTo =  asum [ Q2.AnyOf <$> option listOfVerifierNames (long "according-to-any-of")
-                             , Q2.AllOf <$> option listOfVerifierNames (long "according-to-all-of")
-                             , pure Q2.Majority
+    unsound = switch (long "unsound") $> Q2.Query Q2.SuspicionUnsound  Nothing <*> parseAccordingTo
+    incomplete = switch (long "incomplete") $> Q2.Query Q2.SuspicionIncomplete Nothing <*> parseAccordingTo
+    parseAccordingTo :: Parser Relatee
+    parseAccordingTo =  asum [ RelateName <$> option str (long "according-to")
+                             , pure (ConsensusBy defaultWeights)
                              ]
     listOfVerifierNames = map T.strip . T.splitOn "," <$>  str
 
 
+printFindingsTable :: (MonadIO m) => [Q2.Finding] -> m ()
 printFindingsTable rs = liftIO $ Tab.printTableWithFlds dspls rs
   where
-    dspls = [ Tab.DFld (\(r,_,_,_) -> (r ^. runId))
-            , Tab.DFld (\(r,_,_,_) -> T.unpack (r ^. verifierName))
-            , Tab.DFld (\(_,p,_,_) -> maybe " - " T.unpack p)
-            , Tab.DFld (\(r,_,_,_) -> T.unpack (r ^. program))
-            , Tab.DFld (\(_,_,sats,_) -> sats)
-            , Tab.DFld (\(_,_,_,unsats) -> unsats)
+    dspls = [ Tab.DFld (T.unpack . T.take 12 .  programIdToHash . (^. Q2.findingProgramId))
+            , Tab.DFld (T.unpack . (^. Q2.findingOrigin))
+            , Tab.DFld (T.unpack . T.intercalate "," . (^. Q2.findingSatVerifiers))
+            , Tab.DFld (T.unpack . T.intercalate "," . (^. Q2.findingUnsatVerifiers))
             ]

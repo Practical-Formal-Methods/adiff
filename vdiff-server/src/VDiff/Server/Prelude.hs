@@ -13,11 +13,14 @@ module VDiff.Server.Prelude
 
 import           Control.Concurrent.MSemN
 import qualified Data.Text.Lazy                as LT
+import qualified Data.ByteString.Lazy                  as LBS
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import           Text.Hamlet
 import           VDiff.Prelude                 hiding (body, showError)
 import           VDiff.Statistics
 import           Web.Scotty.Trans
+import qualified Data.Aeson                            as JSON
+import qualified Data.Aeson.Text                       as JSON
 
 
 --------------------------------------------------------------------------------
@@ -65,4 +68,14 @@ defaultTemplate title content = $(shamletFile "templates/template.hamlet")
 
 defaultLayout title content = raw $ renderHtml $ defaultTemplate title content
 
+paramMay :: (Parsable a, Monad m, ScottyError e) => LT.Text -> ActionT e m (Maybe a)
 paramMay n = (Just <$> param n) `rescue` const (return Nothing)
+
+paramJsonMay :: (JSON.FromJSON a) => LT.Text -> RioActionM env  (Maybe a)
+paramJsonMay n = do
+  p <- (Just <$> param n) `rescue` const (return Nothing)
+  case p of
+    Nothing -> return Nothing
+    Just p' -> case JSON.eitherDecode p' of
+                 Left err -> raise (LT.pack err)
+                 Right x  -> return $ Just x

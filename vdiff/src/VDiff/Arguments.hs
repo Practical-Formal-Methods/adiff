@@ -50,14 +50,6 @@ verifiers = option verifierList options
 
 
 
-verifierFlags = undefined
--- verifierFlags :: Parser (Map VerifierName [Text])
--- verifierFlags = foldl' addToMap Map.empty <$> many flagParsers
---   where
---     addToMap m (v,f) = Map.insertWith (++) v [f] m
---     flagParsers      = asum $ map (mkFlagParser . (^. name))  allVerifiers
---     mkFlagParser v   = (v,) <$> option strText (long (T.unpack v ++ "-flags"))
-
 strText :: ReadM Text
 strText = str
 
