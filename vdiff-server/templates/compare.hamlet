@@ -1,0 +1,27 @@
+<h3>
+  Comparison:  
+
+<div class="row">
+  <form method="GET">
+    <div class="input-field col s4">
+      <select name="v1">
+        $forall vn <-vns
+          <div><option value="#{vn}" #{selectIfEqual mv1 vn} > #{vn}</option>
+
+    <div class="input-field col s4">
+      <select name="v2">
+        $forall vn <-vns
+          <option value="#{vn}">#{vn}
+
+    <div class="col s4 input-field">
+      <button type="submit" class="btn center">
+        Update
+
+<div class="row">
+  $case mTableWidget
+    $of Nothing
+    $of Just tableWidget  
+      ^{tableWidget}
+
+
+<script src="/js/compare.js">

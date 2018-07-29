@@ -46,6 +46,7 @@ endpoints = do
   get "/program/:hash" getProgram
   get "/findings/" getFindings
   get "/scratchpad" getScratch
+  get "/compare/" getCompare
   post "/run-verifier" postRunVerifier
 
   -- install static middleware
@@ -146,6 +147,24 @@ getOverview = do
     mkIncompletenessLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
     mkPrecisionLink _ _        = "#"
     mkRecallLink _ _           = "#"
+
+getCompare :: (HasDatabase env, HasOverviewCache env, HasLogFunc env) => RioActionM env ()
+getCompare = do
+  (mv1 :: Maybe VerifierName) <- paramMay "v1"
+  (mv2 :: Maybe VerifierName) <- paramMay "v2"
+  vns <- lift Q2.getVerifierNames
+
+  mTableWidget <- case (mv1, mv2) of
+    (Just v1, Just v2) ->  do
+      (bigN, tbl) <- lift $ getBinaryComparison (RelateName v1) (RelateName v2)
+      Just <$> mkBinaryComparisonTableWidget v1 v2 bigN tbl
+    otherwise          -> return Nothing
+
+  defaultLayout "Compare" $(shamletFile "templates/compare.hamlet")
+  where
+    selectIfEqual :: Maybe VerifierName -> VerifierName -> Text
+    selectIfEqual (Just v1) v2 = if v1 == v2 then "selected" else ""
+    selectIfEqual _ _          = ""
 
 --------------------------------------------------------------------------------
 with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a -> m a

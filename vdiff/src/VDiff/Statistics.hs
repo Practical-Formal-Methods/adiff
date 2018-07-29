@@ -8,6 +8,7 @@ import           Data.List            (intersperse)
 import qualified Data.Map             as Map
 import           Database.Beam
 import           Database.Beam.Sqlite
+import Data.Maybe (fromJust)
 import           VDiff.Data
 import           VDiff.Persistence
 import           VDiff.Prelude
@@ -54,6 +55,21 @@ relativeRecall       = relative Sat False
 relativePrecision    = relative Unsat False
 
 type RelativeTable = Map (Relatee, Relatee) (Integer, Integer)
+
+
+getBinaryComparison :: (HasDatabase env, HasLogFunc env) => Relatee -> Relatee -> RIO env (Int, Map (Verdict, Verdict) Int)
+getBinaryComparison r1 r2 = do
+  -- find the number of programs for which we have runs of both r1 and r2
+  bigN <- runCount $ programByVerdicts [(r1, allVerdicts), (r2, allVerdicts)]
+  pairs <- forM [(vrd1, vrd2) | vrd1 <- allVerdicts, vrd2 <- allVerdicts] $ \(vrd1, vrd2) -> do
+    n <- runCount $ programByVerdicts [(r1, [vrd1]), (r2, [vrd2])]
+    return ((vrd1, vrd2), n)
+  return (bigN, Map.fromList pairs)
+  where
+    allVerdicts = [Sat, Unsat, Unknown]
+    runCount = fmap fromJust . runBeam . runSelectReturningOne . select . aggregate_ (const countAll_)
+
+--------------------------------------------------------------------------------
 
 overPairs :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
 overPairs f = do

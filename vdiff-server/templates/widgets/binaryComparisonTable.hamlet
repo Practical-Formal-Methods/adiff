@@ -1,0 +1,33 @@
+<table>
+  <tr>
+    <th>  
+    <th> 
+    <th colspan="3">
+      #{v2}
+  <tr>
+    <th rowspan="4"> #{v1}
+    <td> #{bigN}
+    <th> Sat
+    <th> Unknown
+    <th> Unsat
+  <tr>
+    <th> Sat
+    <td> ^{renderCell Sat Sat}
+    <td> ^{renderCell Sat Unknown}
+    <td> ^{renderCell Sat Unsat}
+  <tr>
+    <th> Unknown 
+    <td> ^{renderCell Unknown Sat}
+    <td> ^{renderCell Unknown Unknown}
+    <td> ^{renderCell Unknown Unsat}
+  <tr>
+    <th> Unsat 
+    <td> ^{renderCell Unsat Sat}
+    <td> ^{renderCell Unsat Unknown}
+    <td> ^{renderCell Unsat Unsat}
+
+
+
+
+
+

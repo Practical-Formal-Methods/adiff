@@ -39,6 +39,7 @@ import           VDiff.Prelude                            hiding (Disagreement)
 -- a generalized query interface:
 data Query
   = Query Suspicion (Maybe Relatee) Relatee
+  | ByVerdict [(Relatee, [Verdict])]
   | Disagreement
   | Ties
   | Everything
@@ -98,6 +99,7 @@ compileQuery= \case
   (Query SuspicionIncomplete Nothing r2)   -> filter_ (\(_,_,satCount,_,_,_) -> satCount >. 0) $ findingsByVerdicts [(r2, [Unsat])]
   (Query SuspicionUnsound (Just r1) r2)    -> findingsByVerdicts [(r1, [Unsat]), (r2, [Sat])]
   (Query SuspicionUnsound Nothing r2)      -> filter_ (\(_,_,_, unsatCount,_,_) -> unsatCount >. 0) $ findingsByVerdicts [(r2, [Sat])]
+  (ByVerdict vrds) -> findingsByVerdicts vrds
   Everything -> findingsByVerdicts []
 
 

@@ -130,7 +130,7 @@ deriving instance Eq Program
 --------------------------------------------------------------------------------
 
 data Verdict = Sat | Unsat | Unknown
-      deriving (Show, Read, Eq, Ord, Enum)
+      deriving (Show, Read, Eq, Ord, Enum, Generic, ToJSON, FromJSON)
 
 instance (IsSql92DataTypeSyntax s) => HasDefaultSqlDataType s Verdict where
   defaultSqlDataType _ _ = varCharType Nothing Nothing

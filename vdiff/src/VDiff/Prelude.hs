@@ -55,7 +55,7 @@ displayList xs = mconcat $ intersperse ", " (map display xs)
 -- formats rational numbers between 0.00 and 1.00 by rounding to up to 2 decimal
 -- digits but ensures that a number that is bigger then 0 will never be rounded
 -- to 0.00 and that a number smaller than 1 will never be rounded to 1.
-formatCorrelation :: (Integer, Integer)-> Text
+formatCorrelation :: (Integral n) => (n, n) -> Text
 formatCorrelation (num,denum) =
   if
     | denum == 0 ->  " "
@@ -63,7 +63,7 @@ formatCorrelation (num,denum) =
     | s == "1.00" && (num % denum) < 1 -> "< 1"
     | otherwise -> T.pack s
   where
-    s = Numeric.showFFloat (Just 2) (fromInteger num / fromInteger denum) ""
+    s = Numeric.showFFloat (Just 2) (fromIntegral num / fromIntegral denum) ""
 
 instance Display ContainerID where
   display = display . T.take 12 . fromContainerID

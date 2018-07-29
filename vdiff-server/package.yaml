@@ -29,6 +29,7 @@ dependencies:
 - containers
 - aeson
 - bytestring
+- http-types
 
 
 library:
