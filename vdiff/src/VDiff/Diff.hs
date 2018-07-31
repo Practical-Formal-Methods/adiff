@@ -82,9 +82,10 @@ cmdRunVerifiers dp = do
   source <- readFileUtf8 (dp ^. inputFile)
   pool <- newResourcePool (dp ^. verifierResources)
   logInfo $ "created pool with " <> display (length $ dp ^. verifierResources) <> " verifier resources"
-  runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, _) r -> do
+  runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, newName) r -> do
     result <- executeVerifierInDocker r vn flags source
-    printD $ display vn <> ":\t " <> display (tshow $ result ^. verdict)
+    let name = fromMaybe vn newName
+    printD $ display name <> ":\t " <> display (tshow $ result ^. verdict)
   return ()
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
