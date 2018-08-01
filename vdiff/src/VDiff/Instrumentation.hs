@@ -9,6 +9,7 @@ module VDiff.Instrumentation
  (
    -- * Handling C files
   openCFile
+ , defaultTypechecker
  , preprocess
  , maskAsserts
  , defineAssert
@@ -57,10 +58,12 @@ import qualified VDiff.Instrumentation.Fragments   as Fragments
 import           VDiff.Instrumentation.Reads
 
 
+defaultTypechecker :: Typechecker
+defaultTypechecker tu = runTrav_ (analyseAST tu)
 
 -- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
-openCFile :: HasLogFunc env => FilePath -> RIO env (Maybe TU)
-openCFile fn = do
+openCFile :: HasLogFunc env => Typechecker -> FilePath -> RIO env (Maybe TU)
+openCFile typechecker fn = do
   -- we need GCC to remove preprocessor tokens and comments,
   -- unfortunately, GCC only works on files with .c ending. Hence this hack.
   let templateName = takeFileName $ replaceExtension fn ".c"
@@ -71,7 +74,7 @@ openCFile fn = do
       Left parseError -> do
         logError $ "parse error: " <> displayShow parseError
         return Nothing
-      Right tu -> case runTrav_ (analyseAST tu) of
+      Right tu -> case typechecker tu of
           Left typeError -> do
             logError $ "type error: " <> displayShow typeError
             return Nothing

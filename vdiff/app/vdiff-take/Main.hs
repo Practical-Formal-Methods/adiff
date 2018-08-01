@@ -148,7 +148,7 @@ testParse :: FilePath -> IO Bool
 testParse f = timeoutM (5 * 1000 * 1000) testParse' `catch` (\(_ :: IOException) -> return False)
   where
     testParse' = do
-      res <- liftIO $ runRIO NoLogging $ openCFile f
+      res <- liftIO $ runRIO NoLogging $ openCFile defaultTypechecker f
       case force $ prettyp <$> res of
         Nothing -> return False
         Just  _ -> return True

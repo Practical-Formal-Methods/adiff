@@ -54,6 +54,8 @@ data Strategy = RandomWalkStrategy
 data SearchMode = IdentOnly | Subexpressions
   deriving Show
 
+type Typechecker = CTranslationUnit NodeInfo -> Either [CError] ((CTranslationUnit SemPhase), [CError])
+
 type Microseconds = Int
 
 -- | Every verifier is supposed to run in this environment
