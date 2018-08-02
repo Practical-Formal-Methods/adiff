@@ -484,15 +484,24 @@ unify types = return $ P.head types -- TODO: Do some unification
 unifyArithmetic :: [Type] -> AnalysisM Type
 unifyArithmetic = return . P.foldl1 unifyArithmetic' -- TODO: Do some unification, but make sure that it is numeric
   where
-    unifyArithmetic' t u =
-      let t' = getIntType t
-          u' = getIntType u
-      in if
-        | integralPrecision t' < integralPrecision u' -> u
-        | integralPrecision t' > integralPrecision u' -> t
-        | isSigned t' && not (isSigned u') -> u
-        | not (isSigned t') && isSigned u' -> t
-        | otherwise -> u
+    unifyArithmetic' t u
+      -- choose most-precise integer type
+      | (Just t') <- getIntType u, (Just u') <- getIntType u =
+          if | integralPrecision t' < integralPrecision u' -> u
+             | integralPrecision t' > integralPrecision u' -> t
+             | isSigned t' && not (isSigned u') -> u
+             | not (isSigned t') && isSigned u' -> t
+             | otherwise -> u
+      -- choose most-precise float type
+      | (Just t') <- getFloatType t,  (Just u') <- getFloatType u =
+          if | floatPrecision t' < floatPrecision u' -> u
+             | floatPrecision t' > floatPrecision u' -> t
+             | otherwise -> u
+      -- go for float if one is integral
+      | (Just t') <- getFloatType t, (Just u') <- getIntType u = t
+      | (Just t') <- getIntType t, (Just u') <- getFloatType u = u
+      | otherwise = error "unify arithmetic oops"
+
 
 
 -- Does not throw an error on type mismatch
@@ -553,6 +562,12 @@ integralPrecision TyULong   = 64
 integralPrecision TyLLong   = 128
 integralPrecision TyULLong  = 128
 
+-- the numbers don't matter, only the order
+floatPrecision TyFloat    = 1
+floatPrecision TyDouble   = 2
+floatPrecision TyLDouble  = 3
+floatPrecision TyFloat128 = 4
+
 isSigned :: IntType ->  Bool
 isSigned TyBool    = False
 isSigned TyChar    = False
@@ -569,6 +584,10 @@ isSigned TyULong   = False
 isSigned TyLLong   = True
 isSigned TyULLong  = False
 
-getIntType :: Type -> IntType
-getIntType (DirectType (TyIntegral ty) _ _) = ty
-getIntType _ = error "getIntType on non-int type"
+getIntType :: Type -> Maybe IntType
+getIntType (DirectType (TyIntegral ty) _ _) = Just ty
+getIntType _                                = Nothing
+
+getFloatType :: Type -> Maybe FloatType
+getFloatType (DirectType (TyFloating ty) _ _) = Just ty
+getFloatType _                                = Nothing
