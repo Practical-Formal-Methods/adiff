@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ParallelListComp #-}
+
 module Util
   ( module Util
   , module Language.C
@@ -36,7 +38,7 @@ dummyStmt s = CExpr (Just var) (undefNode, voidType)
 vsGoldenFile :: FilePath -> String -> (CTranslationUnit SemPhase-> IO LBS.ByteString) -> TestTree
 vsGoldenFile fn name act = goldenVsString fn (replaceExtension fn ( "."  ++ name ++ "-golden" )) (openAndParse >>= act )
   where openAndParse = do
-          c <- runRIO NoLogging $ openCFile fn
+          c <- runRIO NoLogging $ openCFile defaultTypechecker fn
           case c of
             Nothing -> assertFailure $ "should be able to open, parse, and typecheck file" ++ fn
             Just ast -> return ast
@@ -55,3 +57,13 @@ parseAndAnalyseFile bs =
       case runTrav_ (analyseAST ast) of
         Left _          -> assertFailure "should be typeable"
         Right (ast', _) -> return ast'
+
+assertListEqual :: HasCallStack => (Eq a, Show a) => [a] -> [a] -> IO ()
+assertListEqual l r
+  | length l == length r = sequence_ [assertEqual ("at index " ++ show i ++ " equal") x y | x <- l | y <- r | i <- [0..]]
+  | otherwise = assertFailure "list of unequal length cannot be equal"
+
+assertListEqualWith :: HasCallStack => (Eq b, Show b) => (a -> b) -> [a] -> [a] -> IO ()
+assertListEqualWith f l r
+  | length l == length r = sequence_ [assertEqual ("at index " ++ show i ++ " equal") (f x) (f y) | x <- l | y <- r | i <- [0..]]
+  | otherwise = assertFailure "list of unequal length cannot be equal"

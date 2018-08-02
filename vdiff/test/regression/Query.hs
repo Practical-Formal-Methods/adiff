@@ -1,13 +1,14 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ParallelListComp          #-}
 
 module Query (testQueries) where
 
+import           Data.List             (repeat, sort)
 import           PersistenceTestHelper
+import           System.IO
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import Data.List (sort, repeat)
-import System.IO
+
+import           Util
 
 import           Database.Beam
 import           VDiff.Data
@@ -16,10 +17,6 @@ import           VDiff.Prelude
 import qualified VDiff.Query2          as Q2
 
 
-assertListEqual :: HasCallStack => (Eq a, Show a) => [a] -> [a] -> IO ()
-assertListEqual l r
-  | length l == length r = sequence_ [assertEqual ("at index " ++ show i ++ " equal") x y | x <- l | y <- r | i <- [0..]]
-  | otherwise = assertFailure "list of unequal length cannot be equal"
 
 testQueries :: TestTree
 testQueries = testGroup "Query"
@@ -67,6 +64,7 @@ testAllFindings = testCase "allFindings" $ withTestEnv $ do
                  , Q2.Finding (pk p2) "test2.c" 1 0 ["verifier_cinq"] []
                  ]
   liftIO $ assertListEqual (sort expected) (sort fs)
+
 
 testIncompleteFindings :: TestTree
 testIncompleteFindings = testCase "incompleteFindings" $ withTestEnv $ do

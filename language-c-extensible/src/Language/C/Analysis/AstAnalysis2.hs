@@ -68,7 +68,7 @@ analyseAST (CTranslUnit decls _file_node) = do
     -- check we are in global scope afterwards
     getDefTable >>= \dt -> unless (inFileScope dt) $
         error "Internal Error: Not in filescope after analysis"
-    -- gld <- globalDefs <$> getDefTable
+    gld <- globalDefs <$> getDefTable
     return $ CTranslUnit decls' (_file_node)
 
 

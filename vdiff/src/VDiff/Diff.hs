@@ -26,7 +26,7 @@ import           VDiff.ArithmeticExpressions (evalExpr)
 import           VDiff.Data
 import           VDiff.Execute
 import           VDiff.Instrumentation
-import qualified VDiff.SimpleTypecheck       as SimpleTypechecker
+import           VDiff.SimpleTypecheck (simpleTypechecker)
 import           VDiff.Strategy
 import           VDiff.Util.ResourcePool
 import           VDiff.Verifier
@@ -56,7 +56,7 @@ cmdDiff seed params = do
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
 cmdParseTest :: HasLogFunc env => FilePath -> RIO env ()
-cmdParseTest fn = openCFile SimpleTypechecker.check fn >>= \case
+cmdParseTest fn = openCFile simpleTypechecker fn >>= \case
   Nothing -> liftIO exitFailure
   Just ast -> liftIO $ putStrLn $ render $ pretty ast
 
