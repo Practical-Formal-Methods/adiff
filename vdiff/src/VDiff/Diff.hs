@@ -26,14 +26,15 @@ import           VDiff.ArithmeticExpressions (evalExpr)
 import           VDiff.Data
 import           VDiff.Execute
 import           VDiff.Instrumentation
+import           VDiff.SimpleTypecheck (simpleTypechecker)
 import           VDiff.Strategy
 import           VDiff.Util.ResourcePool
 import           VDiff.Verifier
 
 
 
-cmdDiff :: HasMainEnv a => Maybe Int -> DiffParameters -> RIO a ()
-cmdDiff seed params = do
+cmdDiff :: HasMainEnv a => TypecheckerFlag -> Maybe Int -> DiffParameters -> RIO a ()
+cmdDiff tcFlag seed params = do
   logInfo "starting diff"
 
   s <- case seed of
@@ -42,8 +43,7 @@ cmdDiff seed params = do
   logInfo $ "seed for random generator: " <> display s
   liftIO $ setStdGen $ mkStdGen s
 
-
-  mAst <- openCFile (params ^. inputFile)
+  mAst <- openCFile tcFlag (params ^. inputFile)
   case mAst of
     Nothing -> liftIO exitFailure
     Just ast -> do
@@ -54,21 +54,21 @@ cmdDiff seed params = do
 
 -- | parses the file, runs the semantic analysis (type checking), and pretty-prints the resulting semantic AST.
 -- Use this to test the modified language-c-extensible library.
-cmdParseTest :: HasLogFunc env => FilePath -> RIO env ()
-cmdParseTest fn = openCFile fn >>= \case
+cmdParseTest :: HasLogFunc env => TypecheckerFlag ->  FilePath -> RIO env ()
+cmdParseTest tc fn = openCFile tc fn >>= \case
   Nothing -> liftIO exitFailure
   Just ast -> liftIO $ putStrLn $ render $ pretty ast
 
 
-cmdMarkReads :: HasLogFunc env => SearchMode -> FilePath -> RIO env ()
-cmdMarkReads mode fn = do
+cmdMarkReads :: HasLogFunc env => SearchMode -> TypecheckerFlag -> FilePath -> RIO env ()
+cmdMarkReads mode tc fn = do
   logDebug $ "mode is " <> display (tshow mode)
-  (Just ast) <- openCFile fn
+  (Just ast) <- openCFile tc fn
   let ast' = markAllReads mode ast
   liftIO . putStrLn . render . pretty $ ast'
 
 cmdVersions :: RIO a ()
-cmdVersions = liftIO $ forM_ (sortBy (comparing (^. name)) allVerifiers) $ \verifier -> do
+cmdVersions = liftIO $ forM_ (L.sortOn (^. name) allVerifiers) $ \verifier -> do
     T.putStr $ verifier ^. name
     putStr ": "
     sv <- try (verifier ^. version) >>= \case

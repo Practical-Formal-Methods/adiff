@@ -121,6 +121,14 @@ resources =  do
           "GB" -> GB
 
 
+
+typechecker ::  Parser TypecheckerFlag 
+typechecker = option tc (long "typechecker" <> value DefaultTypechecker)
+  where
+    tc = str >>= \case
+      "default" -> return DefaultTypechecker
+      "simple"  -> return SimpleTypechecker
+
 -- | The verifier list is a space separated list of verifiers. A verifier can be indicated by either:
 -- * its name, e.g. @smack@
 -- * its name with a combination of parameters @smack(--loop-unroll=1)@

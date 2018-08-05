@@ -47,7 +47,7 @@ genTranslationUnit :: FilePath -> PropertyT IO (CTranslationUnit SemPhase)
 genTranslationUnit dir = do
   cFiles <- lift $ findByExtension [".c"] dir
   cFile <- forAll $ Gen.element cFiles
-  (Just tu) <- runRIO NoLogging $ openCFile cFile
+  (Just tu) <- runRIO NoLogging $ openCFile defaultTypechecker cFile
   return tu
 
 -- | test property: Any walk does not change the file

@@ -10,6 +10,7 @@ import           TimedTest
 
 import           Persistence
 import           Query
+import           SimpleTypeCheck
 import           Strategy.Common
 
 
@@ -28,6 +29,7 @@ constructTree = do
     , pure testCommon
     , pure testPersistence
     , pure testQueries
+    , testSimpleTypecheck
     ]
   return $ testGroup "vdiff" tree
 

@@ -38,7 +38,7 @@ import           Prelude                          hiding (mapM, mapM_)
 data SemPhase
 
 
-type instance AnnTranslationUnit SemPhase = (NodeInfo, GlobalDecls)
+type instance AnnTranslationUnit SemPhase = NodeInfo
 type instance AnnFunctionDef SemPhase     = NodeInfo
 type instance AnnAsmExt SemPhase          = NodeInfo
 type instance AnnStringLiteral SemPhase   = NodeInfo
@@ -69,7 +69,7 @@ analyseAST (CTranslUnit decls _file_node) = do
     getDefTable >>= \dt -> unless (inFileScope dt) $
         error "Internal Error: Not in filescope after analysis"
     gld <- globalDefs <$> getDefTable
-    return $ CTranslUnit decls' (_file_node, gld)
+    return $ CTranslUnit decls' (_file_node)
 
 
 analyseExt :: (MonadTrav m) => CExternalDeclaration NodeInfo -> m (CExternalDeclaration SemPhase)

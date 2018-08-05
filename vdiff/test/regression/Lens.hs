@@ -17,7 +17,7 @@ testLenses = testGroup "lenses" <$> sequence [ pure testIndex
 testIndex :: TestTree
 testIndex = goldenVsString "index main" "assets/test/lenses/functions.c.golden" act
   where act = do
-          (Just ast) <- runRIO NoLogging $ openCFile "assets/test/lenses/functions.c"
+          (Just ast) <- runRIO NoLogging $ openCFile defaultTypechecker "assets/test/lenses/functions.c"
           let dummyBody = CCompound [] [CBlockStmt (dummyStmt "dummy")] (undefNode, voidType)
               ast' = (ix "main" . functionDefinition . body ) .~ dummyBody $ ast
           return $ LC8.pack $ prettyp ast'
