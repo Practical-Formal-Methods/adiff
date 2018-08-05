@@ -32,7 +32,8 @@ import qualified Database.SQLite.Simple              as SQL
 import           Docker.Client                       (MemoryConstraint)
 import           Language.C                          hiding (LevelError,
                                                       LevelWarn, execParser)
-import           Language.C.Analysis.AstAnalysis2    (analyseAST, getType, maybeM)
+import           Language.C.Analysis.AstAnalysis2    (analyseAST, getType,
+                                                      maybeM)
 import           Language.C.Analysis.SemRep          hiding (Stmt)
 import           Language.C.Analysis.TypeUtils       (voidType)
 import           Language.C.Data.Lens
@@ -55,6 +56,9 @@ data SearchMode = IdentOnly | Subexpressions
   deriving Show
 
 type Typechecker = CTranslationUnit NodeInfo -> Either [CError] ((CTranslationUnit SemPhase), [CError])
+
+
+data TypecheckerFlag = DefaultTypechecker | SimpleTypechecker
 
 type Microseconds = Int
 

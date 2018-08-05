@@ -169,7 +169,9 @@ analyseTypeSpecifier (CVoidType _)             = return $ Left $ DirectType  TyV
 analyseTypeSpecifier (CCharType _)             = return $ Left $ DirectType (TyIntegral TyChar) noTypeQuals noAttributes
 analyseTypeSpecifier (CIntType _)              = return $ Left $ DirectType (TyIntegral TyInt) noTypeQuals noAttributes
 analyseTypeSpecifier (CShortType _)            = return $ Left $ DirectType (TyIntegral TyShort)  noTypeQuals noAttributes
+-- long is a little special as it can also be combined with others
 analyseTypeSpecifier (CLongType _)             = return $ Left $ DirectType (TyIntegral TyLong)  noTypeQuals noAttributes
+
 analyseTypeSpecifier (CFloatType _)            = return $ Left $ DirectType (TyFloating TyFloat)  noTypeQuals noAttributes
 analyseTypeSpecifier (CFloat128Type _)         = return $ Left $ DirectType (TyFloating TyFloat128)  noTypeQuals noAttributes
 analyseTypeSpecifier (CDoubleType _ )          = return $ Left $ DirectType (TyFloating TyDouble)  noTypeQuals noAttributes

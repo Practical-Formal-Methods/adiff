@@ -56,17 +56,27 @@ import           UnliftIO.Directory
 import           VDiff.Instrumentation.Browser
 import qualified VDiff.Instrumentation.Fragments   as Fragments
 import           VDiff.Instrumentation.Reads
+import           VDiff.SimpleTypecheck
 
 
 defaultTypechecker :: Typechecker
 defaultTypechecker tu = runTrav_ (analyseAST tu)
 
 -- | short-hand for open, parse and type annotate, will log parse and type checking errors and warnings.
-openCFile :: HasLogFunc env => Typechecker -> FilePath -> RIO env (Maybe TU)
-openCFile typechecker fn = do
+openCFile :: HasLogFunc env => TypecheckerFlag -> FilePath -> RIO env (Maybe TU)
+openCFile tcFlag fn = do
   -- we need GCC to remove preprocessor tokens and comments,
   -- unfortunately, GCC only works on files with .c ending. Hence this hack.
   let templateName = takeFileName $ replaceExtension fn ".c"
+
+  typechecker <- case tcFlag of
+    DefaultTypechecker -> do
+      logInfo "using default typechecker (language-c)"
+      return defaultTypechecker
+    SimpleTypechecker  -> do
+      logInfo "using simple typechecker"
+      return simpleTypechecker
+
   withSystemTempFile  templateName $  \fnC _ ->  do
     copyFile fn fnC
     x <- liftIO $ parseCFile (newGCC "gcc") Nothing [] fnC
