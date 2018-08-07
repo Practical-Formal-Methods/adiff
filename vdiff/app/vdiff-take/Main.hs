@@ -76,7 +76,7 @@ filterUnwanted :: [FilePath] -> [FilePath]
 filterUnwanted = filter flt
   where
     flt file = and [ not (w `isInfixOf` file) | w <- blacklist]
-    blacklist = ["float", "driver"]
+    blacklist = ["float", "driver", "eca-rers2012"]
 
 --------------------------------------------------------------------------------
 -- "Database"
