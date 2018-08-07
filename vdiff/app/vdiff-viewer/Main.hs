@@ -25,7 +25,7 @@ import           System.IO
 import qualified Text.PrettyPrint.Tabulate       as Tab
 
 import           VDiff.Application
-import           VDiff.Arguments                 hiding (command)
+import           VDiff.Arguments                 as Args hiding (command)
 import           VDiff.Data
 import           VDiff.Persistence
 import qualified VDiff.Query2                    as Q2
@@ -46,6 +46,7 @@ data ViewCommand
   | MergeNew [FilePath]
   | Verdicts
   | RelativeInclusion Verdict Bool
+  | Compare Relatee Relatee
 
 newtype ViewParameters
   = ViewParameters { command :: ViewCommand }
@@ -128,6 +129,19 @@ executeView (RelativeInclusion vrd ignoreUnknown) = do
         mkCell  r1 r2 = formatCorrelation $ fromJust $ Map.lookup (r1, r2) m
         headers = Tbl.row $ "  " : map printRelatee relatees
 
+executeView (Compare v1 v2) = do
+  (bigN, tbl) <- Statistics.getBinaryComparison v1 v2
+  liftIO $ T.putStr $ Tbl.renderTable $ mkTable bigN tbl
+  where
+    mkTable bigN m = Tbl.table $ headers : [mkRow bigN vrd1 | vrd1 <- allVerdicts ]
+      where
+        mkRow bigN vrd1 = Tbl.row $ tshow vrd1 : [ mkCell bigN vrd1 vrd2 | vrd2 <- allVerdicts ]
+        mkCell bigN vrd1 vrd2 = let n = fromJust $ Map.lookup (vrd1, vrd2) m
+                            in formatCorrelation (n,bigN)
+        headers = Tbl.row $ "  " : map tshow allVerdicts
+        allVerdicts = [Sat, Unknown, Unsat]
+
+
 mergeFiles :: (HasMainEnv env) => [FilePath] -> RIO env ()
 mergeFiles files =
   -- loop over the given databases
@@ -175,6 +189,7 @@ viewParameters = ViewParameters <$> viewCommand
                        , statCmd
                        , verdictsCmd
                        , relativeInclusionCmd
+                       , compareCmd
                        ]
 
 statCmd, listCmd, countCmd, programCmd, mergeOldCmd, mergeOldListCmd, runsCmd, verdictsCmd  :: Parser ViewCommand
@@ -228,9 +243,12 @@ relativeInclusionCmd = switch (long "relative-soundness")    $> RelativeInclusio
                        switch (long "relative-recall")       $> RelativeInclusion Sat   False <|>
                        switch (long "relative-precision")    $> RelativeInclusion Unsat False
 
+compareCmd :: Parser ViewCommand
+compareCmd = switch options $> Compare <*> Args.relatee <*> Args.relatee
+  where options = long "compare"
 
 parseFocus :: Parser [VerifierName]
-parseFocus = map (\(vn,_,_)-> vn) <$> VDiff.Arguments.verifiers
+parseFocus = map (\(vn,_,_)-> vn) <$> Args.verifiers
 
 parseQuery2 :: Parser Q2.Query
 parseQuery2 = everything <|> unsound <|> incomplete

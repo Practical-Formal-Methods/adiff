@@ -17,6 +17,7 @@ import qualified Data.Map.Strict            as Map
 import qualified Data.Text                  as T
 import           Docker.Client              (MemoryConstraint (..),
                                              MemoryConstraintSize (..))
+import VDiff.Data
 import           Options.Applicative
 import qualified RIO.List                   as L
 
@@ -159,3 +160,13 @@ cpuSets = str >>= \(inp :: Text) -> case MP.parse cpuSets' "command-line" inp of
     cpuSet = MP.char '[' *> innerList <* MP.char ']'
     innerList = MP.takeWhile1P Nothing (\c -> isDigit c || c `elem` [',', ' '])
 
+
+relatee :: Parser Relatee
+relatee = argument verifierName (help "verifier name or 'consensus'")
+  where
+    verifierName = str >>= \s -> case lookupVerifier s of
+      Just v -> return $ RelateName (v ^. name)
+      Nothing
+        | s == "consensus" -> return (ConsensusBy defaultWeights)
+        | otherwise -> fail "unknown verifier"
+      
