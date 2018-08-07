@@ -12,9 +12,9 @@
 
   <h4> Soundness without Unknown ("Recall")
 
-  ^{correlationTable recallTbl mkRecallLink}
+  ^{correlationTable recallTbl mkUnsoundnessWithUnknownLink}
 
 
   <h4> Completeness without Unknown  ("Precision")
 
-  ^{correlationTable precisionTbl mkPrecisionLink} 
+  ^{correlationTable precisionTbl mkIncompletenessWithUnknownLink} 

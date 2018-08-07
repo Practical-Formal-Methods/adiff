@@ -143,10 +143,11 @@ getOverview = do
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
   where
     mkUnsoundnessLink, mkIncompletenessLink :: Relatee -> Relatee -> LT.Text
-    mkUnsoundnessLink v1 v2    = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionUnsound  (Just v1) v2)
-    mkIncompletenessLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
-    mkPrecisionLink _ _        = "#"
-    mkRecallLink _ _           = "#"
+    mkUnsoundnessLink v1 v2               = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionUnsound  (Just v1) v2)
+    mkIncompletenessLink v1 v2            = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
+    mkUnsoundnessWithUnknownLink v1 v2    = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Unsat]), (v2, [Sat])])
+    mkIncompletenessWithUnknownLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Sat]), (v2, [Unsat])])
+
 
 getCompare :: (HasDatabase env, HasOverviewCache env, HasLogFunc env) => RioActionM env ()
 getCompare = do
