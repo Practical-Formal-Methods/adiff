@@ -118,7 +118,7 @@ executeView Verdicts = do
 
 executeView (RelativeInclusion vrd ignoreUnknown) = do
   Q2.ensureConsensusExists defaultWeights
-  tbl <- Statistics.overPairsWithConsensus (Statistics.relative vrd ignoreUnknown)
+  tbl <- Statistics.overPairsWithConsensus defaultWeights (Statistics.relative vrd ignoreUnknown)
   liftIO $ T.putStr $ Tbl.renderTable $ mkTable tbl
   where
     relatees = [ RelateName (v ^. name) | v <- allVerifiers ] ++ [ConsensusBy defaultWeights]

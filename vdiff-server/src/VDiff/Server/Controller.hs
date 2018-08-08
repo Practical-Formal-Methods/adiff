@@ -127,17 +127,19 @@ postRunVerifier = do
 getOverview :: (HasDatabase env, HasOverviewCache env, HasLogFunc env) => RioActionM env ()
 getOverview = do
   -- this is quite ugly
+  consensusAlgorithm <- (fromMaybe SimpleBinaryMajority) <$> paramMay "consensusAlgorithm"
+  let consensusModel = Weights consensusAlgorithm defaultWeightsMap
   (soundnessTbl, completenessTbl, recallTbl, precisionTbl) <- do
     ref <- lift $ view overviewCache
-    x <- liftIO (readIORef ref)
-    case x of
+    m <- liftIO (readIORef ref)
+    case Map.lookup consensusModel m of
       Just y  -> return y
       Nothing -> do
-        y <- lift $ (,,,) <$> overPairsWithConsensus relativeSoundness
-                          <*> overPairsWithConsensus relativeCompleteness
-                          <*> overPairsWithConsensus relativeRecall
-                          <*> overPairsWithConsensus relativePrecision
-        writeIORef ref (Just y)
+        y <- lift $ (,,,) <$> overPairsWithConsensus consensusModel relativeSoundness
+                          <*> overPairsWithConsensus consensusModel relativeCompleteness
+                          <*> overPairsWithConsensus consensusModel relativeRecall
+                          <*> overPairsWithConsensus consensusModel relativePrecision
+        modifyIORef ref (Map.insert consensusModel y)
         return y
 
   defaultLayout "Overview" $(shamletFile "templates/overview.hamlet")
@@ -147,6 +149,8 @@ getOverview = do
     mkIncompletenessLink v1 v2            = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
     mkUnsoundnessWithUnknownLink v1 v2    = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Unsat]), (v2, [Sat])])
     mkIncompletenessWithUnknownLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Sat]), (v2, [Unsat])])
+    consensusAlgorithms = [AbsoluteMajority, SimpleBinaryMajority, SimpleTernaryMajority, SimpleMajorityUnknownAs Sat]
+    selectIfEqual x y = if x == y then ("selected" :: Text) else ""
 
 
 getCompare :: (HasDatabase env, HasOverviewCache env, HasLogFunc env) => RioActionM env ()
@@ -172,3 +176,8 @@ with' :: (Integral i, MonadUnliftIO m, MonadIO m) => Sema.MSemN i -> i -> m a ->
 with' sem i a = do
   env <- askUnliftIO
   liftIO $ Sema.with sem i $ unliftIO env a
+
+instance Parsable ConsensusAlgorithm where
+  parseParam t = case readMay (LT.unpack t) of
+                   Nothing -> Left "cannot parse"
+                   Just c -> Right c

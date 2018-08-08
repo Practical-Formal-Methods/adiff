@@ -1,5 +1,14 @@
 <div.container>
   <h3> Overview
+  
+  <div class="input-field">
+    <form method="GET" action="/overview">
+      <select name="consensusAlgorithm">
+        $forall ca <- consensusAlgorithms
+          <div><option value="#{tshow ca}" #{selectIfEqual consensusAlgorithm ca }> #{tshow ca}
+      <button type="submit" class="btn">
+        Update
+  
 
   <h4> Soundness 
 

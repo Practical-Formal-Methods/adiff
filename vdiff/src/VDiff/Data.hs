@@ -53,9 +53,10 @@ module VDiff.Data (
   , consensusWeights
   , ConsensusT(Consensus)
   , Consensus
-  , Weights(Weights)
+  , Weights(..)
+  , ConsensusAlgorithm(AbsoluteMajority, SimpleBinaryMajority, SimpleTernaryMajority, SimpleMajorityUnknownAs)
   , defaultWeights
-  , weightF
+  , defaultWeightsMap
   , Relatee(RelateName, ConsensusBy)
   , printRelatee
   -- * Tags
@@ -86,11 +87,14 @@ import           RIO
 
 import qualified Crypto.Hash.SHA1                 as SHA1
 import           Data.Aeson
+import qualified Data.Aeson                       as JSON
+import qualified Data.Aeson.Text                  as JSON
 import qualified Data.ByteString.Base16           as Hex
 import qualified Data.ByteString.Char8            as C8
 import qualified Data.List                        as L
 import qualified Data.Text                        as T
 import qualified Data.Text.Encoding               as T
+import qualified Data.Text.Lazy                   as LT
 import           Database.Beam
 import           Database.Beam.Backend.SQL
 import           Database.Beam.Migrate
@@ -236,15 +240,22 @@ Tag (LensFor tagId) (VerifierRunId (LensFor taggedRunId)) (ProgramId (LensFor ta
 
 --------------------------------------------------------------------------------
 
-newtype Weights = Weights [(VerifierName, Int)]
+data Weights = Weights ConsensusAlgorithm [(VerifierName, Int)]
+  deriving (Show, Read, Ord, Eq, Generic, ToJSON, FromJSON)
+
+data ConsensusAlgorithm
+  = AbsoluteMajority      -- Sat and Unsat win if at least half of all verifiers vote for them, otherwise Unknown
+  | SimpleBinaryMajority  -- Sat and Unsat win by having more votes than each other, if the number of votes is equal then Unknown.
+  | SimpleTernaryMajority -- most frequent verdict wins even if it is Unknown
+  | SimpleMajorityUnknownAs Verdict -- count all votes of "Unknown" towards the votes of the given verdict
   deriving (Show, Read, Ord, Eq, Generic, ToJSON, FromJSON)
 
 
-weightF :: Weights -> VerifierName -> Int
-weightF (Weights m) vn = fromMaybe 0 (lookup vn m)
-
+-- TODO: Improve the names of these things
 defaultWeights :: Weights
-defaultWeights = Weights
+defaultWeights = Weights (SimpleMajorityUnknownAs Sat) defaultWeightsMap
+
+defaultWeightsMap =
   [ ("cbmc", 1)
   , ("cpachecker", 1)
   , ("klee", 1)
@@ -260,7 +271,7 @@ instance (IsSql92DataTypeSyntax s)     => HasDefaultSqlDataType s Weights where
 instance (IsSql92ColumnSchemaSyntax s) => HasDefaultSqlDataTypeConstraints s Weights
 instance (IsSql92ExpressionSyntax s)   => HasSqlEqualityCheck s Weights
 instance (HasSqlValueSyntax s Text)    => HasSqlValueSyntax s Weights where
-  sqlValueSyntax (Weights m) = sqlValueSyntax $ tshow $ Weights (L.sort m)
+  sqlValueSyntax w = sqlValueSyntax $ LT.toStrict $ JSON.encodeToLazyText w
 
 -- TODO: This is a shitty name
 data Relatee = RelateName VerifierName | ConsensusBy Weights

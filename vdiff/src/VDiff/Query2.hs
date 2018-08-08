@@ -208,7 +208,7 @@ findingsByVerdicts rvs = agg $ do
 
 
 calculateConsensus:: (HasDatabase env, HasLogFunc env) => Weights -> RIO env ()
-calculateConsensus weights_ = do
+calculateConsensus w@(Weights consensusAlgorithm weights) = do
   runBeam $ runDelete $ delete (vdiffDb ^. tmpConsensus) (const $ val_ True)
   let bs = 100 :: Int
   logInfo $ "updating consensus table (using batch size " <> display bs <> ")"
@@ -224,27 +224,53 @@ calculateConsensus weights_ = do
     runBeam $ runInsert $ insert (vdiffDb ^. tmpConsensus) $ insertFrom $ do
       p <- limit_ (fromIntegral bs) $ offset_ (fromIntegral $ i * bs) $ all_ (vdiffDb ^. programs)
 
+      satN     <- countVerdict (p ^. hash) weights Sat
+      unsatN   <- countVerdict (p ^. hash) weights Unsat
+      unknownN <- countVerdict (p ^. hash) weights Unknown
 
-      -- positive score means sat majority, negative score means unsat majority
-      score <- sum <$> mapM (weightedCount weights_ p) vns
+      let total = satN + unsatN + unknownN
 
-      let vrd = if_ [ (score >. 0) `then_` val_ Sat
-                    , (score <. 0) `then_` val_ Unsat
-                    ] (else_ (val_ Unknown))
+      let vrd = case consensusAlgorithm of
+            AbsoluteMajority ->
+              if_ [ (satN >. unsatN + unknownN) `then_` val_ Sat
+                  , (unsatN >. satN + unknownN) `then_` val_ Unsat
+                  ] (else_ (val_ Unknown))
+            SimpleBinaryMajority ->
+              if_ [ (satN >. unsatN) `then_` val_ Sat
+                  , (satN <. unsatN) `then_` val_ Unsat
+                  ] (else_ (val_ Unknown))
+            SimpleTernaryMajority ->
+              if_ [ (satN >. unsatN &&. satN >. unknownN) `then_` val_ Sat
+                  , (unsatN >. satN &&. unsatN >. unknownN) `then_` val_ Unsat
+                  ] (else_ (val_ Unknown))
+            SimpleMajorityUnknownAs Sat ->
+              if_ [ (satN + unknownN >. unsatN) `then_` val_ Sat
+                  , (satN + unknownN <. unsatN) `then_` val_ Unsat
+                  ] (else_ (val_ Unknown))
+            SimpleMajorityUnknownAs Unsat ->
+              if_ [ (unsatN + unknownN >. satN) `then_` val_ Unsat
+                  , (unsatN + unknownN <. satN) `then_` val_ Sat
+                  ] (else_ (val_ Unknown))
+            SimpleMajorityUnknownAs Unknown -> -- the same as SimpleTernaryMajority
+              if_ [ (satN >. unsatN &&. satN >. unknownN) `then_` val_ Sat
+                  , (unsatN >. satN &&. unsatN >. unknownN) `then_` val_ Unsat
+                  ] (else_ (val_ Unknown))
 
-      return $ Consensus default_  (pk p) (val_ weights_) vrd
+      return $ Consensus default_  (pk p) (val_ w) vrd
   logStickyDone "updating consensus table completed"
     where
-      runsByVerifier vn = filter_ (\r -> (r ^. verifierName) ==. val_ vn) allRuns_
+      runsByVerifierAndVerdict :: VerifierName -> Verdict -> Q _ _ _ (VerifierRunT _)
+      runsByVerifierAndVerdict vn vrd = filter_ (\r -> (((r ^. verifierName) ==. val_ vn) &&. (r ^. resultVerdict) ==. val_ vrd)) allRuns_
 
-      weightedCount ws p vn = do
-            let weighted = weightF ws vn
-            x <- leftJoin_ (runsByVerifier vn) (\r -> (r ^. program) ==. (p ^. hash))
-            return $ maybe_ 0 (\r -> if_ [ (r ^. (result . verdict) ==. val_ Sat) `then_` val_ weighted
-                                         , (r ^. (result . verdict) ==. val_ Unsat) `then_` val_ (-weighted)
-                                         ] (else_ 0)
-                                ) x
-
+      countVerdict :: _ -> [(VerifierName, Int)] -> Verdict -> _
+      countVerdict p weights vrd = do
+        y <- forM weights $ \(vn, weighted) ->
+          if weighted == 0
+            then return 0
+            else do
+              x <- leftJoin_ (runsByVerifierAndVerdict vn vrd) (\r -> (r ^. program) ==. p)
+              return $ as_ @Int $ maybe_ 0 (const 1) x
+        return (sum y)
 
 cleanUp = do
   removeRedundantRuns

@@ -65,6 +65,9 @@ $doctype 5
 <script src="/js/materialize.min.js">
 <script>
   hljs.initHighlightingOnLoad();
+  \$(document).ready(function() {
+      \$('select').formSelect();
+  });
       
 
   

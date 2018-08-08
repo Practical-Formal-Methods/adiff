@@ -12,15 +12,16 @@ module VDiff.Server.Prelude
 
 
 import           Control.Concurrent.MSemN
+import qualified Data.Aeson                    as JSON
+import qualified Data.Aeson.Text               as JSON
+import qualified Data.ByteString.Lazy          as LBS
 import qualified Data.Text.Lazy                as LT
-import qualified Data.ByteString.Lazy                  as LBS
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import           Text.Hamlet
+import           VDiff.Data
 import           VDiff.Prelude                 hiding (body, showError)
 import           VDiff.Statistics
 import           Web.Scotty.Trans
-import qualified Data.Aeson                            as JSON
-import qualified Data.Aeson.Text                       as JSON
 
 
 --------------------------------------------------------------------------------
@@ -32,7 +33,7 @@ type RioActionM env = ActionT SrvError (RIO env)
 data ServerEnv = ServerEnv
   { _serverMainEnv                :: MainEnv
   , _semaphoreConcurrentVerifiers :: MSemN Int
-  , _overviewCache :: IORef (Maybe (RelativeTable, RelativeTable, RelativeTable, RelativeTable))
+  , _overviewCache :: IORef (Map Weights (RelativeTable, RelativeTable, RelativeTable, RelativeTable))
   }
 serverMainEnv :: Lens' ServerEnv MainEnv
 serverMainEnv = lens _serverMainEnv (\e s -> e { _serverMainEnv = s})
@@ -42,7 +43,7 @@ class HasSemaphore env where
   semaphore :: Lens' env (MSemN Int)
 
 class HasOverviewCache env where
-  overviewCache :: Lens' env (IORef (Maybe (RelativeTable, RelativeTable, RelativeTable, RelativeTable)))
+  overviewCache :: Lens' env (IORef (Map Weights (RelativeTable, RelativeTable, RelativeTable, RelativeTable)))
 
 class (HasMainEnv env, HasSemaphore env, HasOverviewCache env) => HasServerEnv env
 

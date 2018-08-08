@@ -4,6 +4,7 @@ module Main where
 
 
 import qualified Control.Concurrent.MSemN              as Sema
+import qualified Data.Map                              as Map
 import           Network.Wai.Middleware.StaticEmbedded
 import           System.IO
 import           VDiff.Arguments
@@ -41,7 +42,7 @@ main = runVDiffApp parseServerParameters infos $ \sp -> do
   env <- mkServerEnv sema
 
   -- clean up DB (this is important for the correctness of consensus)
-  Q2.cleanUp
+  -- Q2.cleanUp -- TODO: Re-enable
 
   -- drop temporary entries
   when (forceRecount sp) Q2.cleanTemporary
@@ -53,5 +54,5 @@ main = runVDiffApp parseServerParameters infos $ \sp -> do
 mkServerEnv :: Sema.MSemN Int -> RIO MainEnv ServerEnv
 mkServerEnv s = do
   menv <- ask
-  tables <- newIORef Nothing
+  tables <- newIORef (Map.empty)
   return $ ServerEnv menv s tables

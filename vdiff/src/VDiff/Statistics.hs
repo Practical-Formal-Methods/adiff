@@ -76,9 +76,9 @@ overPairs f = do
   (vns :: [Relatee]) <- map RelateName <$> Q2.getVerifierNames
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- vns , v2 <- vns]
 
-overPairsWithConsensus :: (HasDatabase env, HasLogFunc env) => (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
-overPairsWithConsensus f = do
-  Q2.ensureConsensusExists defaultWeights
+overPairsWithConsensus :: (HasDatabase env, HasLogFunc env) => Weights -> (Relatee -> Relatee -> RIO env (Integer,Integer)) -> RIO env RelativeTable
+overPairsWithConsensus consensusModel f = do
+  Q2.ensureConsensusExists consensusModel
   vns <- Q2.getVerifierNames
-  let rels = ConsensusBy defaultWeights : [RelateName v | v <- vns]
+  let rels = ConsensusBy consensusModel : [RelateName v | v <- vns]
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- rels, v2 <- rels ]
