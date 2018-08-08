@@ -11,7 +11,7 @@
     <div class="input-field col s4">
       <select name="v2">
         $forall vn <-vns
-          <option value="#{vn}">#{vn}
+          <div><option value="#{vn}" #{selectIfEqual mv2 vn} > #{vn}</option>
 
     <div class="col s4 input-field">
       <button type="submit" class="btn center">
