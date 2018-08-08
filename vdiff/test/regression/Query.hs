@@ -75,7 +75,7 @@ testIncompleteFindings = testCase "incompleteFindings" $ withTestEnv $ do
     runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
     runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run5, run6]
   vns <-  Q2.getVerifierNames
-  let weights = Weights [(v, 1) | v <- vns]
+  let weights = Weights SimpleBinaryMajority [(v, 1) | v <- vns]
   fs <- Q2.executeQuery 20 0 $  Q2.Query Q2.SuspicionIncomplete Nothing (ConsensusBy weights)
   liftIO $ fs @?= [ Q2.Finding (pk p1) "test.c" 1 2 ["verifier_uno"] ["verifier_due", "verifier_sei"] ]
 
@@ -87,6 +87,6 @@ testUnsoundFindings = testCase "unsoundFindings" $ withTestEnv $ do
     runInsert $ insert (vdiffDb ^. programs) $ insertValues [p1, p2]
     runInsert $ insert (vdiffDb ^. runs) $ insertValues [run1, run2, run3, run4, run5]
   vns <-  Q2.getVerifierNames
-  let weights = Weights [(v, 1) | v <- vns]
+  let weights = Weights SimpleBinaryMajority [(v, 1) | v <- vns]
   fs <- Q2.executeQuery 20 0 $  Q2.Query Q2.SuspicionUnsound Nothing (ConsensusBy weights)
   liftIO $ fs @?= [ Q2.Finding (pk p1) "test.c" 2 1 ["verifier_quat", "verifier_uno"] ["verifier_due"] ]
