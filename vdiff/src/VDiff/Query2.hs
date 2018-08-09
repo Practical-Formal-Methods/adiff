@@ -50,7 +50,10 @@ weightsOfQuery :: Query -> [Weights]
 weightsOfQuery q =
   case q of
     Query _ mr r -> catMaybes [mr >>= weightsRelatee, weightsRelatee r]
-    _            -> []
+    ByVerdict l  -> catMaybes [ weightsRelatee r | (r,_) <- l ]
+    Disagreement -> []
+    Ties         -> []
+    Everything   -> []
 
 weightsRelatee :: Relatee -> Maybe Weights
 weightsRelatee (ConsensusBy w) = Just w
@@ -227,8 +230,6 @@ calculateConsensus w@(Weights consensusAlgorithm weights) = do
       satN     <- countVerdict (p ^. hash) weights Sat
       unsatN   <- countVerdict (p ^. hash) weights Unsat
       unknownN <- countVerdict (p ^. hash) weights Unknown
-
-      let total = satN + unsatN + unknownN
 
       let vrd = case consensusAlgorithm of
             AbsoluteMajority ->
