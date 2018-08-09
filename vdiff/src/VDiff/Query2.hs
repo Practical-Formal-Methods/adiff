@@ -108,6 +108,7 @@ compileQuery= \case
 
 executeQueryCount :: (HasDatabase env, HasLogFunc env) => Query -> RIO env Int
 executeQueryCount q = do
+  forM_ (weightsOfQuery q) ensureConsensusExists
   (Just n) <- runBeam $ runSelectReturningOne $ select $ aggregate_ (const countAll_) $ compileQuery q
   return n;
 
