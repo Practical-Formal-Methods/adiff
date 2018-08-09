@@ -54,7 +54,8 @@ module VDiff.Data (
   , ConsensusT(Consensus)
   , Consensus
   , Weights(..)
-  , ConsensusAlgorithm(AbsoluteMajority, SimpleBinaryMajority, SimpleTernaryMajority, SimpleMajorityUnknownAs)
+  -- , ConsensusAlgorithm(AbsoluteMajority, SimpleBinaryMajority, SimpleTernaryMajority, SimpleMajorityUnknownAs, SimpleBinaryMajorityWithThreshold)
+  , ConsensusAlgorithm(..)
   , defaultWeights
   , defaultWeightsMap
   , Relatee(RelateName, ConsensusBy)
@@ -248,6 +249,7 @@ data ConsensusAlgorithm
   | SimpleBinaryMajority  -- Sat and Unsat win by having more votes than each other, if the number of votes is equal then Unknown.
   | SimpleTernaryMajority -- most frequent verdict wins even if it is Unknown
   | SimpleMajorityUnknownAs Verdict -- count all votes of "Unknown" towards the votes of the given verdict
+  | SimpleBinaryMajorityWithThreshold Int -- like simple binary majority, but with a voting threshold
   deriving (Show, Read, Ord, Eq, Generic, ToJSON, FromJSON)
 
 

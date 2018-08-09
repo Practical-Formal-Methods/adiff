@@ -256,6 +256,10 @@ calculateConsensus w@(Weights consensusAlgorithm weights) = do
               if_ [ (satN >. unsatN &&. satN >. unknownN) `then_` val_ Sat
                   , (unsatN >. satN &&. unsatN >. unknownN) `then_` val_ Unsat
                   ] (else_ (val_ Unknown))
+            SimpleBinaryMajorityWithThreshold threshold ->
+              if_ [ (satN >. unsatN &&. satN >=. val_ threshold)   `then_` val_ Sat
+                  , (satN <. unsatN &&. unsatN >=. val_ threshold) `then_` val_ Unsat
+                  ] (else_ (val_ Unknown))
 
       return $ Consensus default_  (pk p) (val_ w) vrd
   logStickyDone "updating consensus table completed"

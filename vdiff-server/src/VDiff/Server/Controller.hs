@@ -149,7 +149,6 @@ getOverview = do
     mkIncompletenessLink v1 v2            = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete (Just v1) v2)
     mkUnsoundnessWithUnknownLink v1 v2    = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Unsat]), (v2, [Sat])])
     mkIncompletenessWithUnknownLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Sat]), (v2, [Unsat])])
-    consensusAlgorithms = [AbsoluteMajority, SimpleBinaryMajority, SimpleTernaryMajority, SimpleMajorityUnknownAs Sat]
     selectIfEqual x y = if x == y then ("selected" :: Text) else ""
 
 
@@ -180,4 +179,15 @@ with' sem i a = do
 instance Parsable ConsensusAlgorithm where
   parseParam t = case readMay (LT.unpack t) of
                    Nothing -> Left "cannot parse"
-                   Just c -> Right c
+                   Just c  -> Right c
+
+consensusAlgorithms
+  = [ AbsoluteMajority
+    , SimpleBinaryMajority
+    , SimpleTernaryMajority
+    , SimpleMajorityUnknownAs Sat
+    , SimpleBinaryMajorityWithThreshold 2
+    , SimpleBinaryMajorityWithThreshold 3
+    , SimpleBinaryMajorityWithThreshold 4
+    , SimpleBinaryMajorityWithThreshold 5
+    ]
