@@ -58,6 +58,9 @@ getIndex = do
   statistics <- lift Q2.getStatistics
   verifierNames <- lift Q2.getVerifierNames
   defaultLayout "VDiff " $(shamletFile "templates/index.hamlet")
+  where
+    linkUnsoundness = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionUnsound Nothing (ConsensusBy defaultWeights))
+    linkIncomplete  = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete Nothing (ConsensusBy defaultWeights))
 
 -- | shows all runs on one instrumented file
 getProgram :: (HasDatabase env, HasLogFunc env) => RioActionM env ()

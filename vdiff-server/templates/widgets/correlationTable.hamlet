@@ -8,6 +8,4 @@
       <tr>
         <td> #{printRelatee v1}
         $forall v2 <- verifierNames
-          <td>
-            <a href=#{mkLink v1 v2}>
-              #{maybe "-"  formatCorrelation (Map.lookup (v1,v2) tbl)} 
+          <td><a href=#{mkLink v1 v2} class="tooltipped" data-tooltip="#{tshow (Map.lookup (v1,v2) tbl)}"> #{maybe "-"  formatCorrelation (Map.lookup (v1,v2) tbl)} </a>

@@ -14,3 +14,10 @@
         <td>#{s}
         <td>#{t}
 
+  Shortcuts:
+  <ul>
+    <li>
+      <a href="#{linkUnsoundness}"> Unsoundness
+    <li>
+      <a href="#{linkIncomplete}"> Incomplete
+
