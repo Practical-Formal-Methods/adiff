@@ -213,7 +213,7 @@ findingsByVerdicts rvs = agg $ do
 
 calculateConsensus:: (HasDatabase env, HasLogFunc env) => Weights -> RIO env ()
 calculateConsensus w@(Weights consensusAlgorithm weights) = do
-  runBeam $ runDelete $ delete (vdiffDb ^. tmpConsensus) (const $ val_ True)
+  -- runBeam $ runDelete $ delete (vdiffDb ^. tmpConsensus) (const $ val_ True)
   let bs = 100 :: Int
   logInfo $ "updating consensus table (using batch size " <> display bs <> ")"
 
@@ -275,7 +275,7 @@ calculateConsensus w@(Weights consensusAlgorithm weights) = do
             then return 0
             else do
               x <- leftJoin_ (runsByVerifierAndVerdict vn vrd) (\r -> (r ^. program) ==. p)
-              return $ as_ @Int $ maybe_ 0 (const 1) x
+              return $ as_ @Int $ maybe_ 0 (const $ fromIntegral weighted) x
         return (sum y)
 
 cleanUp = do
