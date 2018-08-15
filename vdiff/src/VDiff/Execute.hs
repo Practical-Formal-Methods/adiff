@@ -31,6 +31,7 @@ data ExecutionPackage
   = ExecutionPackage
   { _packageVerifierName :: VerifierName
   , _verifierExtraFlags  :: [Text]
+  , _timelimit           :: Timelimit
   , _inputFile           :: Text
   } deriving (Show, Read)
 
@@ -54,7 +55,7 @@ instance MonadUnliftIO (DockerT IO) where
 
 executeVerifierInDocker :: (HasLogFunc env) => VerifierResources -> VerifierName -> [Text] -> Text -> RIO env VerifierResult
 executeVerifierInDocker resources vn flags source = do
-  let pkgS = T.pack $ show $ ExecutionPackage vn flags source -- TODO: Handle Flags
+  let pkgS = T.pack $ show $ ExecutionPackage vn flags (resources ^. timelimit) source -- TODO: Handle Flags
   h <- liftIO $ unixHttpHandler "/var/run/docker.sock"
   withSystemTempDirectory "exchange" $ \dirPath -> do
       -- serialize the package and write it into a temporary file
@@ -82,14 +83,16 @@ executeVerifierInDocker resources vn flags source = do
                 Right ExitSuccess  -> do
                   runOutput <- readFileUtf8 (dirPath <> "/output")
                   putMVar resultVar (readMay $ T.unpack runOutput)
+                Right (ExitFailure 137) ->
+                  liftIO $ logInfoIO "docker container was killed using SIGKILL (what a stubborn process!)"
                 Right (ExitFailure err) -> do
-                  liftIO $ logWarnIO $ "internal vdiff exited with status code (could  be due to OOM)" <> display err
+                  liftIO $ logWarnIO $ "internal vdiff exited with status code (could  be due to OOM): " <> display err
                   putMVar resultVar Nothing
                 Left dockerErr -> putMVar resultVar Nothing
 
             -- one thread for the timer
             t_timer <- forkIO $ do
-              threadDelay $ (resources ^. timelimit) * 1000 * 1000
+              threadDelay (microseconds $ resources ^. timelimit)
               putMVar resultVar Nothing
             -- wait until at least one of the threads has completed
             result <- takeMVar resultVar

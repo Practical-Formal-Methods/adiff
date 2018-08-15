@@ -20,7 +20,7 @@ main = do
   withSystemTempFile "program.c" $ \programFp programH -> do
     -- unpack the program
     T.hPutStr programH (pkg ^. inputFile) >> hFlush programH
-    let env = VerifierEnv noLog 3000000000000 (pkg ^. verifierExtraFlags)
+    let env = VerifierEnv noLog (pkg ^. timelimit) (pkg ^. verifierExtraFlags)
     result <- runRIO env $ executeVerifier v programFp
     outH <- openFile outputFp WriteMode
     T.hPutStr outH (T.pack $ show result)

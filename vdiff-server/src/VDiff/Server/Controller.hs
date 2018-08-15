@@ -118,7 +118,7 @@ getScratch = do
 postRunVerifier :: (HasLogFunc env, HasSemaphore env) => RioActionM env ()
 postRunVerifier = do
   source <- param "source"
-  timeout <- (*1000000) . read <$> param "timeout"
+  timeout <- fromSeconds . read <$> param "timeout"
   vn <- param "verifier"
   sema <- lift $ view semaphore
   -- execute verifier here inside a semaphore-protected area

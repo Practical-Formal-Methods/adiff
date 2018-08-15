@@ -7,16 +7,15 @@ module VDiff.Timed
   , exec
   ) where
 
-import           Data.Text.IO            (hPutStr)
-import           RIO
-import qualified RIO.List.Partial        as L
-
 import           Control.Concurrent      (ThreadId, forkIO)
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Char8   as C8
 import qualified Data.ByteString.Lazy    as LBS
+import           Data.Text.IO            (hPutStr)
+import qualified RIO.List.Partial        as L
 import           Text.Read               (readMaybe)
+import           VDiff.Prelude
 
 import           System.Process
 
@@ -56,8 +55,8 @@ readNonBlockingUntilTerminated ph h ref mutex = do
 
 
 
-exec :: CreateProcess -> Bool -> Text -> Int -> IO (Maybe (ExitCode, Timing), ByteString, ByteString)
-exec cp rkill input microsecs = do
+exec :: CreateProcess -> Bool -> Text -> Timelimit -> IO (Maybe (ExitCode, Timing), ByteString, ByteString)
+exec cp rkill input tl = do
   let cp' = (wrapTime cp) { std_in = CreatePipe
                           , std_out = CreatePipe
                           , std_err = CreatePipe
@@ -65,7 +64,7 @@ exec cp rkill input microsecs = do
                           }
   withCreateProcess cp' $ \(Just inh) (Just outh) (Just errh) ph -> do
     -- set-up "killer" thread
-    _ <- terminateDelayed ph rkill microsecs
+    _ <- terminateDelayed ph rkill tl
 
     -- set up streams
     hPutStr inh input >> hFlush inh
@@ -100,10 +99,10 @@ exec cp rkill input microsecs = do
 
 terminateDelayed :: ProcessHandle
                  -> Bool -- killall complete process group
-                 -> Int -- microseconds
+                 -> Timelimit -- microseconds
                  -> IO ThreadId -- thread id of the created 'terminator process'
-terminateDelayed ph rkill microsecs = forkIO $ do
-      threadDelay microsecs
+terminateDelayed ph rkill tl = forkIO $ do
+      threadDelay (microseconds tl)
       getProcessExitCode ph >>= \case
         Nothing ->
           if rkill

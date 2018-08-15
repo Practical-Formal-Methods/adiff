@@ -216,7 +216,7 @@ exploreStatement = tryout $ do
 updateAverages' :: (IsStrategyEnv env) => [VerifierRun] -> Smart env ()
 updateAverages' res = do
   (rsrc: _) <- view (diffParameters  . verifierResources)
-  let tl = fromIntegral $ rsrc ^. timelimit
+  let tl = fromIntegral $ microseconds (rsrc ^. timelimit)
   let mTimes = map (^. (result . wallTime)) res
       times = map (fromMaybe (tl / 1000000)) mTimes
   averages %= updateAverages times

@@ -100,7 +100,7 @@ seed = optional $ option auto (long "seed" <> help "seed to initialize random ge
 
 resources :: Parser [VerifierResources]
 resources =  do
-  tl <- (*1000000) <$> parseTime
+  tl <- parseTime
   mem <- optional parseMemory
   cpuSet <- optional parseCpus
   return $ case cpuSet of
@@ -109,7 +109,7 @@ resources =  do
   where
     parseCpus :: Parser [Text]
     parseCpus   = option cpuSets (long "cpus" <> help "limit the process to the comma separated list of cpus")
-    parseTime   = option auto (long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 30)
+    parseTime   = fromSeconds <$> option auto (long "timeout" <> short 't' <> help "number of seconds a verifier is allowed to run before it is terminated" <> value 30)
     parseMemory = option mem  (long "memory" <> help "limit the number of used memory")
     mem = str >>= \s ->  return $ MemoryConstraint (parsePrefix s ) (parseSuffix s)
       where

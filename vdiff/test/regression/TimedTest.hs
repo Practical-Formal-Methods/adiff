@@ -1,9 +1,9 @@
 module TimedTest where
 
-import           RIO
 import           System.Process
 import           Test.Tasty
 import           Test.Tasty.HUnit
+import           VDiff.Prelude
 
 import           VDiff.Timed
 
@@ -21,7 +21,7 @@ testStdoutN n =  testCase ("echo (stdout) n=" ++ show n) (replicateM_ n testStdo
 
 testStdout' :: IO ()
 testStdout' = do
-  x <- exec ( proc "bash" ["-c", "echo 'foo\nbar'"] ) True "" (1*1000*1000)
+  x <- exec ( proc "bash" ["-c", "echo 'foo\nbar'"] ) True "" (fromSeconds 1)
   case x of
     (Nothing, _, _) -> assertFailure "this should not run into a timeout"
     (Just (code,_) , out, _)  -> do
@@ -31,7 +31,7 @@ testStdout' = do
 
 testStderr :: TestTree
 testStderr =  testCase "echo (stderr)" $ do
-    x <- exec (proc "bash" ["-c", "(>&2 echo 'foo\nbar')"]) True "" (1*1000*1000)
+    x <- exec (proc "bash" ["-c", "(>&2 echo 'foo\nbar')"]) True "" (fromSeconds 1)
     case x of
       (Nothing, _, _) -> assertFailure "unexpected timeout"
       (Just (code,_), out, err)  -> do
@@ -46,7 +46,7 @@ testStdin =  testGroup "read/echo (stdin)" $
            ]
   where
     test (name, cp) = testCase name $ do
-      x <- exec cp  True "foobar\n" (1*1000*1000)
+      x <- exec cp  True "foobar\n" (fromSeconds 1)
       case x of
         (Nothing, _, _) -> assertFailure "this should not run into a timeout"
         (Just (code,_), out, err)  -> do
@@ -61,7 +61,7 @@ testTermination =  testGroup "terminates bash-loop" $
            ]
   where
     test (name, cp) = testCase name $ do
-      x <- exec cp True "" (400*1000)
+      x <- exec cp True "" (Timelimit 400000)
       case x of
         (Just c, _, _)  -> assertFailure $ "unexpected error code " <> show c
         (Nothing, _, _) -> return ()

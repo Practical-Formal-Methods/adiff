@@ -54,12 +54,18 @@ data Strategy = RandomWalkStrategy
 data SearchMode = IdentOnly | Subexpressions
   deriving Show
 
-type Microseconds = Int
+newtype Timelimit
+  = Timelimit
+  { microseconds :: Int
+  } deriving (Show, Read, Eq, Ord)
+fromSeconds :: Int -> Timelimit
+fromSeconds n = Timelimit (n * 1000 * 1000)
+
 
 -- | Every verifier is supposed to run in this environment
 data VerifierEnv = VerifierEnv
   { _verifierEnvLogger :: !LogFunc
-  , _timeLimit         :: !Microseconds
+  , _timeLimit         :: !Timelimit
   , _verifierEnvFlags  :: [Text]
   }
 
@@ -88,7 +94,7 @@ class HasDatabase a where
 class (HasLogFunc a, HasDatabase a) => HasMainEnv a
 
 class HasTimeLimit a where
-  timeLimitL :: Lens' a Microseconds
+  timeLimitL :: Lens' a Timelimit
 
 class HasExtraFlags a where
   extraFlags :: Lens' a [Text]
@@ -120,7 +126,7 @@ instance HasExtraFlags VerifierEnv where
   extraFlags =lens _verifierEnvFlags (\e f -> e { _verifierEnvFlags = f})
 
 -- | creates a verifier environment given a time limit.
-mkVerifierEnv :: (HasLogFunc env ) => Microseconds -> [Text] -> RIO env VerifierEnv
+mkVerifierEnv :: (HasLogFunc env ) => Timelimit -> [Text] -> RIO env VerifierEnv
 mkVerifierEnv timeLimit flags = do
   lg <- view logFuncL
   return $ VerifierEnv lg timeLimit flags
@@ -189,10 +195,11 @@ data ExprRead = ExprRead
 
 data VerifierResources
   = VerifierResources
-  { _timelimit :: Int -- in seconds
+  { _timelimit :: Timelimit -- in seconds
   , _memory    :: Maybe MemoryConstraint
   , _cpus      :: Maybe Text
-  }
+  } deriving (Show)
+
 defaultVerifierResources t = VerifierResources t Nothing Nothing
 
 -- | This data type contains all the diff parameters that are passed to the

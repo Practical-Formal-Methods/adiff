@@ -81,6 +81,7 @@ cmdRunVerifiers :: (HasLogFunc env) => DiffParameters -> RIO env ()
 cmdRunVerifiers dp = do
   source <- readFileUtf8 (dp ^. inputFile)
   pool <- newResourcePool (dp ^. verifierResources)
+  logInfo $ "resources are : " <> displayList (map tshow $ dp ^. verifierResources)
   logInfo $ "created pool with " <> display (length $ dp ^. verifierResources) <> " verifier resources"
   runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, newName) r -> do
     result <- executeVerifierInDocker r vn flags source
