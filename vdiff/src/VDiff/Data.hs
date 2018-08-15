@@ -289,6 +289,9 @@ data ConsensusT f = Consensus
   , _consensusProgramId :: PrimaryKey ProgramT f
   , _consensusWeights   :: C f Weights
   , _consensusVerdict   :: C f Verdict
+  , _countSat           :: C f Int
+  , _countUnsat         :: C f Int
+  , _countUnknown       :: C f Int
   } deriving (Generic, Beamable)
 
 
@@ -303,6 +306,9 @@ Consensus
   (ProgramId (LensFor consensusProgramId))
   (LensFor consensusWeights)
   (LensFor consensusVerdict)
+  (LensFor countSat)
+  (LensFor countUnsat)
+  (LensFor countUnknown)
   = tableLenses
 --------------------------------------------------------------------------------
 -- The database

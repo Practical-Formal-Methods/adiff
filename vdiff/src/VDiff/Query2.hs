@@ -262,7 +262,7 @@ calculateConsensus w@(Weights consensusAlgorithm weights) = do
                   , (satN <. unsatN &&. unsatN >=. val_ threshold) `then_` val_ Unsat
                   ] (else_ (val_ Unknown))
 
-      return $ Consensus default_  (pk p) (val_ w) vrd
+      return $ Consensus default_  (pk p) (val_ w) vrd satN unsatN unknownN
   logStickyDone "updating consensus table completed"
     where
       runsByVerifierAndVerdict :: VerifierName -> Verdict -> Q _ _ _ (VerifierRunT _)
