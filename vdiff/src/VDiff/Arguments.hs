@@ -164,9 +164,6 @@ cpuSets = str >>= \(inp :: Text) -> case MP.parse cpuSets' "command-line" inp of
 relatee :: Parser Relatee
 relatee = argument verifierName (help "verifier name or 'consensus'")
   where
-    verifierName = str >>= \s -> case lookupVerifier s of
-      Just v -> return $ RelateName (v ^. name)
-      Nothing
-        | s == "consensus" -> return (ConsensusBy defaultWeights)
-        | otherwise -> fail "unknown verifier"
-      
+    verifierName = str >>= \case
+        "consensus" -> return (ConsensusBy defaultWeights)
+        v -> return $ RelateName v
