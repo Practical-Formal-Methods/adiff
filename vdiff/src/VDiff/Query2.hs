@@ -274,7 +274,7 @@ calculateConsensus w@(Weights consensusAlgorithm weights) = do
           if weighted == 0
             then return 0
             else do
-              x <- leftJoin_ (runsByVerifierAndVerdict vn vrd) (\r -> (r ^. program) ==. p)
+              x <- (^. runId) <$> leftJoin_ (runsByVerifierAndVerdict vn vrd) (\r -> (r ^. program) ==. p)
               return $ as_ @Int $ maybe_ 0 (const $ fromIntegral weighted) x
         return (sum y)
 
