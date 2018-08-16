@@ -263,6 +263,7 @@ defaultWeightsMap =
   , ("klee", 1)
   , ("seacrab", 0)
   , ("seahorn", 1)
+  , ("crab-llvm", 1)
   , ("smack", 1)
   , ("uautomizer", 1)
   , ("utaipan", 0)
