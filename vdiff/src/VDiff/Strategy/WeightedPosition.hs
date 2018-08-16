@@ -66,7 +66,8 @@ mkStrategy prioritize = do
         Just c -> return c
       let compoundAssertion = assertUnequals (r ^. expression) conjuncts
       let tu' = insertAt (r ^. position) compoundAssertion tu
-      (_,c) <- verifyB tu'
+      runs <- verifyB tu'
+      let c = conclude runs
       when (isDisagreement c) $ void $
         binaryIntervalSearch (V.fromList conjuncts) $ \cs -> do
           let compoundAssertion = assertUnequals (r ^. expression) (V.toList cs)

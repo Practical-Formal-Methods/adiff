@@ -36,7 +36,6 @@ import           VDiff.Prelude
 import qualified VDiff.Query2                             as Q2
 import           VDiff.Strategy.Common.Budget
 import           VDiff.Strategy.Common.ConstantPool
-import           VDiff.Util.ResourcePool
 
 class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => StrategyEnv env
 
@@ -46,7 +45,7 @@ class (HasTranslationUnit env, HasLogFunc env, HasDiffParameters env) => Strateg
 -- strategy env.
 verifyB :: (IsStrategyEnv env, MonadReader env m, MonadIO m, MonadBudget m)
   => CTranslationUnit SemPhase
-  -> m ([VerifierRun], Conclusion)
+  -> m [Async VerifierRun]
 verifyB tu = do
   completeBudget <- view initialBudget
   currentBudget <- getBudget
@@ -57,54 +56,51 @@ verifyB tu = do
 verify :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
   => Int -- ^ iteration count
   -> CTranslationUnit SemPhase -- ^ translation unit
-  -> m ([VerifierRun], Conclusion)
+  -> m [Async VerifierRun]
 verify n tu = do
   (prog, res) <- verify' n tu
-  let conclusion = conclude res
-  case conclusion of
-    Unsoundness _ -> logInfo $ "found unsoundness with program " <> display (prog ^. hash)
-    Incompleteness _ -> logInfo $ "found incompleteness with program " <> display (prog ^. hash)
-    _ -> return ()
-  return (res, conclusion)
+  return res
 
 verify' :: (IsStrategyEnv env, MonadReader env m, MonadIO m)
   => Int -- ^ iteration count
   -> CTranslationUnit SemPhase -- ^ translation unit
-  -> m (Program, [VerifierRun])
+  -> m (Program, [Async VerifierRun])
 verify' n tu = do
   vs <- view (diffParameters . verifiers)
-  resources <- view (diffParameters . verifierResources)
   originalFileName <- view (diffParameters . inputFile)
   env <- ask
   let content = render . pretty $ tu
       program' = mkProgram originalFileName content
   runRIO env $ Q2.storeProgram program'
 
-  runs <- runRIO env $ verifyParallel resources vs program' n
+  runs <- runRIO env $ forM vs $ \v -> verifyAsync v program' n
   return (program', runs)
 
-verifyParallel :: (IsStrategyEnv env)
-  => [VerifierResources]
-  -> [(VerifierName, [Text], Maybe VerifierName)]
-  -> Program -- ^ the program source
-  -> Int -- ^ iteration counter
-  -> RIO env [VerifierRun]
-verifyParallel resources verifiers program n = do
-  pool <- newResourcePool resources
-  withResourcePool pool $ flip map verifiers $ \(vn, flags, newVn) r -> do
+-- verifyParallel :: (IsStrategyEnv env)
+--   => [(VerifierName, [Text], Maybe VerifierName)]
+--   -> Program -- ^ the program source
+--   -> Int -- ^ iteration counter
+--   -> RIO env [VerifierRun]
+-- verifyParallel verifiers program n = forM verifiers $ \v -> verifyAsync v program n >>= wait
+
+verifyAsync :: (IsStrategyEnv env)
+            => (VerifierName, [Text], Maybe VerifierName)
+            -> Program -> Int -> RIO env (Async VerifierRun)
+verifyAsync (vn, flags, newVn) program n = async $ do
       let name = fromMaybe vn newVn
       -- check if we have already some result for this
       Q2.lookupRun name (program ^. hash) >>= \case
         Just r -> do
           logInfo "using cached verifier result"
           return r
-        Nothing -> do
+        Nothing -> withResourcePool $ \r -> do
           -- Okay, we actually have to run the verifier
-          res <- executeVerifierInDocker r vn flags (program ^. source)
-          run <- Q2.storeRunFreshId $ VerifierRun 0 name (pk program) res n
-          unless (null flags) $
-            Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
-          return run
+            res <- executeVerifierInDocker r vn flags (program ^. source)
+            run <- Q2.storeRunFreshId $ VerifierRun 0 name (pk program) res n
+            unless (null flags) $
+              Q2.tagRun (pk run) [("flags", T.intercalate "," flags)]
+            return run
+
 
 conclude :: [VerifierRun] -> Conclusion
 conclude  rs = if

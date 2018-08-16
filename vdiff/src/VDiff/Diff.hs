@@ -83,16 +83,18 @@ cmdRunVerifiers dp = do
   pool <- newResourcePool (dp ^. verifierResources)
   logInfo $ "resources are : " <> displayList (map tshow $ dp ^. verifierResources)
   logInfo $ "created pool with " <> display (length $ dp ^. verifierResources) <> " verifier resources"
-  runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, newName) r -> do
-    result <- executeVerifierInDocker r vn flags source
-    let name = fromMaybe vn newName
-    printD $ display name <> ":\t " <> display (tshow $ result ^. verdict)
-  return ()
+  error "niy"
+  -- runs <- withResourcePool pool $ flip map (dp ^. verifiers) $ \(vn, flags, newName) r -> do
+  --   result <- executeVerifierInDocker r vn flags source
+  --   let name = fromMaybe vn newName
+  --   printD $ display name <> ":\t " <> display (tshow $ result ^. verdict)
+  -- return ()
 
 mkStrategyEnv :: (HasMainEnv env) => CTranslationUnit SemPhase -> DiffParameters -> RIO env StrategyEnv
 mkStrategyEnv tu dp = do
   lg <- view logFuncL
   db <- view databaseL
+  pool <- newResourcePool (dp ^. verifierResources)
   let searchMode_ =  dp ^. searchMode
       budgetSpecification_ = dp ^. budgetSpecification
   -- interpret the budget specification
@@ -105,4 +107,4 @@ mkStrategyEnv tu dp = do
     Left err -> error err
     Right bdg -> do
       logDebug $ "evaluated Doll expression '" <> display (dp ^. budgetSpecification) <> "' to " <> display (tshow bdg)
-      return $ StrategyEnv  lg tu dp db (round bdg)
+      return $ StrategyEnv  lg tu dp db (round bdg) pool

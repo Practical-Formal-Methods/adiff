@@ -41,6 +41,7 @@ import           System.IO                           (FilePath)
 import           Text.PrettyPrint                    (render)
 import           VDiff.Data
 import           VDiff.Instrumentation.Browser.Types
+import           VDiff.Util.ResourcePool
 
 
 
@@ -108,6 +109,7 @@ data MainEnv = MainEnv
   { _logger   :: LogFunc
   , _database :: Pool SQL.Connection
   }
+
 instance HasMainEnv MainEnv
 
 instance HasLogFunc MainEnv where
@@ -137,12 +139,16 @@ class HasTranslationUnit env where
 class HasInitialBudget env where
   initialBudget :: Lens' env Int
 
+class HasVerifierResourcePool env where
+  verifierResourcePool :: Lens' env (ResourcePool VerifierResources)
+
 data StrategyEnv = StrategyEnv
   { _strategyLogFunc         :: !LogFunc
   , _strategyTranslationUnit :: !(CTranslationUnit SemPhase)
   , _strategyDiffParameters  :: !DiffParameters
   , _strategyDatabase        :: Pool SQL.Connection
   , _strategyInitialBudget   :: !Int
+  , _strategyResourcePool    :: ResourcePool VerifierResources
   }
 
 instance HasTranslationUnit StrategyEnv where
@@ -160,10 +166,25 @@ instance HasDatabase StrategyEnv where
 instance HasInitialBudget StrategyEnv where
   initialBudget = lens _strategyInitialBudget (\e b -> e {_strategyInitialBudget = b})
 
+instance HasVerifierResourcePool StrategyEnv where
+  verifierResourcePool = lens _strategyResourcePool (\e p -> e {_strategyResourcePool = p})
+
 instance IsStrategyEnv StrategyEnv
 
-class (HasDiffParameters env, HasTranslationUnit env, HasLogFunc env, HasDatabase env, HasInitialBudget env) => IsStrategyEnv env
+class ( HasDiffParameters env
+      , HasTranslationUnit env
+      , HasLogFunc env
+      , HasDatabase env
+      , HasInitialBudget env
+      , HasVerifierResourcePool env
+      ) => IsStrategyEnv env
 
+
+withResourcePool :: (MonadUnliftIO m, MonadReader env m, HasVerifierResourcePool env)
+                 => (VerifierResources -> m a) -> m a
+withResourcePool f = do
+  p <- view verifierResourcePool
+  execWithResourcePool p f
 
 
 data Conclusion

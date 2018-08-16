@@ -1,10 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module VDiff.Util.ResourcePool where
+module VDiff.Util.ResourcePool
+  ( ResourcePool
+  , newResourcePool
+  , execWithResourcePool
+  ) where
 
 import           Control.Concurrent.STM.TQueue
+import           RIO
 import           UnliftIO.Concurrent
-import           VDiff.Prelude
 
 newtype ResourcePool r = ResourcePool { unPool :: TQueue r }
 
@@ -15,8 +19,8 @@ newResourcePool rs = atomically $ do
   mapM_ (writeTQueue tq) rs
   return (ResourcePool tq)
 
-withResourcePool :: (MonadUnliftIO m) => ResourcePool r -> [r -> m a] -> m [a]
-withResourcePool p actions = do
+withResourcePoolPar :: (MonadUnliftIO m) => ResourcePool r -> [r -> m a] -> m [a]
+withResourcePoolPar p actions = do
   mvars <- forM actions $ \a -> do
     m <- newEmptyMVar
     forkIO $ do
@@ -28,3 +32,17 @@ withResourcePool p actions = do
     return m
   -- wait for all mvars
   mapM takeMVar mvars
+
+
+execWithResourcePool :: (MonadUnliftIO m) => ResourcePool r -> (r -> m a) -> m a
+execWithResourcePool p action = do
+  m <- newEmptyMVar
+  forkIO $ do
+    -- take a resource
+    r <- atomically $ readTQueue (unPool p)
+    x <- action r `finally` atomically (writeTQueue (unPool p) r)
+    -- write to mvar
+    putMVar m x
+  takeMVar m
+
+
