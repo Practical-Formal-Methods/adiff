@@ -20,4 +20,8 @@
       <a href="#{linkUnsoundness}"> Unsoundness
     <li>
       <a href="#{linkIncomplete}"> Incomplete
+    <li>
+      Delta Unsoundness
+      <a href="#{sampleLinkDeltaUnsoundness}">
+        Sample
 

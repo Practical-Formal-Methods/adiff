@@ -51,6 +51,9 @@ module VDiff.Data (
   , consensusProgramId
   , consensusVerdict
   , consensusWeights
+  , countSat
+  , countUnsat
+  , countUnknown
   , ConsensusT(Consensus)
   , Consensus
   , Weights(..)

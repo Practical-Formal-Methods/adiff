@@ -28,6 +28,7 @@ import qualified Data.Text                                as T
 import           Database.Beam
 import           Database.Beam.Backend.SQL.BeamExtensions
 import           Database.Beam.Query
+import           Database.Beam.Query.CustomSQL
 import           Database.Beam.Sqlite                     hiding (runInsertReturningList)
 import qualified Database.SQLite.Simple                   as SQL
 import           Numeric
@@ -40,6 +41,7 @@ import           VDiff.Prelude                            hiding (Disagreement)
 data Query
   = Query Suspicion (Maybe Relatee) Relatee
   | ByVerdict [(Relatee, [Verdict])]
+  | Delta VerifierName Suspicion Weights Int
   | Disagreement
   | Ties
   | Everything
@@ -49,11 +51,12 @@ data Query
 weightsOfQuery :: Query -> [Weights]
 weightsOfQuery q =
   case q of
-    Query _ mr r -> catMaybes [mr >>= weightsRelatee, weightsRelatee r]
-    ByVerdict l  -> catMaybes [ weightsRelatee r | (r,_) <- l ]
-    Disagreement -> []
-    Ties         -> []
-    Everything   -> []
+    Query _ mr r  -> catMaybes [mr >>= weightsRelatee, weightsRelatee r]
+    ByVerdict l   -> catMaybes [ weightsRelatee r | (r,_) <- l ]
+    Delta _ _ w _ -> [w]
+    Disagreement  -> []
+    Ties          -> []
+    Everything    -> []
 
 weightsRelatee :: Relatee -> Maybe Weights
 weightsRelatee (ConsensusBy w) = Just w
@@ -103,6 +106,7 @@ compileQuery= \case
   (Query SuspicionUnsound (Just r1) r2)    -> findingsByVerdicts [(r1, [Unsat]), (r2, [Sat])]
   (Query SuspicionUnsound Nothing r2)      -> filter_ (\(_,_,_, unsatCount,_,_) -> unsatCount >. 0) $ findingsByVerdicts [(r2, [Sat])]
   (ByVerdict vrds) -> findingsByVerdicts vrds
+  (Delta vn suspicion weights d) -> findingsByDelta vn suspicion weights d
   Everything -> findingsByVerdicts []
 
 
@@ -181,7 +185,7 @@ lookupRun vn hs = runBeam $ runSelectReturningOne $ select s
 
 
 -- | morally produces [Finding]
-findingsByVerdicts :: [(Relatee, [Verdict])] -> Q _ VDiffDb ctx _
+findingsByVerdicts :: [(Relatee, [Verdict])] -> Q _ VDiffDb ctx (PrimaryKey ProgramT _,_,_,_,_,_)
 findingsByVerdicts rvs = agg $ do
   -- the program
   p <- programByVerdicts rvs
@@ -203,12 +207,48 @@ findingsByVerdicts rvs = agg $ do
                                                       , concatComma_ sats
                                                       , concatComma_ unsats))
 
-    concatComma_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ (Maybe Text) -> QGenExpr QAggregateContext syntax s (Maybe Text)
-    concatComma_ = customExpr_ (\bytes -> "group_concat(" <> bytes <> ")")
+findingsByDelta :: VerifierName -> Suspicion -> Weights -> Int -> Q _ VDiffDb ctx _
+findingsByDelta vn s weights delta = agg $ do
+  -- the program
+  p <- all_ (vdiffDb ^. programs)
 
-    countDistinct_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ _ -> QGenExpr QAggregateContext syntax s Int
-    countDistinct_ = customExpr_ (\bytes -> "COUNT(DISTINCT " <> bytes <> ")")
+  -- join with all runs that say "Sat"
+  sats <- leftJoin_ (filter_ (\r -> (r ^. resultVerdict) ==. val_ Sat) $ all_ $ vdiffDb ^. runs)
+            (\r -> (r ^. program) ==. (p ^. hash) )
 
+  -- join with all runs that say "Unsat"
+  unsats <- leftJoin_ (filter_ (\r -> (r ^. resultVerdict) ==. val_ Unsat) $ all_ $ vdiffDb ^. runs)
+            (\r -> (r ^. program) ==. (p ^. hash) )
+
+  -- we do an inner join with the runs table filtered by verifier name vn and the incorrect verdict we are looking for
+  let offendingVerdict = case s of {SuspicionIncomplete -> Sat; SuspicionUnsound -> Unsat}
+  offendingRun <- allRuns_
+  guard_ $ (p ^. hash) ==. (offendingRun ^. program)
+  guard_ $ offendingRun ^. verifierName ==. val_ vn
+  guard_ $ offendingRun ^. resultVerdict ==. val_ offendingVerdict
+
+  -- instead of just counting the sats and unsats we join with a consensus table to get the counts according to the weights
+  consensus <- filter_ (\c -> (c ^. consensusWeights) ==. val_ weights ) $ all_ (vdiffDb ^. tmpConsensus)
+  guard_ $ (p ^. hash) ==. (consensus ^. consensusProgramId)
+  case s of
+    SuspicionUnsound    -> guard_ $ (consensus ^. countSat)   >=. fromIntegral delta
+    SuspicionIncomplete -> guard_ $ (consensus ^. countUnsat) >=. fromIntegral delta
+
+  return (pk p, p ^. origin, sats ^. verifierName, unsats ^. verifierName)
+  where
+
+    agg = aggregate_ (\(pid, origin, sats, unsats) -> ( group_ pid
+                                                      , group_ origin
+                                                      , countDistinct_ sats
+                                                      , countDistinct_ unsats
+                                                      , concatComma_ sats
+                                                      , concatComma_ unsats))
+
+concatComma_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ (Maybe Text) -> QGenExpr QAggregateContext syntax s (Maybe Text)
+concatComma_ = customExpr_ (\bytes -> "group_concat(" <> bytes <> ")")
+
+countDistinct_ :: (IsCustomSqlSyntax syntax) => QGenExpr QValueContext _ _ _ -> QGenExpr QAggregateContext syntax s Int
+countDistinct_ = customExpr_ (\bytes -> "COUNT(DISTINCT " <> bytes <> ")")
 
 
 calculateConsensus:: (HasDatabase env, HasLogFunc env) => Weights -> RIO env ()
