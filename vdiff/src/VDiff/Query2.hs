@@ -231,8 +231,8 @@ findingsByDelta vn s weights delta = agg $ do
   consensus <- filter_ (\c -> (c ^. consensusWeights) ==. val_ weights ) $ all_ (vdiffDb ^. tmpConsensus)
   guard_ $ (p ^. hash) ==. (consensus ^. consensusProgramId)
   case s of
-    SuspicionUnsound    -> guard_ $ (consensus ^. countSat)   >=. fromIntegral delta
-    SuspicionIncomplete -> guard_ $ (consensus ^. countUnsat) >=. fromIntegral delta
+    SuspicionUnsound    -> guard_ $ (consensus ^. countSat)   ==. fromIntegral delta
+    SuspicionIncomplete -> guard_ $ (consensus ^. countUnsat) ==. fromIntegral delta
 
   return (pk p, p ^. origin, sats ^. verifierName, unsats ^. verifierName)
   where
