@@ -61,7 +61,7 @@ getIndex = do
   where
     linkUnsoundness = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionUnsound Nothing (ConsensusBy defaultWeights))
     linkIncomplete  = "/findings?q=" <> JSON.encodeToLazyText (Q2.Query Q2.SuspicionIncomplete Nothing (ConsensusBy defaultWeights))
-    sampleLinkDeltaUnsoundness = "/findings?q=" <> JSON.encodeToLazyText (Q2.Delta "smack" Q2.SuspicionUnsound defaultWeights 2)
+    sampleLinkDeltaUnsoundness = "/findings?q=" <> JSON.encodeToLazyText (Q2.Delta (Just "smack") Q2.SuspicionUnsound defaultWeights 2)
 
 -- | shows all runs on one instrumented file
 getProgram :: (HasDatabase env, HasLogFunc env) => RioActionM env ()

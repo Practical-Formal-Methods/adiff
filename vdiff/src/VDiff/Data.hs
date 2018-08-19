@@ -258,7 +258,7 @@ data ConsensusAlgorithm
 
 -- TODO: Improve the names of these things
 defaultWeights :: Weights
-defaultWeights = Weights (SimpleMajorityUnknownAs Sat) defaultWeightsMap
+defaultWeights = Weights SimpleBinaryMajority defaultWeightsMap
 
 defaultWeightsMap =
   [ ("cbmc", 1)

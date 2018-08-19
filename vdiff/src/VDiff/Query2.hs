@@ -41,7 +41,7 @@ import           VDiff.Prelude                            hiding (Disagreement)
 data Query
   = Query Suspicion (Maybe Relatee) Relatee
   | ByVerdict [(Relatee, [Verdict])]
-  | Delta VerifierName Suspicion Weights Int
+  | Delta (Maybe VerifierName) Suspicion Weights Int
   | Disagreement
   | Ties
   | Everything
@@ -207,8 +207,8 @@ findingsByVerdicts rvs = agg $ do
                                                       , concatComma_ sats
                                                       , concatComma_ unsats))
 
-findingsByDelta :: VerifierName -> Suspicion -> Weights -> Int -> Q _ VDiffDb ctx _
-findingsByDelta vn s weights delta = agg $ do
+findingsByDelta :: Maybe VerifierName -> Suspicion -> Weights -> Int -> Q _ VDiffDb ctx _
+findingsByDelta mvn s weights delta = agg $ do
   -- the program
   p <- all_ (vdiffDb ^. programs)
 
@@ -224,7 +224,9 @@ findingsByDelta vn s weights delta = agg $ do
   let offendingVerdict = case s of {SuspicionIncomplete -> Sat; SuspicionUnsound -> Unsat}
   offendingRun <- allRuns_
   guard_ $ (p ^. hash) ==. (offendingRun ^. program)
-  guard_ $ offendingRun ^. verifierName ==. val_ vn
+  case mvn of
+    Just vn -> guard_ $ offendingRun ^. verifierName ==. val_ vn
+    _ -> return ()
   guard_ $ offendingRun ^. resultVerdict ==. val_ offendingVerdict
 
   -- instead of just counting the sats and unsats we join with a consensus table to get the counts according to the weights
