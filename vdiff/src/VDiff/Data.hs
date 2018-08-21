@@ -198,7 +198,7 @@ data  VerifierRunT f = VerifierRun
   , _verifierName :: C f Text
   , _program      :: PrimaryKey ProgramT f
   , _result       :: VerifierResultMixin f
-  , _iteration    :: C f Int
+  , _iteration    :: C f Int -- ^ a value of -1 means that the value run is only for caching purposes but not part of the experiment
   } deriving (Generic, Beamable)
 
 VerifierRun (LensFor runId) (LensFor verifierName) (ProgramId (LensFor program)) _ (LensFor iteration) = tableLenses

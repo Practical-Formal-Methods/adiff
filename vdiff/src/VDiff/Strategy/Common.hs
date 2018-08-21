@@ -97,6 +97,7 @@ verifyParallel resources verifiers program n = do
       Q2.lookupRun name (program ^. hash) >>= \case
         Just r -> do
           logInfo "using cached verifier result"
+          when (r ^. iteration == -1) $ Q2.updateRun ((iteration .~ n) r)
           return r
         Nothing -> do
           -- Okay, we actually have to run the verifier

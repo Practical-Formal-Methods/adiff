@@ -184,6 +184,9 @@ lookupRun vn hs = runBeam $ runSelectReturningOne $ select s
     s = filter_ (\r -> (r ^. program) ==. val_ hs &&. r ^. verifierName ==. val_ vn) $ all_ (vdiffDb ^. runs)
 
 
+updateRun :: (HasDatabase env, HasLogFunc env) => VerifierRun  ->  RIO env ()
+updateRun r = runBeam $ runUpdate $ save (vdiffDb ^. runs) r
+
 -- | morally produces [Finding]
 findingsByVerdicts :: [(Relatee, [Verdict])] -> Q _ VDiffDb ctx (PrimaryKey ProgramT _,_,_,_,_,_)
 findingsByVerdicts rvs = agg $ do
