@@ -24,6 +24,8 @@
           <th>
             result
           <th>
+            iteration
+          <th>
             time 
           <th>
             memory
@@ -37,6 +39,8 @@
               <span class="verdict">
                 #{ show (raVerdict r) }
               (#{ raOccurences r })
+            <td>
+              #{ show $ (raIterations r) }
             <td>
               TODO
             <td>

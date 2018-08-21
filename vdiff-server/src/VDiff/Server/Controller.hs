@@ -79,13 +79,14 @@ data VerifierRunAggregate = VerifierRunAggregate
   , raTime       :: (Double, Double)
   , raMemory     :: (Int, Int)
   , raOccurences :: Int
+  , raIterations :: [Int]
   }
 
 groupRuns :: [VerifierRun] -> [VerifierRunAggregate]
 groupRuns = map aggregate . groupBy sameNameAndVerdict . sortOn verdictAndName
   where
     sameNameAndVerdict r1 r2 = verdictAndName r1 == verdictAndName r2
-    aggregate l@(r:rs) = VerifierRunAggregate (r ^. verifierName) (r ^. (result . verdict)) (0,0) (0,0) (length l)
+    aggregate l@(r:rs) = VerifierRunAggregate (r ^. verifierName) (r ^. (result . verdict)) (0,0) (0,0) (length l) (map (^. iteration) l)
     verdictAndName r = (show (r ^. (result . verdict)), r ^. verifierName)
 
 
