@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeFamilies              #-}
 
 module VDiff.Server.Controller where
@@ -43,6 +44,8 @@ endpoints :: (HasServerEnv env) => ScottyT SrvError (RIO env) ()
 endpoints = do
   get "/" getIndex
   get "/overview" getOverview
+  get "/delta/unsound" (getDelta Q2.SuspicionUnsound)
+  get "/delta/incomplete" (getDelta Q2.SuspicionIncomplete)
   get "/program/:hash" getProgram
   get "/findings/" getFindings
   get "/scratchpad" getScratch
@@ -156,6 +159,15 @@ getOverview = do
     mkIncompletenessWithUnknownLink v1 v2 = "/findings?q=" <> JSON.encodeToLazyText (Q2.ByVerdict [(v1, [Unknown, Sat]), (v2, [Unsat])])
     selectIfEqual x y = if x == y then ("selected" :: Text) else ""
 
+getDelta :: (HasDatabase env, HasLogFunc env) => Q2.Suspicion -> RioActionM env ()
+getDelta susp = do
+  vns <- lift Q2.getVerifierNames
+  let maxN = length vns - 1
+  let allNs = [2 .. maxN ]
+  xxx <- lift (sequence [ ((v,n),) <$> Q2.executeQueryCount (Q2.Delta (Just v) susp defaultWeights n) | v <- vns, n <- allNs ])
+  let tbl = Map.fromList xxx
+  let mkLink v n = "/findings?q=" <> JSON.encodeToLazyText (Q2.Delta (Just v) susp defaultWeights n)
+  defaultLayout ("Delta" <> tshow susp) $(shamletFile "templates/delta.hamlet")
 
 getCompare :: (HasDatabase env, HasOverviewCache env, HasLogFunc env) => RioActionM env ()
 getCompare = do

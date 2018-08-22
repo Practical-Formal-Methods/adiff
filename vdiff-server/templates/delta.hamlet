@@ -1,0 +1,11 @@
+<div.center>
+  <table.centered.correlation>
+    <tr>
+      <td>  
+      $forall n <- allNs
+        <td> #{show n}
+    $forall v <- vns 
+      <tr>
+        <td> #{v}
+        $forall n <- allNs
+          <td><a href="#{mkLink v n}">#{maybe "" tshow (Map.lookup (v,n) tbl)}</a>
