@@ -82,3 +82,4 @@ overPairsWithConsensus consensusModel f = do
   vns <- Q2.getVerifierNames
   let rels = ConsensusBy consensusModel : [RelateName v | v <- vns]
   Map.fromList <$> sequence [ ((v1, v2),) <$> f v1 v2 | v1 <- rels, v2 <- rels ]
+

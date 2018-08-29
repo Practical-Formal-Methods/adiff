@@ -26,7 +26,9 @@ import           UnliftIO.Concurrent
 import           VDiff.Data
 import           VDiff.Prelude
 
--- this is passed through the docker boundary
+-- | An instance of this data type is serialized on the host side, passed to the
+-- docker container as a file and deseralized by an instance of vdiff that runs
+-- inside of the container.
 data ExecutionPackage
   = ExecutionPackage
   { _packageVerifierName :: VerifierName
@@ -49,8 +51,6 @@ instance MonadUnliftIO (DockerT IO) where
   withRunInIO inner = do
     env <- ask
     liftIO $ inner $ runDockerT env
-
-
 
 
 executeVerifierInDocker :: (HasLogFunc env) => VerifierResources -> VerifierName -> [Text] -> Text -> RIO env VerifierResult

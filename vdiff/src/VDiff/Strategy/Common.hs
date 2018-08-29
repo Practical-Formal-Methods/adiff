@@ -146,7 +146,7 @@ mkAssertionFromPool e pool = do
 mkRandomConstant :: (MonadRandom m) => Type -> m (CConstant SemPhase)
 mkRandomConstant ty
   | ty `sameType` integral TyChar = do
-      (b :: Word8) <- getRandom -- ^ A C 'char' is only a Word8
+      (b :: Word8) <- getRandom -- a C 'char' is only a Word8
       let c = P.toEnum $ P.fromEnum b
       return $ CCharConst (CChar c False) (undefNode, ty)
 
