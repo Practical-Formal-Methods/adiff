@@ -116,6 +116,8 @@ RUN cd tmp && \
 RUN git config --global user.email "x@y.com"  &&\
     git config --global user.name  "x y"
 
+RUN apt-get install -y libgoogle-perftools-dev
+
 RUN cd /tmp && git clone https://github.com/klee/klee.git && \
 	cd /tmp/klee && \
   git checkout 4211cea27f1903f68c2b32267eb34cb95c24b9f3 && \
