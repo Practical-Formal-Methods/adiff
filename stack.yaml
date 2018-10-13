@@ -2,9 +2,9 @@ resolver: lts-11.13
 
 flags: {}
 packages:
-- ./vdiff
-- ./vdiff-docker
-- ./vdiff-server
+- ./adiff
+- ./adiff-docker
+- ./adiff-server
 - location: ./language-c-extensible
   extra-dep: true
 
@@ -18,7 +18,7 @@ extra-deps:
 - git: https://github.com/IreneKnapp/direct-sqlite.git
   commit: 8e3da41c46b5de19942cc7bf421c3deb5117ba7a
 
-docker:
-   enable: true
-   image: vdiff/build
-   set-user: false
+#docker:
+#   enable: true
+#   image: adiff/build
+#   set-user: false

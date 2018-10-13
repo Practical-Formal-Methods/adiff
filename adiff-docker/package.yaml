@@ -1,0 +1,22 @@
+name:                adiff-docker
+version:             0.1.0.0
+#synopsis:
+#description:
+homepage:            https://github.com/githubuser/adiff-docker#readme
+license:             BSD3
+author:              Christain Klinger
+maintainer:          io@klinch.de
+copyright:           2018 Christian Klinger 
+category:            Other 
+
+dependencies:
+  - base >= 4.7 && < 5
+  - optparse-applicative
+  - process
+  - safe
+  - text
+
+executables:
+  adiff-docker:
+    source-dirs:      src
+    main:             Main.hs

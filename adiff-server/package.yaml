@@ -1,0 +1,58 @@
+name:                adiff-server
+version:             0.1.0.0
+github:              "chkl/adiff"
+license:             AllRightsReserved 
+author:              "Christian Klinger"
+maintainer:          "io@klinch.de"
+copyright:           "2018 Christian Klinger"
+
+extra-source-files:
+- README.md
+
+description:         Please see the README on GitHub at <https://github.com/chkl/adiff#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- adiff
+- adiff
+- scotty
+- shakespeare 
+- blaze-html
+- sqlite-simple
+- text
+- beam-core
+- beam-sqlite
+- wai-middleware-static-embedded
+- file-embed
+- safe
+- SafeSemaphore
+- containers
+- aeson
+- bytestring
+- http-types
+
+
+library:
+  source-dirs: src
+
+executables:
+  adiff-server:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - adiff-server
+
+tests:
+  adiff-server-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - adiff-server

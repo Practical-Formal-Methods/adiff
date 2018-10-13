@@ -1,7 +1,7 @@
-[![Build Status](https://travis-ci.com/chkl/vdiff.svg?token=LABbvVHJ7ARjnEncQ2vN&branch=master)](https://travis-ci.com/chkl/vdiff)
+[![Build Status](https://travis-ci.com/chkl/adiff.svg?token=LABbvVHJ7ARjnEncQ2vN&branch=master)](https://travis-ci.com/chkl/adiff)
 
-# VDiff
+# ADiff
 
 This repository contains the following projects:
-  * `vdiff` [README](vdiff/README.md)
+  * `adiff` [README](adiff/README.md)
   * `language-c-exensible`  A fork of `language-c` that enables custom annotations on the AST

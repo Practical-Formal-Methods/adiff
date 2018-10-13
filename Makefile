@@ -4,8 +4,8 @@ default: img-run
 compile: img-build
 	stack build
 
-vdiff-docker: Dockerfile
-	docker build -t vdiff:latest  .
+adiff-docker: Dockerfile
+	docker build -t adiff:latest  .
 
 clean:
 	stack clean
@@ -20,14 +20,14 @@ test: img-run
 # docker images
 
 img-all-verifiers:
-	docker build -t vdiff/all-verifiers docker/vdiff/all-verifiers
+	docker build -t adiff/all-verifiers docker/adiff/all-verifiers
 
 img-build: img-all-verifiers
-	docker build -t vdiff/build docker/vdiff/build
+	docker build -t adiff/build docker/adiff/build
 
 img-run: compile
 	stack install
-	docker build -t vdiff/vdiff -f docker/vdiff/vdiff/Dockerfile .
+	docker build -t adiff/adiff -f docker/adiff/adiff/Dockerfile .
 
 
 .PHONY: test test-integration img-all-verifiers img-build img-run compile install

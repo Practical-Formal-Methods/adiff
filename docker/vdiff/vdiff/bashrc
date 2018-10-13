@@ -1,7 +1,0 @@
-# simple bashrc that is placed into the docker image
-export PS1='$(pwd) > ' 
-export PATH="$HOME/.local/bin:$PATH"
-
-# bash-completion for vdiff
-source <(vdiff --bash-completion-script `which vdiff`)
-source <(vdiff-viewer --bash-completion-script `which vdiff-viewer`)

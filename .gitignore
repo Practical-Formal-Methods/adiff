@@ -1,5 +1,5 @@
 .stack-work
-vdiff.cabal
+adiff.cabal
 **/.#*
 *.log
 *.aux
@@ -7,7 +7,7 @@ _region_.log
 _region_.tex
 *.prv
 *.synctex.gz
-vdiff/docs/auto
-vdiff/docs/*.pdf
+adiff/docs/auto
+adiff/docs/*.pdf
 .hlint.yaml
 *.el

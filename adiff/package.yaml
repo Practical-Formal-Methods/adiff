@@ -1,0 +1,136 @@
+name:                adiff
+version:             0.1.0.0
+synopsis:         A simple tool to compare static program verifiers
+github:            https://github.com/chkl/adiff
+author:              Christian Klinger
+maintainer:          io@klinch.de
+copyright:           All Rights Reserved
+license:             AllRightsReserved
+category:            Misc
+build-type:          Simple
+
+extra-source-files:
+  - README.md
+  - assets/**
+
+
+default-extensions:
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - LambdaCase
+  - ScopedTypeVariables
+  - DeriveFunctor
+  - GeneralizedNewtypeDeriving
+  - TypeFamilies
+  - FlexibleContexts
+  - FlexibleInstances
+  - StandaloneDeriving
+
+
+executables:
+  adiff:
+    source-dirs: app/adiff
+    main: Main.hs
+    dependencies: adiff
+    ghc-options: -threaded -O2 -rtsopts
+
+  adiff-viewer:
+    source-dirs: app/adiff-viewer
+    main: Main.hs
+    dependencies:
+      - adiff
+    ghc-options: -threaded -O2 -rtsopts
+
+  adiff-take:
+    source-dirs: app/adiff-take
+    main: Main.hs
+    dependencies:
+      - adiff
+      - random-shuffle
+      - extra>=1.6.5
+    ghc-options: -threaded -O2 -rtsopts
+
+  adiff-run-package:
+    source-dirs: app/adiff-run-package
+    main: Main.hs
+    dependencies: adiff
+    ghc-options: -threaded -O2 -rtsopts
+  
+
+library:
+  source-dirs:      src
+
+tests:
+  regression:
+    main: Regression.hs
+    source-dirs: test/regression
+    dependencies:
+      - rio >= 0.1.0
+      - tasty 
+      - tasty-hunit
+      - tasty-hedgehog
+      - tasty-golden
+      - hedgehog
+      - adiff
+      - file-embed
+      - filepath
+    ghc-options: -threaded
+  integration:
+    main: Integration.hs
+    source-dirs: test/integration
+    dependencies:
+      - rio >= 0.1.0
+      - tasty 
+      - tasty-hunit
+      - tasty-hedgehog
+      - tasty-golden
+      - hedgehog
+      - adiff
+      - file-embed
+      - filepath
+    ghc-options: -threaded
+
+
+dependencies:
+  - base >= 4.7
+  - rio >= 0.1.0
+  - base16-bytestring
+  - bytestring
+  - cryptohash
+  - file-embed
+  - language-c
+  - optparse-applicative
+  - pretty
+  - process >= 1.6.3
+  - random
+  - safe
+  - sqlite-simple 
+  - direct-sqlite >= 2.3.24
+  - transformers
+  - mtl
+  - text
+  - lens
+  - uniplate
+  - pptable >= 0.3.0
+  - containers
+  - unliftio
+  - directory
+  - template-haskell
+  - dlist
+  - ilist
+  - vector
+  - MonadRandom
+  - filepath
+  - utility-ht
+  - beam-core >= 0.7.2.1
+  - beam-sqlite >= 0.3.2.1
+  - beam-migrate
+  - time
+  - megaparsec
+  - regex-base
+  - regex-posix
+  - docker
+  - stm
+  - resource-pool
+  - aeson
+  
