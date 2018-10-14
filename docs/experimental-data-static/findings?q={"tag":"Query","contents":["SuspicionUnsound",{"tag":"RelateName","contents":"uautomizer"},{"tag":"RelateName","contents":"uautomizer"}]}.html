@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<head><title>Findings</title>
+<meta charset="UTF-8" /> </meta>
+<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+
+<link href="css/template.css" rel="stylesheet">
+<link rel="stylesheet" href="css/materialize.min.css">
+<script src="js/jquery-3.3.1.min.js"></script>
+<style>.verdict: { font-weight: bold; }
+.configuration : {background-color: #e3f2fd;
+padding: 1em;}
+.filepath {font-family: Monospace;
+font-size: 0.8em;}
+#sourcebox {margin-left: 30px;}
+.xcontainer {margin-left : 100px;
+margin-right: 100px;}
+@media screen and (max-width: 800px) {.xcontainer {margin-left: 15px;
+margin-right: 15px;}}
+body {display: flex;
+min-height: 100vh;
+flex-direction: column;}
+main {flex: 1 0 auto;}
+#editor { width: 100%;
+min-height: 400px;}</style>
+</head>
+<body><header class="" style="background-color:#5397CC; color: white; padding: 30px;"><a href="index.html" style="color:white"><div class="container"><h1 class="header">vdiff - diffing verifiers</h1>
+</div>
+</a>
+</header>
+<main class="xcontainer" style="min-height:80%"><form method="GET" action="findings.html"><div class="configuration"><textarea name="q">{&quot;tag&quot;:&quot;Query&quot;,&quot;contents&quot;:[&quot;SuspicionUnsound&quot;,{&quot;tag&quot;:&quot;RelateName&quot;,&quot;contents&quot;:&quot;uautomizer&quot;},{&quot;tag&quot;:&quot;RelateName&quot;,&quot;contents&quot;:&quot;uautomizer&quot;}]}</textarea>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="row"><button class="btn waves-effect waves-light" type="submit" id="searchButton">Search
+<i class="material-icons right">search</i>
+</button>
+</div>
+</div>
+<p>total: 0</p>
+<table><tr><th>program</th>
+<th>sats</th>
+<th>unsats</th>
+</tr>
+</table>
+<div class="center">
+<ul class="pagination"><li class="disabled"><button type="submit"  name="page" value="1" class="btn btn-small" disabled><i class="material-icons">first_page</i></button></li>
+<li class="disabled"><button type="submit"  name="page" value="0" class="btn btn-small" disabled><i class="material-icons">chevron_left</i></button></li>
+<li class="disabled"><button type="submit"  name="page" value="2" class="btn btn-small" disabled><i class="material-icons">chevron_right</i></button></li>
+<li class="disabled"><button type="submit"  name="page" value="0" class="btn btn-small" disabled><i class="material-icons">last_page</i></button></li>
+</ul>
+</div>
+</form>
+<script src="js/findings.js"></script>
+</main>
+<footer class="page-footer center" style="background-color: #5397CC; color:white">pages served with vdiff-server</footer>
+</body>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+<script src="js/materialize.min.js"></script>
+<script>hljs.initHighlightingOnLoad();
+$(document).ready(function() {$('select').formSelect();
+$('.tooltipped').tooltip();});</script>

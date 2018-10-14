@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<head><title>program: 03ee65f5992db3e19bf2fe93b83706ea94f30022</title>
+<meta charset="UTF-8" /> </meta>
+<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+
+<link href="../css/template.css" rel="stylesheet">
+<link rel="stylesheet" href="../css/materialize.min.css">
+<script src="../js/jquery-3.3.1.min.js"></script>
+<style>.verdict: { font-weight: bold; }
+.configuration : {background-color: #e3f2fd;
+padding: 1em;}
+.filepath {font-family: Monospace;
+font-size: 0.8em;}
+#sourcebox {margin-left: 30px;}
+.xcontainer {margin-left : 100px;
+margin-right: 100px;}
+@media screen and (max-width: 800px) {.xcontainer {margin-left: 15px;
+margin-right: 15px;}}
+body {display: flex;
+min-height: 100vh;
+flex-direction: column;}
+main {flex: 1 0 auto;}
+#editor { width: 100%;
+min-height: 400px;}</style>
+</head>
+<body><header class="" style="background-color:#5397CC; color: white; padding: 30px;"><a href="../index.html" style="color:white"><div class="container"><h1 class="header">vdiff - diffing verifiers</h1>
+</div>
+</a>
+</header>
+<main class="xcontainer" style="min-height:80%"><div class="row"><div class="col s12 m12 l12 xl6"><h4>Instrumented Program</h4>
+<table class="responsive-table"><tr><td>original filename</td>
+<td>c/psyco/psyco_math_1_true-unreach-call_false-termination.c</td>
+</tr>
+<tr><td>hash</td>
+<td><code class="hash"> 03ee65f5992db3e19bf2fe93b83706ea94f30022</code>
+</td>
+</tr>
+</table>
+<h4>Runs</h4>
+<table><thead><tr><th>verifier</th>
+<th>result</th>
+<th>iteration</th>
+<th>time </th>
+<th>memory</th>
+</tr>
+</thead>
+<tbody><tr><td>cpachecker</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>crab-llvm</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>seacrab</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>seahorn</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>smack</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>uautomizer</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>utaipan</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>cbmc</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>klee</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[24]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="col s12 m12 l12 xl6"><div id="sourcebox"><pre class="source"><code class="c">void __DUMMY_VERIFIER_error()
+{
+}
+void __DUMMY_VERIFIER_assert(int condition)
+{
+}
+int __VERIFIER_nondet_int();
+extern void __VERIFIER_error() __attribute__((noreturn));
+void __VERIFIER_assert(int cond)
+{
+    if (!cond)
+    {
+    ERROR:
+        __VERIFIER_error();
+    }
+}
+int m_isPowerOfTwo = 1;
+int m_IntMath = 2;
+int m_log10 = 3;
+int m_checkedSubtract = 4;
+int m_checkedMultiply = 5;
+int m_log2 = 6;
+int m_checkedAdd = 7;
+int m_mod_1 = 8;
+int m_mod_2 = 9;
+int m_factorial_1 = 10;
+int m_factorial_2 = 11;
+int main()
+{
+    int q = 0;
+    int method_id;
+    while (1)
+    {
+        int P1 = __VERIFIER_nondet_int();
+        int P2 = __VERIFIER_nondet_int();
+        int P3 = __VERIFIER_nondet_int();
+        int P4 = __VERIFIER_nondet_int();
+        int P5 = __VERIFIER_nondet_int();
+        int P6 = __VERIFIER_nondet_int();
+        int P7 = __VERIFIER_nondet_int();
+        int P8 = __VERIFIER_nondet_int();
+        int P9 = __VERIFIER_nondet_int();
+        int P10 = __VERIFIER_nondet_int();
+        int P11 = __VERIFIER_nondet_int();
+        int P12 = __VERIFIER_nondet_int();
+        int P13 = __VERIFIER_nondet_int();
+        int P14 = __VERIFIER_nondet_int();
+        int P15 = __VERIFIER_nondet_int();
+        int P16 = __VERIFIER_nondet_int();
+        int P17 = __VERIFIER_nondet_int();
+        if (q == 0)
+        {
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 2;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            continue;
+        }
+        if (q == 1)
+        {
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 3;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 6;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (!(P1 &gt;= 0 &amp;&amp; P2 &gt; 0))
+                {
+                    method_id = 9;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (P1 &lt; 0)
+                {
+                    method_id = 10;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            continue;
+        }
+        if (q == 2)
+        {
+            if (__VERIFIER_nondet_int())
+            {
+                if (1 &amp;&amp; ((P1 &amp; P1 - 1) == 0 &amp;&amp; P1 &gt; 0 || 0))
+                {
+                    method_id = 1;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1 &amp;&amp; ((P1 &amp; P1 - 1) == 0 &amp;&amp; P1 &gt; 0 || 0) &amp;&amp; ((P1 &amp; P1 - 1) != 0 &amp;&amp; P1 &gt; 0 || 0))
+                {
+                    method_id = 1;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1 &amp;&amp; ((P1 &amp; P1 - 1) == 0 &amp;&amp; P1 &gt; 0 || 0) &amp;&amp; ((P1 &amp; P1 - 1) != 0 &amp;&amp; P1 &gt; 0 || 0) &amp;&amp; ((P1 &amp; P1 - 1) == 0 &amp;&amp; P1 &lt;= 0 || 0))
+                {
+                    method_id = 1;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1 &amp;&amp; ((P1 &amp; P1 - 1) == 0 &amp;&amp; P1 &gt; 0 || 0) &amp;&amp; ((P1 &amp; P1 - 1) != 0 &amp;&amp; P1 &gt; 0 || 0) &amp;&amp; ((P1 &amp; P1 - 1) == 0 &amp;&amp; P1 &lt;= 0 || 0) &amp;&amp; ((P1 &amp; P1 - 1) != 0 &amp;&amp; P1 &lt;= 0 || 0))
+                {
+                    method_id = 1;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 3;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 4;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 5;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 6;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (1)
+                {
+                    method_id = 7;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (P1 &gt;= 0 &amp;&amp; P2 &gt; 0)
+                {
+                    method_id = 8;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (!(P1 &gt;= 0 &amp;&amp; P2 &gt; 0))
+                {
+                    method_id = 9;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (P1 &lt; 0)
+                {
+                    method_id = 10;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 1;
+                    break;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                if (!(P1 &lt; 0) &amp;&amp; (P17 &lt; 13 &amp;&amp; P17 &gt;= 0 || 0))
+                {
+                    method_id = 11;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            if (__VERIFIER_nondet_int())
+            {
+                __VERIFIER_assert(P1 != 10 &amp;&amp; P1 != 0 &amp;&amp; P1 != 87761 &amp;&amp; P1 != 9);
+                if (!(P1 &lt; 0) &amp;&amp; (P17 &lt; 13 &amp;&amp; P17 &gt;= 0 || 0) &amp;&amp; (P17 &gt;= 13 &amp;&amp; P17 &gt;= 0 || 0))
+                {
+                    method_id = 11;
+                    if (0)
+                    {
+                        ;
+                    }
+                    q = 2;
+                }
+                continue;
+            }
+            continue;
+        }
+    }
+    return 0;
+    __DUMMY_VERIFIER_error();
+}</code>
+</pre>
+<div style="margin-top:-15px">
+
+
+
+
+
+<a class="btn-small waves-effect" href="../scratchpad%3Fprogram=03ee65f5992db3e19bf2fe93b83706ea94f30022.html" target="_blank">Open in Scratchpad
+<i class="material-icons left">crop_portrait</i>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="page-footer center" style="background-color: #5397CC; color:white">pages served with vdiff-server</footer>
+</body>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+<script src="../js/materialize.min.js"></script>
+<script>hljs.initHighlightingOnLoad();
+$(document).ready(function() {$('select').formSelect();
+$('.tooltipped').tooltip();});</script>

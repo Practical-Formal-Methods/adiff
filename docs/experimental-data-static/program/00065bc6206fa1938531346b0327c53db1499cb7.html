@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<head><title>program: 00065bc6206fa1938531346b0327c53db1499cb7</title>
+<meta charset="UTF-8" /> </meta>
+<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+
+<link href="../css/template.css" rel="stylesheet">
+<link rel="stylesheet" href="../css/materialize.min.css">
+<script src="../js/jquery-3.3.1.min.js"></script>
+<style>.verdict: { font-weight: bold; }
+.configuration : {background-color: #e3f2fd;
+padding: 1em;}
+.filepath {font-family: Monospace;
+font-size: 0.8em;}
+#sourcebox {margin-left: 30px;}
+.xcontainer {margin-left : 100px;
+margin-right: 100px;}
+@media screen and (max-width: 800px) {.xcontainer {margin-left: 15px;
+margin-right: 15px;}}
+body {display: flex;
+min-height: 100vh;
+flex-direction: column;}
+main {flex: 1 0 auto;}
+#editor { width: 100%;
+min-height: 400px;}</style>
+</head>
+<body><header class="" style="background-color:#5397CC; color: white; padding: 30px;"><a href="../index.html" style="color:white"><div class="container"><h1 class="header">vdiff - diffing verifiers</h1>
+</div>
+</a>
+</header>
+<main class="xcontainer" style="min-height:80%"><div class="row"><div class="col s12 m12 l12 xl6"><h4>Instrumented Program</h4>
+<table class="responsive-table"><tr><td>original filename</td>
+<td>c/seq-mthreaded/pals_lcr-var-start-time.3_true-unreach-call.ufo.UNBOUNDED.pals.c</td>
+</tr>
+<tr><td>hash</td>
+<td><code class="hash"> 00065bc6206fa1938531346b0327c53db1499cb7</code>
+</td>
+</tr>
+</table>
+<h4>Runs</h4>
+<table><thead><tr><th>verifier</th>
+<th>result</th>
+<th>iteration</th>
+<th>time </th>
+<th>memory</th>
+</tr>
+</thead>
+<tbody><tr><td>smack</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>cbmc</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>cpachecker</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>crab-llvm</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>klee</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>seacrab</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>seahorn</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>uautomizer</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>utaipan</td>
+<td><span class="verdict">Unknown</span>
+(1)</td>
+<td>[6]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="col s12 m12 l12 xl6"><div id="sourcebox"><pre class="source"><code class="c">void __DUMMY_VERIFIER_error()
+{
+}
+void __DUMMY_VERIFIER_assert(int condition)
+{
+}
+extern void __VERIFIER_error() __attribute__((__noreturn__));
+void __VERIFIER_assert(int cond)
+{
+    if (!cond)
+    {
+    ERROR:
+        __VERIFIER_error();
+    }
+}
+_Bool __VERIFIER_nondet_bool(void);
+char __VERIFIER_nondet_char(void);
+unsigned char __VERIFIER_nondet_uchar(void);
+void assert(_Bool arg);
+void __VERIFIER_assume(int arg);
+char msg_t;
+int port_t;
+extern void read(port_t p, msg_t m);
+extern void write(port_t p, msg_t m);
+msg_t nomsg = (msg_t) -1;
+unsigned char r1;
+port_t p1;
+char p1_old;
+char p1_new;
+char id1;
+char st1;
+msg_t send1;
+_Bool mode1;
+_Bool alive1;
+port_t p2;
+char p2_old;
+char p2_new;
+char id2;
+char st2;
+msg_t send2;
+_Bool mode2;
+_Bool alive2;
+port_t p3;
+char p3_old;
+char p3_new;
+char id3;
+char st3;
+msg_t send3;
+_Bool mode3;
+_Bool alive3;
+void node1(void)
+{
+    msg_t m1;
+    {
+        m1 = nomsg;
+        if (mode1)
+        {
+            if (r1 == 255)
+            {
+                r1 = 2;
+            }
+            r1 = r1 + 1;
+            m1 = p3_old;
+            p3_old = nomsg;
+            if ((int) m1 != (int) nomsg)
+            {
+                if (alive1)
+                {
+                    if ((int) m1 &gt; (int) id1)
+                    {
+                        send1 = m1;
+                    }
+                    else if ((int) m1 == (int) id1)
+                    {
+                        st1 = (char) 1;
+                    }
+                }
+                else
+                {
+                    send1 = m1;
+                }
+            }
+            mode1 = (_Bool) 0;
+        }
+        else
+        {
+            if (alive1)
+            {
+                p1_new = send1 != nomsg &amp;&amp; p1_new == nomsg ? send1 : p1_new;
+            }
+            else if ((int) send1 != (int) id1)
+            {
+                p1_new = send1 != nomsg &amp;&amp; p1_new == nomsg ? send1 : p1_new;
+            }
+            mode1 = (_Bool) 1;
+        }
+        return;
+    }
+}
+void node2(void)
+{
+    msg_t m2;
+    {
+        m2 = nomsg;
+        __VERIFIER_assert(mode2 != 0 &amp;&amp; mode2 != 1 &amp;&amp; mode2 != 1 &amp;&amp; mode2 != 0);
+        if (mode2)
+        {
+            m2 = p1_old;
+            p1_old = nomsg;
+            if ((int) m2 != (int) nomsg)
+            {
+                if (alive2)
+                {
+                    if ((int) m2 &gt; (int) id2)
+                    {
+                        send2 = m2;
+                    }
+                    else if ((int) m2 == (int) id2)
+                    {
+                        st2 = (char) 1;
+                    }
+                }
+                else
+                {
+                    send2 = m2;
+                }
+            }
+            mode2 = (_Bool) 0;
+        }
+        else
+        {
+            if (alive2)
+            {
+                p2_new = send2 != nomsg &amp;&amp; p2_new == nomsg ? send2 : p2_new;
+            }
+            else if ((int) send2 != (int) id2)
+            {
+                p2_new = send2 != nomsg &amp;&amp; p2_new == nomsg ? send2 : p2_new;
+            }
+            mode2 = (_Bool) 1;
+        }
+        return;
+    }
+}
+void node3(void)
+{
+    msg_t m3;
+    {
+        m3 = nomsg;
+        if (mode3)
+        {
+            m3 = p2_old;
+            p2_old = nomsg;
+            if ((int) m3 != (int) nomsg)
+            {
+                if (alive3)
+                {
+                    if ((int) m3 &gt; (int) id3)
+                    {
+                        send3 = m3;
+                    }
+                    else if ((int) m3 == (int) id3)
+                    {
+                        st3 = (char) 1;
+                    }
+                }
+                else
+                {
+                    send3 = m3;
+                }
+            }
+            mode3 = (_Bool) 0;
+        }
+        else
+        {
+            if (alive3)
+            {
+                p3_new = send3 != nomsg &amp;&amp; p3_new == nomsg ? send3 : p3_new;
+            }
+            else if ((int) send3 != (int) id3)
+            {
+                p3_new = send3 != nomsg &amp;&amp; p3_new == nomsg ? send3 : p3_new;
+            }
+            mode3 = (_Bool) 1;
+        }
+        return;
+    }
+}
+void (* nodes[3])(void) = { &amp;node1, &amp;node2, &amp;node3 };
+int init(void)
+{
+    int tmp;
+    {
+        if ((int) r1 == 0)
+        {
+            if ((int) alive1 + (int) alive2 + (int) alive3 &gt;= 1)
+            {
+                if ((int) id1 &gt;= 0)
+                {
+                    if ((int) st1 == 0)
+                    {
+                        if ((int) send1 == (int) id1)
+                        {
+                            if ((int) mode1 == 0)
+                            {
+                                if ((int) id2 &gt;= 0)
+                                {
+                                    if ((int) st2 == 0)
+                                    {
+                                        if ((int) send2 == (int) id2)
+                                        {
+                                            if ((int) mode2 == 0)
+                                            {
+                                                if ((int) id3 &gt;= 0)
+                                                {
+                                                    if ((int) st3 == 0)
+                                                    {
+                                                        if ((int) send3 == (int) id3)
+                                                        {
+                                                            if ((int) mode3 == 0)
+                                                            {
+                                                                if ((int) id1 != (int) id2)
+                                                                {
+                                                                    if ((int) id1 != (int) id3)
+                                                                    {
+                                                                        if ((int) id2 != (int) id3)
+                                                                        {
+                                                                            tmp = 1;
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            tmp = 0;
+                                                                        }
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        tmp = 0;
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    tmp = 0;
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                tmp = 0;
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            tmp = 0;
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        tmp = 0;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    tmp = 0;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                tmp = 0;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            tmp = 0;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        tmp = 0;
+                                    }
+                                }
+                                else
+                                {
+                                    tmp = 0;
+                                }
+                            }
+                            else
+                            {
+                                tmp = 0;
+                            }
+                        }
+                        else
+                        {
+                            tmp = 0;
+                        }
+                    }
+                    else
+                    {
+                        tmp = 0;
+                    }
+                }
+                else
+                {
+                    tmp = 0;
+                }
+            }
+            else
+            {
+                tmp = 0;
+            }
+        }
+        else
+        {
+            tmp = 0;
+        }
+        return tmp;
+    }
+}
+int check(void)
+{
+    int tmp;
+    {
+        if ((int) st1 + (int) st2 + (int) st3 &lt;= 1)
+        {
+            if ((int) r1 &lt; 3)
+            {
+                tmp = 1;
+            }
+            else if ((int) st1 + (int) st2 + (int) st3 == 1)
+            {
+                tmp = 1;
+            }
+            else
+            {
+                tmp = 0;
+            }
+        }
+        else
+        {
+            tmp = 0;
+        }
+        return tmp;
+    }
+}
+int main(void)
+{
+    int c1;
+    int i2;
+    {
+        c1 = 0;
+        r1 = __VERIFIER_nondet_uchar();
+        id1 = __VERIFIER_nondet_char();
+        st1 = __VERIFIER_nondet_char();
+        send1 = __VERIFIER_nondet_char();
+        mode1 = __VERIFIER_nondet_bool();
+        alive1 = __VERIFIER_nondet_bool();
+        id2 = __VERIFIER_nondet_char();
+        st2 = __VERIFIER_nondet_char();
+        send2 = __VERIFIER_nondet_char();
+        mode2 = __VERIFIER_nondet_bool();
+        alive2 = __VERIFIER_nondet_bool();
+        id3 = __VERIFIER_nondet_char();
+        st3 = __VERIFIER_nondet_char();
+        send3 = __VERIFIER_nondet_char();
+        mode3 = __VERIFIER_nondet_bool();
+        alive3 = __VERIFIER_nondet_bool();
+        i2 = init();
+        __VERIFIER_assume(i2);
+        p1_old = nomsg;
+        p1_new = nomsg;
+        p2_old = nomsg;
+        p2_new = nomsg;
+        p3_old = nomsg;
+        p3_new = nomsg;
+        i2 = 0;
+        while (1)
+        {
+            {
+                node1();
+                node2();
+                node3();
+                p1_old = p1_new;
+                p1_new = nomsg;
+                p2_old = p2_new;
+                p2_new = nomsg;
+                p3_old = p3_new;
+                p3_new = nomsg;
+                c1 = check();
+                assert(c1);
+            }
+        }
+    }
+    return 0;
+}
+void assert(_Bool arg)
+{
+    {
+        if (!arg)
+        {
+            {
+                __DUMMY_VERIFIER_error();
+            }
+        }
+    }
+}</code>
+</pre>
+<div style="margin-top:-15px">
+
+
+
+
+
+<a class="btn-small waves-effect" href="../scratchpad%3Fprogram=00065bc6206fa1938531346b0327c53db1499cb7.html" target="_blank">Open in Scratchpad
+<i class="material-icons left">crop_portrait</i>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="page-footer center" style="background-color: #5397CC; color:white">pages served with vdiff-server</footer>
+</body>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+<script src="../js/materialize.min.js"></script>
+<script>hljs.initHighlightingOnLoad();
+$(document).ready(function() {$('select').formSelect();
+$('.tooltipped').tooltip();});</script>

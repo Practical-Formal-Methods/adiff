@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<head><title>program: 0606a28642a9d4f9dd58c76e69d363eeef253cf0</title>
+<meta charset="UTF-8" /> </meta>
+<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+
+<link href="../css/template.css" rel="stylesheet">
+<link rel="stylesheet" href="../css/materialize.min.css">
+<script src="../js/jquery-3.3.1.min.js"></script>
+<style>.verdict: { font-weight: bold; }
+.configuration : {background-color: #e3f2fd;
+padding: 1em;}
+.filepath {font-family: Monospace;
+font-size: 0.8em;}
+#sourcebox {margin-left: 30px;}
+.xcontainer {margin-left : 100px;
+margin-right: 100px;}
+@media screen and (max-width: 800px) {.xcontainer {margin-left: 15px;
+margin-right: 15px;}}
+body {display: flex;
+min-height: 100vh;
+flex-direction: column;}
+main {flex: 1 0 auto;}
+#editor { width: 100%;
+min-height: 400px;}</style>
+</head>
+<body><header class="" style="background-color:#5397CC; color: white; padding: 30px;"><a href="../index.html" style="color:white"><div class="container"><h1 class="header">vdiff - diffing verifiers</h1>
+</div>
+</a>
+</header>
+<main class="xcontainer" style="min-height:80%"><div class="row"><div class="col s12 m12 l12 xl6"><h4>Instrumented Program</h4>
+<table class="responsive-table"><tr><td>original filename</td>
+<td>c/reducercommutativity/sum10_false-def-behavior.i</td>
+</tr>
+<tr><td>hash</td>
+<td><code class="hash"> 0606a28642a9d4f9dd58c76e69d363eeef253cf0</code>
+</td>
+</tr>
+</table>
+<h4>Runs</h4>
+<table><thead><tr><th>verifier</th>
+<th>result</th>
+<th>iteration</th>
+<th>time </th>
+<th>memory</th>
+</tr>
+</thead>
+<tbody><tr><td>cbmc</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>cpachecker</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>crab-llvm</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>seacrab</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>seahorn</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>smack</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>uautomizer</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>utaipan</td>
+<td><span class="verdict">Sat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr><td>klee</td>
+<td><span class="verdict">Unsat</span>
+(1)</td>
+<td>[3]</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="col s12 m12 l12 xl6"><div id="sourcebox"><pre class="source"><code class="c">void __DUMMY_VERIFIER_error()
+{
+}
+void __DUMMY_VERIFIER_assert(int condition)
+{
+}
+extern void __VERIFIER_error() __attribute__((__noreturn__));
+void __VERIFIER_assert(int cond)
+{
+    if (!cond)
+    {
+    ERROR:
+        __VERIFIER_error();
+    }
+}
+int sum(int x[10])
+{
+    int i;
+    long long ret;
+    ret = 0;
+    for (i = 0; i &lt; 10; i++)
+    {
+        __VERIFIER_assert(ret + x[i] != 103 &amp;&amp; ret + x[i] != 20 &amp;&amp; ret + x[i] != 2854383 &amp;&amp; ret + x[i] != 2);
+        ret = ret + x[i];
+    }
+    return ret;
+}
+int main()
+{
+    int x[10];
+    int temp;
+    int ret;
+    int ret2;
+    int ret5;
+    ret = sum(x);
+    temp = x[0];
+    x[0] = x[1];
+    x[1] = temp;
+    ret2 = sum(x);
+    temp = x[0];
+    for (int i = 0; i &lt; 10 - 1; i++)
+    {
+        x[i] = x[i + 1];
+    }
+    x[10 - 1] = temp;
+    ret5 = sum(x);
+    if (ret != ret2 || ret != ret5)
+    {
+        __DUMMY_VERIFIER_error();
+    }
+    return 1;
+}</code>
+</pre>
+<div style="margin-top:-15px">
+
+
+
+
+
+<a class="btn-small waves-effect" href="../scratchpad%3Fprogram=0606a28642a9d4f9dd58c76e69d363eeef253cf0.html" target="_blank">Open in Scratchpad
+<i class="material-icons left">crop_portrait</i>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="page-footer center" style="background-color: #5397CC; color:white">pages served with vdiff-server</footer>
+</body>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+<script src="../js/materialize.min.js"></script>
+<script>hljs.initHighlightingOnLoad();
+$(document).ready(function() {$('select').formSelect();
+$('.tooltipped').tooltip();});</script>
