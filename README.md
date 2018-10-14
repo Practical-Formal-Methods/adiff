@@ -3,5 +3,7 @@
 # ADiff
 
 This repository contains the following projects:
-  * `adiff` [README](adiff/README.md)
-  * `language-c-exensible`  A fork of `language-c` that enables custom annotations on the AST
+  * `adiff` The main project [README](adiff/README.md)
+  * `adiff-server` a web application to search for soundness/completeness issues in recorded runs 
+  * `language-c-extensible`  A fork of `language-c` that enables custom annotations on the AST
+  * `adiff-docker` a small utility to execute a container with all tools installed (obsolete)
