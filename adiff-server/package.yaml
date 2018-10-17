@@ -23,6 +23,7 @@ dependencies:
 - beam-core
 - beam-sqlite
 - wai-middleware-static-embedded
+- warp
 - file-embed
 - safe
 - SafeSemaphore
