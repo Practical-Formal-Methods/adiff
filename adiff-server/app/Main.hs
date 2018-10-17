@@ -51,7 +51,7 @@ main = runADiffApp parseServerParameters infos $ \sp -> do
   when (forceRecount sp) Q2.cleanTemporary
 
   -- start server
-  let opts = Options 1 (Warp.setHost (hostPref sp) Warp.defaultSettings)
+  let opts = Options 1 $ Warp.setPort (port sp) $ Warp.setHost (hostPref sp) Warp.defaultSettings
   scottyOptsT opts (runRIO env) endpoints
 
 
