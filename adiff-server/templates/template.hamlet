@@ -47,6 +47,11 @@ $doctype 5
       width: 100%;
       min-height: 400px;
     }
+    footer a,
+    footer a:visited {
+      color: white;
+      text-decoration: underline
+    }
 
 <body>
   <header class="" style="background-color:#5397CC; color: white; padding: 30px;">
@@ -59,7 +64,13 @@ $doctype 5
 
   <footer class="page-footer center" style="background-color: #5397CC; color:white">
       pages served with adiff-server
-
+    <p>
+      MPI Software Systems:
+      <a href="https://www.mpi-sws.org/imprint">
+        Imprint/Impressum
+      <a href="https://www.mpi-sws.org/data-protection">
+        Data Protection/Datenschutzhinweis
+  
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
 <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"> -->
 <script src="/js/materialize.min.js">
